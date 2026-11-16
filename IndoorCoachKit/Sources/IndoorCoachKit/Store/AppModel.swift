@@ -81,6 +81,8 @@ public final class AppModel {
         stravaClientID = defaults.string(forKey: Keys.stravaClientID) ?? ""
         lastSync = defaults.object(forKey: Keys.lastSync) as? Date
         refreshCredentialState()
+        // Exported .zwo files are only needed while the share sheet is open.
+        try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent("zwo"))
     }
 
     // MARK: - Credentials
@@ -177,14 +179,15 @@ public final class AppModel {
         defer { isSyncing = false }
         let since: Date
         if !full, let lastSync {
-            since = lastSync.addingTimeInterval(-2 * 86_400)
+            since = lastSync.addingTimeInterval(-7 * 86_400) // late uploads; upsert makes overlap cheap
         } else {
-            since = Calendar.current.date(byAdding: .day, value: -120, to: .now)!
+            // 210 days so the 42-day fitness average is warmed up before the visible 90-day window.
+            since = Calendar.current.date(byAdding: .day, value: -210, to: .now)!
         }
         do {
             let rides = try await stravaClient.fetchRides(after: since)
             let existing = try context.fetch(FetchDescriptor<StoredRide>())
-            var byID = Dictionary(uniqueKeysWithValues: existing.map { ($0.stravaID, $0) })
+            var byID = Dictionary(existing.map { ($0.stravaID, $0) }, uniquingKeysWith: { first, _ in first })
             for ride in rides {
                 if let stored = byID[ride.id] { stored.update(from: ride) }
                 else {
@@ -245,7 +248,7 @@ public final class AppModel {
         let end = calendar.date(byAdding: .day, value: max(profile.planHorizonDays, 1) - 1, to: start)!
         let rides = allRides()
         let series = loadSeries(rides: rides, now: now)
-        let weeks = TrainingLoad.weeks(rides: rides, ftp: profile.ftp,
+        let weeks = TrainingLoad.weeks(rides: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
                                        from: calendar.date(byAdding: .day, value: -42, to: today)!, to: today)
         let recent = rides.filter { $0.startDate >= calendar.date(byAdding: .day, value: -21, to: today)! }
         let planned = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? [])
@@ -318,28 +321,38 @@ public final class AppModel {
     }
 
     public func addToCalendar(_ workouts: [StoredWorkout]) async {
+        let ids = workouts.filter { $0.status == .planned }.map(\.persistentModelID)
+        guard !ids.isEmpty else {
+            show("Keine offenen Einheiten für den Kalender.", error: false); return
+        }
         var count = 0
+        defer { try? context.save() }
         do {
-            for w in workouts where w.status == .planned {
-                w.calendarEventID = try await calendarService.upsert(
-                    eventID: w.calendarEventID,
-                    title: "🚴 \(w.title)",
-                    start: startDate(for: w),
-                    durationSeconds: w.definition.totalDuration,
-                    notes: calendarNotes(for: w))
-                count += 1
+            for id in ids {
+                // Re-resolve after every await – the workout may have been deleted meanwhile.
+                guard let w = context.model(for: id) as? StoredWorkout, !w.isDeleted else { continue }
+                let request = (eventID: w.calendarEventID, title: "🚴 \(w.title)", start: startDate(for: w),
+                               duration: w.definition.totalDuration, notes: calendarNotes(for: w))
+                let eventID = try await calendarService.upsert(eventID: request.eventID, title: request.title,
+                                                               start: request.start, durationSeconds: request.duration,
+                                                               notes: request.notes)
+                if let w = context.model(for: id) as? StoredWorkout, !w.isDeleted {
+                    w.calendarEventID = eventID
+                    count += 1
+                }
             }
-            try? context.save()
             show(count == 1 ? "Im Kalender eingetragen." : "\(count) Einheiten im Kalender eingetragen.", error: false)
         } catch {
             show(error.localizedDescription, error: true)
         }
     }
 
+    /// Deletes synchronously first (no awaits while holding the model), then cleans up the calendar.
     public func delete(_ workout: StoredWorkout) async {
-        if let id = workout.calendarEventID { try? await calendarService.remove(eventID: id) }
+        let eventID = workout.calendarEventID
         context.delete(workout)
         try? context.save()
+        if let eventID { try? await calendarService.remove(eventID: eventID) }
     }
 
     public func setStatus(_ status: WorkoutStatus, for workout: StoredWorkout) {

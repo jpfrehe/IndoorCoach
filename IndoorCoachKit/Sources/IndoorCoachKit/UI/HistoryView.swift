@@ -32,7 +32,7 @@ struct HistoryView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
 
-                    HistoryChart(rides: rides, ftp: model.profile.ftp)
+                    HistoryChart(rides: rides, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate)
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                 }
                 if rides.isEmpty {
@@ -42,13 +42,13 @@ struct HistoryView: View {
                 ForEach(groups(rides), id: \.start) { group in
                     Section {
                         ForEach(group.rides) { ride in
-                            NavigationLink(value: ride) { RideRow(ride: ride, ftp: model.profile.ftp) }
+                            NavigationLink(value: ride) { RideRow(ride: ride, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate) }
                         }
                     } header: {
                         HStack {
                             Text("KW \(Calendar(identifier: .iso8601).component(.weekOfYear, from: group.start))")
                             Spacer()
-                            Text("\(Formatters.duration(group.rides.reduce(0) { $0 + $1.movingTime })) · TSS \(Int(group.rides.reduce(0) { $0 + TrainingLoad.estimateTSS(for: $1, ftp: model.profile.ftp).tss }.rounded()))")
+                            Text("\(Formatters.duration(group.rides.reduce(0) { $0 + $1.movingTime })) · TSS \(Int(group.rides.reduce(0) { $0 + TrainingLoad.estimateTSS(for: $1, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate).tss }.rounded()))")
                                 .monospacedDigit()
                         }
                     }
@@ -79,6 +79,7 @@ struct HistoryView: View {
 struct HistoryChart: View {
     var rides: [RideSummary]
     var ftp: Int
+    var thresholdHeartRate: Int? = nil
     @State private var metric: Metric = .hours
 
     enum Metric: String, CaseIterable, Identifiable {
@@ -88,7 +89,7 @@ struct HistoryChart: View {
 
     var body: some View {
         let today = Calendar.current.startOfDay(for: .now)
-        let weeks = TrainingLoad.weeks(rides: rides, ftp: ftp,
+        let weeks = TrainingLoad.weeks(rides: rides, ftp: ftp, thresholdHeartRate: thresholdHeartRate,
                                        from: Calendar.current.date(byAdding: .weekOfYear, value: -11, to: today)!, to: today)
         VStack(alignment: .leading, spacing: 10) {
             HStack {

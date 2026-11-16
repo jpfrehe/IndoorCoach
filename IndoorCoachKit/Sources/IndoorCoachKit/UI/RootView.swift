@@ -53,6 +53,23 @@ public enum AppEnvironment {
         return try ModelContainer(for: schema, configurations: [config])
     }
 
+    /// Opens the store; if it cannot be opened (e.g. after an incompatible schema change in a sideloaded build),
+    /// moves the old files aside and starts fresh instead of crashing. Rides re-sync from Strava.
+    public static func makeContainerRecovering() -> ModelContainer {
+        if let container = try? makeContainer() { return container }
+        let support = URL.applicationSupportDirectory
+        let fm = FileManager.default
+        let stamp = Int(Date.now.timeIntervalSince1970)
+        for name in ["default.store", "default.store-shm", "default.store-wal"] {
+            let url = support.appendingPathComponent(name)
+            if fm.fileExists(atPath: url.path) {
+                try? fm.moveItem(at: url, to: support.appendingPathComponent("\(name).broken-\(stamp)"))
+            }
+        }
+        if let container = try? makeContainer() { return container }
+        return try! makeContainer(inMemory: true)
+    }
+
     public static func makeModel(container: ModelContainer) -> AppModel {
         AppModel(context: container.mainContext, secrets: KeychainSecretStore())
     }

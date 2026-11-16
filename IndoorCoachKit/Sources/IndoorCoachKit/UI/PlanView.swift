@@ -41,12 +41,18 @@ struct PlanView: View {
                 }
                 let past = workouts.filter { $0.date < today }.reversed()
                 if !past.isEmpty {
-                    Section(isExpanded: $showPast) {
-                        ForEach(Array(past)) { workout in
-                            NavigationLink(value: workout) { WorkoutRow(workout: workout, ftp: model.profile.ftp) }
+                    Section {
+                        Button {
+                            withAnimation { showPast.toggle() }
+                        } label: {
+                            Label(showPast ? "Vergangene ausblenden" : "Vergangene Einheiten (\(past.count))",
+                                  systemImage: showPast ? "chevron.up" : "clock.arrow.circlepath")
                         }
-                    } header: {
-                        Text("Vergangene Einheiten (\(past.count))")
+                        if showPast {
+                            ForEach(Array(past)) { workout in
+                                NavigationLink(value: workout) { WorkoutRow(workout: workout, ftp: model.profile.ftp) }
+                            }
+                        }
                     }
                 }
             }
@@ -102,6 +108,8 @@ struct PlanGeneratorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var wish = ""
     @State private var startToday = false
+    /// Cached so typing in the wish field does not re-run fetches and load calculations.
+    @State private var ctx: PlanContext?
 
     var body: some View {
         @Bindable var model = model
@@ -118,16 +126,28 @@ struct PlanGeneratorSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Abbrechen") { model.discardProposal(); dismiss() }
+                        .disabled(model.isPlanning)
                 }
             }
         }
         .interactiveDismissDisabled(model.isPlanning)
+        .task(id: "\(startToday)-\(model.profile.planHorizonDays)") {
+            ctx = model.planContext(wish: "", startToday: startToday)
+        }
     }
 
     @ViewBuilder
     private func form(model: AppModel) -> some View {
+        if let ctx {
+            form(model: model, ctx: ctx)
+        } else {
+            ProgressView()
+        }
+    }
+
+    @ViewBuilder
+    private func form(model: AppModel, ctx: PlanContext) -> some View {
         @Bindable var model = model
-        let ctx = model.planContext(wish: wish, startToday: startToday)
         Form {
             Section {
                 Picker("Zeitraum", selection: $model.profile.planHorizonDays) {

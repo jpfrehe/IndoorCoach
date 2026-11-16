@@ -205,7 +205,7 @@ public enum PlanPrompt {
         let end = calendar.startOfDay(for: ctx.horizonEnd)
         var usedDays = Set(ctx.alreadyPlanned.map { calendar.startOfDay(for: $0.date) })
 
-        for w in raw.workouts {
+        for w in raw.workouts.prefix(31) {
             guard let parsed = Formatters.isoDay.date(from: w.date) else {
                 rejected.append("\(w.title): ungültiges Datum \(w.date)"); continue
             }
@@ -216,17 +216,24 @@ public enum PlanPrompt {
             guard !usedDays.contains(date) else {
                 rejected.append("\(w.title): am \(w.date) ist schon eine Einheit geplant"); continue
             }
-            let segments = w.segments.compactMap(sanitize)
-            let definition = WorkoutDefinition(title: w.title, type: WorkoutType(rawValue: w.type) ?? .mixed,
-                                               summary: w.summary, segments: segments)
+            let segments = w.segments.prefix(60).compactMap(sanitize)
+            let definition = WorkoutDefinition(title: clean(w.title, max: 80), type: WorkoutType(rawValue: w.type) ?? .mixed,
+                                               summary: clean(w.summary, max: 400), segments: segments)
             guard definition.totalDuration >= 10 * 60, definition.totalDuration <= 5 * 3600 else {
                 rejected.append("\(w.title): unplausible Dauer"); continue
             }
             usedDays.insert(date)
-            accepted.append(PlannedWorkoutProposal(date: date, definition: definition, rationale: w.rationale))
+            accepted.append(PlannedWorkoutProposal(date: date, definition: definition, rationale: clean(w.rationale, max: 500)))
         }
-        return PlanProposal(weekFocus: raw.weekFocus, notes: raw.notes,
+        return PlanProposal(weekFocus: clean(raw.weekFocus, max: 120), notes: clean(raw.notes, max: 800),
                             workouts: accepted.sorted { $0.date < $1.date }, rejected: rejected)
+    }
+
+    /// Removes control characters (keeps newlines) and clamps length – LLM text ends up in XML and calendar notes.
+    static func clean(_ s: String, max: Int) -> String {
+        let scalars = s.unicodeScalars.filter { $0 == "\n" || !CharacterSet.controlCharacters.contains($0) }
+        let text = String(String.UnicodeScalarView(scalars)).trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.count > max ? String(text.prefix(max - 1)) + "…" : text
     }
 
     /// Clamps powers to a sane range and drops broken segments.
@@ -235,10 +242,12 @@ public enum PlanPrompt {
         func clamp(_ v: Double?) -> Double? { v.map { min(max($0, 0.3), 2.5) } }
         s.power = clamp(s.power); s.powerLow = clamp(s.powerLow); s.powerHigh = clamp(s.powerHigh)
         s.onPower = clamp(s.onPower); s.offPower = clamp(s.offPower)
+        s.cadence = s.cadence.flatMap { (40...140).contains($0) ? $0 : nil }
+        s.text = s.text.map { clean($0, max: 60) }.flatMap { $0.isEmpty ? nil : $0 }
         switch s.kind {
         case .intervals:
-            guard let r = s.repeatCount, r > 0, r <= 40, let on = s.onDuration, on > 0, let off = s.offDuration, off >= 0,
-                  s.onPower != nil else { return nil }
+            guard let r = s.repeatCount, r > 0, r <= 40, let on = s.onDuration, (5...3600).contains(on),
+                  let off = s.offDuration, (0...3600).contains(off), s.onPower != nil else { return nil }
             s.offPower = s.offPower ?? 0.5
             s.duration = r * (on + off)
         case .steady:

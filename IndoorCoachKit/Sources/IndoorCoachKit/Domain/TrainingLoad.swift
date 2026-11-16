@@ -113,7 +113,7 @@ public enum TrainingLoad {
     }
 
     /// Aggregates rides into ISO weeks (Monday start). Weeks without rides inside the range are included as zero.
-    public static func weeks(rides: [RideSummary], ftp: Int, from start: Date, to end: Date,
+    public static func weeks(rides: [RideSummary], ftp: Int, thresholdHeartRate: Int? = nil, from start: Date, to end: Date,
                              calendar baseCalendar: Calendar = .current) -> [WeekSummary] {
         var calendar = baseCalendar
         calendar.firstWeekday = 2
@@ -134,7 +134,7 @@ public enum TrainingLoad {
             guard var bucket = buckets[key] else { continue }
             bucket.rides += 1
             bucket.seconds += ride.movingTime
-            bucket.tss += estimateTSS(for: ride, ftp: ftp).tss
+            bucket.tss += estimateTSS(for: ride, ftp: ftp, thresholdHeartRate: thresholdHeartRate).tss
             bucket.kilojoules += ride.kilojoules ?? 0
             if ride.isIndoor { bucket.indoorSeconds += ride.movingTime }
             buckets[key] = bucket

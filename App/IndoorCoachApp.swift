@@ -9,13 +9,9 @@ struct IndoorCoachApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        do {
-            let container = try AppEnvironment.makeContainer()
-            self.container = container
-            _model = State(initialValue: AppEnvironment.makeModel(container: container))
-        } catch {
-            fatalError("Datenbank konnte nicht geöffnet werden: \(error)")
-        }
+        let container = AppEnvironment.makeContainerRecovering()
+        self.container = container
+        _model = State(initialValue: AppEnvironment.makeModel(container: container))
     }
 
     var body: some Scene {

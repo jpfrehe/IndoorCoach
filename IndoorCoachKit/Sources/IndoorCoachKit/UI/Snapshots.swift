@@ -49,10 +49,10 @@ public enum SnapshotScenes {
             }
         }))
         result.append(Scene(name: "04-verlauf", view: phone("Verlauf") {
-            Card { HistoryChart(rides: rides, ftp: model.profile.ftp) }
+            Card { HistoryChart(rides: rides, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate) }
             Card(title: "Letzte Fahrten", systemImage: "bicycle") {
                 ForEach(rides.suffix(6).reversed()) { r in
-                    RideRow(ride: r, ftp: model.profile.ftp)
+                    RideRow(ride: r, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate)
                     Divider()
                 }
             }

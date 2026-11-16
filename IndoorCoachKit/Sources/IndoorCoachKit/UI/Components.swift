@@ -279,9 +279,10 @@ struct WorkoutRow: View {
 struct RideRow: View {
     var ride: RideSummary
     var ftp: Int
+    var thresholdHeartRate: Int? = nil
 
     var body: some View {
-        let est = TrainingLoad.estimateTSS(for: ride, ftp: ftp)
+        let est = TrainingLoad.estimateTSS(for: ride, ftp: ftp, thresholdHeartRate: thresholdHeartRate)
         HStack(spacing: 12) {
             Image(systemName: ride.isIndoor ? "figure.indoor.cycle" : "figure.outdoor.cycle")
                 .font(.system(size: 17, weight: .semibold))

@@ -52,7 +52,7 @@ struct ProfileView: View {
 
     private func goalSection(_ model: AppModel) -> some View {
         @Bindable var model = model
-        return Section("Ziel") {
+        return Section {
             TextField("Ziel", text: $model.profile.goal, axis: .vertical).lineLimit(2...4)
             Toggle("Zieldatum", isOn: Binding(get: { model.profile.goalDate != nil },
                                              set: { model.profile.goalDate = $0 ? (model.profile.goalDate ?? Calendar.current.date(byAdding: .month, value: 3, to: .now)) : nil }))
@@ -62,6 +62,8 @@ struct ProfileView: View {
             }
             TextField("Hinweise für den Coach (z. B. Knie schonen, keine Sprints)", text: $model.profile.notes, axis: .vertical)
                 .lineLimit(1...4)
+        } header: { Text("Ziel") } footer: {
+            Text("Ziel und Hinweise werden beim Planen an Claude (Anthropic) gesendet – bitte keine sensiblen Gesundheitsdaten.")
         }
     }
 

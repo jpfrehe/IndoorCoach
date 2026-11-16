@@ -58,7 +58,8 @@ public struct Keychain: Sendable {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: key.rawValue
+            kSecAttrAccount as String: key.rawValue,
+            kSecAttrSynchronizable as String: false
         ]
     }
 }

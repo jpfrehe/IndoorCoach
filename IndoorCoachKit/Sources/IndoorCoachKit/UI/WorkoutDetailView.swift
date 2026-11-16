@@ -8,6 +8,15 @@ struct WorkoutDetailView: View {
     @State private var confirmDelete = false
 
     var body: some View {
+        if workout.isDeleted || workout.modelContext == nil {
+            // The model was deleted while the pop animation is still running.
+            Color.clear
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             WorkoutDetailContent(workout: workout, zwoURL: zwoURL,
                                  onCalendar: { Task { await model.addToCalendar([workout]) } })
@@ -34,7 +43,12 @@ struct WorkoutDetailView: View {
         }
         .confirmationDialog("Einheit löschen?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
-                Task { await model.delete(workout); dismiss() }
+                let target = workout
+                dismiss()
+                Task {
+                    try? await Task.sleep(for: .milliseconds(450)) // let the pop animation finish first
+                    await model.delete(target)
+                }
             }
         } message: {
             Text("Ein vorhandener Kalendereintrag wird ebenfalls entfernt.")
@@ -98,7 +112,7 @@ struct WorkoutDetailContent: View {
             }
 
             Card(title: "Ablauf", systemImage: "list.bullet") {
-                ForEach(d.segments) { segment in
+                ForEach(Array(d.segments.enumerated()), id: \.offset) { _, segment in
                     HStack(alignment: .top, spacing: 10) {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(Theme.color(for: PowerZone(fractionOfFTP: segment.onPower ?? segment.power ?? segment.powerHigh ?? 0.5)))

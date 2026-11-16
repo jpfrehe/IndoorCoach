@@ -230,6 +230,32 @@ struct ClaudeTests {
         }
     }
 
+    @Test func llmTextIsCleanedAndClamped() {
+        #expect(PlanPrompt.clean("Sweet\u{0000} Spot\u{0007}\n", max: 80) == "Sweet Spot")
+        #expect(PlanPrompt.clean(String(repeating: "a", count: 100), max: 10).count == 10)
+        var seg = Segment.steady(10, at: 0.9, cadence: 9999, text: String(repeating: "x", count: 200))
+        seg = PlanPrompt.sanitize(seg)!
+        #expect(seg.cadence == nil)
+        #expect(seg.text!.count == 60)
+        #expect(PlanPrompt.sanitize(.intervals(3, on: 0, at: 1.2, off: 60, at: 0.5)) == nil)
+    }
+
+    @Test func retriesWithoutFallbackWhenRejected() async throws {
+        let ok = #"{"content":[{"type":"text","text":"{}"}],"stop_reason":"end_turn"}"#
+        let transport = MockTransport([(400, #"{"error":{"message":"fallbacks: unknown parameter"}}"#, [:]), (200, ok, [:])])
+        let client = ClaudeClient(apiKey: "k", transport: transport)
+        _ = try await client.structuredJSON(system: "", user: "", schema: [:])
+        #expect(transport.requests.count == 2)
+        let second = try JSONSerialization.jsonObject(with: transport.requests[1].httpBody!) as! [String: Any]
+        #expect(second["fallbacks"] == nil)
+        #expect(transport.requests[1].value(forHTTPHeaderField: "anthropic-beta") == nil)
+    }
+
+    @Test func errorMessagesRedactKeys() {
+        let msg = ClaudeClient.redact("invalid key sk-ant-api03-ABC_def-123 provided")
+        #expect(msg == "invalid key sk-ant-… provided")
+    }
+
     @Test func demoCoachRespectsTrainingDaysAndExistingPlan() throws {
         let ctx = context()
         let plan = DemoCoach.makePlan(ctx)

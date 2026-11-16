@@ -235,8 +235,10 @@ public actor StravaClient {
         case 429: throw StravaError.rateLimited
         case 401: throw StravaError.notConnected
         default:
-            let message = String(data: data.prefix(300), encoding: .utf8) ?? ""
-            throw StravaError.http(response.statusCode, message)
+            struct Fault: Decodable { let message: String? }
+            let message = (try? JSONDecoder().decode(Fault.self, from: data))?.message
+                ?? String(data: data.prefix(200), encoding: .utf8) ?? ""
+            throw StravaError.http(response.statusCode, ClaudeClient.redact(message))
         }
     }
 }

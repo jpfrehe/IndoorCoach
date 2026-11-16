@@ -82,8 +82,10 @@ public struct ClaudeClient: Sendable {
     /// Sends one structured-output request and returns the JSON text. Retries once on 429/529.
     public func structuredJSON(system: String, user: String, schema: [String: Any], effort: String = "medium") async throws -> Result {
         guard !apiKey.isEmpty else { throw ClaudeError.missingAPIKey }
-        let request = try makeRequest(body: requestBody(system: system, user: user, schema: schema, effort: effort))
+        var body = requestBody(system: system, user: user, schema: schema, effort: effort)
+        var request = try makeRequest(body: body)
         var attempt = 0
+        var usedFallbackFeature = true
         while true {
             attempt += 1
             let (data, response) = try await transport.data(for: request)
@@ -92,6 +94,13 @@ public struct ClaudeClient: Sendable {
                 return try Self.parseResponse(data)
             case 401, 403:
                 throw ClaudeError.invalidAPIKey
+            case 400 where usedFallbackFeature && Self.errorMessage(from: data).lowercased().contains("fallback"):
+                // Safety net: if the refusal-fallback beta is not available for this key/model, retry without it.
+                usedFallbackFeature = false
+                body["fallbacks"] = nil
+                request = try makeRequest(body: body)
+                request.setValue(nil, forHTTPHeaderField: "anthropic-beta")
+                continue
             case 429, 529:
                 if attempt < 2 {
                     let wait = Double(response.value(forHTTPHeaderField: "retry-after") ?? "") ?? 5
@@ -131,8 +140,15 @@ public struct ClaudeClient: Sendable {
 
     static func errorMessage(from data: Data) -> String {
         struct APIError: Decodable { struct Inner: Decodable { let message: String }; let error: Inner }
-        if let e = try? JSONDecoder().decode(APIError.self, from: data) { return e.error.message }
-        return String(data: data.prefix(300), encoding: .utf8) ?? ""
+        let raw = (try? JSONDecoder().decode(APIError.self, from: data))?.error.message
+            ?? String(data: data.prefix(300), encoding: .utf8) ?? ""
+        return redact(raw)
+    }
+
+    /// Strips anything that looks like an API key and truncates – server text ends up in the UI.
+    public static func redact(_ text: String) -> String {
+        let redacted = text.replacingOccurrences(of: #"sk-ant-[A-Za-z0-9_\-]+"#, with: "sk-ant-…", options: .regularExpression)
+        return redacted.count > 200 ? String(redacted.prefix(199)) + "…" : redacted
     }
 }
 

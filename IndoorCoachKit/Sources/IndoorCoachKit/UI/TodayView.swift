@@ -38,7 +38,7 @@ struct TodayDashboard: View {
         let series = model.loadSeries(rides: rides)
         let today = Calendar.current.startOfDay(for: .now)
         let next = workouts.first { $0.status == .planned && $0.date >= today }
-        let weeks = TrainingLoad.weeks(rides: rides, ftp: model.profile.ftp,
+        let weeks = TrainingLoad.weeks(rides: rides, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate,
                                        from: Calendar.current.date(byAdding: .weekOfYear, value: -7, to: today)!, to: today)
 
         VStack(spacing: 16) {
