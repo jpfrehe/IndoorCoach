@@ -1,0 +1,256 @@
+import SwiftData
+import SwiftUI
+
+struct PlanView: View {
+    @Environment(AppModel.self) private var model
+    @Query(sort: \StoredWorkout.date) private var workouts: [StoredWorkout]
+    @State private var showGenerator = false
+    @State private var showPast = false
+
+    private var today: Date { Calendar.current.startOfDay(for: .now) }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                let upcoming = workouts.filter { $0.date >= today }
+                if upcoming.isEmpty {
+                    Section {
+                        EmptyStateView(title: "Noch kein Plan", systemImage: "sparkles",
+                                       message: "Tippe auf „Planen“, damit dein Coach die nächsten Tage auf Basis deiner Form und Ziele plant.")
+                    }
+                }
+                ForEach(weekGroups(upcoming), id: \.start) { group in
+                    Section {
+                        ForEach(group.items) { workout in
+                            NavigationLink(value: workout) { WorkoutRow(workout: workout, ftp: model.profile.ftp) }
+                                .swipeActions(edge: .leading) {
+                                    Button { Task { await model.addToCalendar([workout]) } } label: {
+                                        Label("Kalender", systemImage: "calendar.badge.plus")
+                                    }
+                                    .tint(.blue)
+                                }
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) { Task { await model.delete(workout) } } label: {
+                                        Label("Löschen", systemImage: "trash")
+                                    }
+                                }
+                        }
+                    } header: {
+                        weekHeader(group)
+                    }
+                }
+                let past = workouts.filter { $0.date < today }.reversed()
+                if !past.isEmpty {
+                    Section(isExpanded: $showPast) {
+                        ForEach(Array(past)) { workout in
+                            NavigationLink(value: workout) { WorkoutRow(workout: workout, ftp: model.profile.ftp) }
+                        }
+                    } header: {
+                        Text("Vergangene Einheiten (\(past.count))")
+                    }
+                }
+            }
+            .navigationTitle("Plan")
+            .navigationDestination(for: StoredWorkout.self) { WorkoutDetailView(workout: $0) }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showGenerator = true } label: { Label("Planen", systemImage: "sparkles") }
+                }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
+                        Task { await model.addToCalendar(workouts.filter { $0.date >= today && $0.status == .planned }) }
+                    } label: { Label("Alle in Kalender", systemImage: "calendar.badge.plus") }
+                }
+            }
+            .sheet(isPresented: $showGenerator) {
+                PlanGeneratorSheet()
+            }
+        }
+    }
+
+    struct WeekGroup { let start: Date; let items: [StoredWorkout] }
+
+    private func weekGroups(_ items: [StoredWorkout]) -> [WeekGroup] {
+        var cal = Calendar.current
+        cal.firstWeekday = 2
+        let grouped = Dictionary(grouping: items) { cal.dateInterval(of: .weekOfYear, for: $0.date)?.start ?? $0.date }
+        return grouped.keys.sorted().map { WeekGroup(start: $0, items: grouped[$0]!.sorted { $0.date < $1.date }) }
+    }
+
+    private func weekHeader(_ group: WeekGroup) -> some View {
+        var cal = Calendar.current
+        cal.firstWeekday = 2
+        let thisWeek = cal.dateInterval(of: .weekOfYear, for: .now)?.start
+        let title: String
+        if group.start == thisWeek { title = "Diese Woche" }
+        else if let thisWeek, group.start == cal.date(byAdding: .weekOfYear, value: 1, to: thisWeek) { title = "Nächste Woche" }
+        else { title = "Woche ab " + group.start.formatted(.dateTime.day().month().locale(Locale(identifier: "de_DE"))) }
+        let seconds = group.items.reduce(0) { $0 + $1.definition.totalDuration }
+        let tss = group.items.reduce(0.0) { $0 + $1.definition.estimatedTSS }
+        return HStack {
+            Text(title)
+            Spacer()
+            Text("\(Formatters.duration(seconds)) · TSS \(Int(tss.rounded()))").monospacedDigit()
+        }
+    }
+}
+
+// MARK: - Generator
+
+struct PlanGeneratorSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var wish = ""
+    @State private var startToday = false
+
+    var body: some View {
+        @Bindable var model = model
+        NavigationStack {
+            Group {
+                if let proposal = model.proposal {
+                    ProposalReview(proposal: proposal, onDone: { dismiss() })
+                } else {
+                    form(model: model)
+                }
+            }
+            .navigationTitle(model.proposal == nil ? "Neuer Plan" : "Vorschlag")
+            .inlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen") { model.discardProposal(); dismiss() }
+                }
+            }
+        }
+        .interactiveDismissDisabled(model.isPlanning)
+    }
+
+    @ViewBuilder
+    private func form(model: AppModel) -> some View {
+        @Bindable var model = model
+        let ctx = model.planContext(wish: wish, startToday: startToday)
+        Form {
+            Section {
+                Picker("Zeitraum", selection: $model.profile.planHorizonDays) {
+                    Text("7 Tage").tag(7)
+                    Text("14 Tage").tag(14)
+                }
+                .pickerStyle(.segmented)
+                Toggle("Ab heute planen", isOn: $startToday)
+                LabeledContent("Zeitraum", value: "\(Formatters.isoDay.string(from: ctx.horizonStart)) – \(Formatters.isoDay.string(from: ctx.horizonEnd))")
+            } header: { Text("Was soll geplant werden?") }
+
+            Section {
+                TextField("z. B. „Mittwoch habe ich nur 45 Minuten“ oder „Fokus VO₂max“", text: $wish, axis: .vertical)
+                    .lineLimit(2...5)
+            } header: { Text("Wünsche an den Coach (optional)") }
+
+            Section {
+                if let load = ctx.load {
+                    LabeledContent("Form (TSB)", value: Formatters.decimal(load.tsb))
+                    LabeledContent("Fitness (CTL)", value: Formatters.decimal(load.ctl))
+                }
+                LabeledContent("Ziel", value: model.profile.goal)
+                LabeledContent("Trainingstage", value: model.profile.trainingDays.sorted().compactMap { AthleteProfile.weekdayNames[$0] }.joined(separator: ", "))
+                if !ctx.alreadyPlanned.isEmpty {
+                    LabeledContent("Bereits geplant", value: "\(ctx.alreadyPlanned.count) Einheiten")
+                }
+            } header: { Text("Grundlage") } footer: {
+                Text(model.hasClaudeKey
+                     ? "Claude (\(model.profile.model)) erhält nur Kennzahlen deiner Fahrten – keine Namen, Orte oder GPS-Daten."
+                     : "Kein Claude-API-Key hinterlegt – es wird ein einfacher Demo-Plan ohne KI erstellt.")
+            }
+
+            Section {
+                Button {
+                    Task { await model.generatePlan(wish: wish, startToday: startToday) }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if model.isPlanning {
+                            ProgressView().padding(.trailing, 6)
+                            Text(model.hasClaudeKey ? "Claude plant …" : "Plane …")
+                        } else {
+                            Label(model.hasClaudeKey ? "Mit Claude planen" : "Demo-Plan erstellen", systemImage: "sparkles")
+                        }
+                        Spacer()
+                    }
+                    .font(.headline)
+                }
+                .disabled(model.isPlanning)
+            } footer: {
+                if model.isPlanning && model.hasClaudeKey {
+                    Text("Das dauert meist 30–90 Sekunden.")
+                }
+            }
+        }
+    }
+}
+
+struct ProposalReview: View {
+    var proposal: PlanProposal
+    var onDone: () -> Void
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                Card(title: "Fokus", systemImage: "scope") {
+                    Text(proposal.weekFocus).font(.title3.weight(.bold))
+                    if !proposal.notes.isEmpty {
+                        Text(proposal.notes).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    let seconds = proposal.workouts.reduce(0) { $0 + $1.definition.totalDuration }
+                    let tss = proposal.workouts.reduce(0.0) { $0 + $1.definition.estimatedTSS }
+                    HStack {
+                        StatTile(title: "Einheiten", value: "\(proposal.workouts.count)")
+                        StatTile(title: "Zeit", value: Formatters.duration(seconds))
+                        StatTile(title: "TSS", value: "\(Int(tss.rounded()))")
+                    }
+                }
+                ForEach(proposal.workouts, id: \.self) { w in
+                    Card {
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(WorkoutRow.dayLabel(w.date)).font(.subheadline).foregroundStyle(.secondary)
+                                Text(w.definition.title).font(.headline)
+                            }
+                            Spacer()
+                            TypeBadge(type: w.definition.type)
+                        }
+                        PowerProfileChart(definition: w.definition, ftp: model.profile.ftp, showAxes: false, height: 56)
+                        Text("\(Formatters.duration(w.definition.totalDuration)) · TSS \(Int(w.definition.estimatedTSS.rounded())) · \(w.definition.summary)")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Label(w.rationale, systemImage: "lightbulb")
+                            .font(.subheadline)
+                    }
+                }
+                if !proposal.rejected.isEmpty {
+                    Card(title: "Aussortiert", systemImage: "exclamationmark.triangle") {
+                        ForEach(proposal.rejected, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+            }
+            .padding()
+        }
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 8) {
+                Button {
+                    Task { await model.acceptProposal(addToCalendar: true); onDone() }
+                } label: {
+                    Label("Übernehmen & in Kalender", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                HStack {
+                    Button("Nur übernehmen") { Task { await model.acceptProposal(addToCalendar: false); onDone() } }
+                    Spacer()
+                    Button("Neu planen", role: .destructive) { model.discardProposal() }
+                }
+                .font(.subheadline.weight(.medium))
+            }
+            .padding()
+            .background(.bar)
+            .disabled(proposal.workouts.isEmpty)
+        }
+    }
+}

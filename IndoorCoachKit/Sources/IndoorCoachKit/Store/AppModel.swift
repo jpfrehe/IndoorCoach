@@ -1,0 +1,369 @@
+import Foundation
+import Observation
+import SwiftData
+
+/// Secret storage abstraction (Keychain on device, in-memory for previews/snapshots/tests).
+public protocol SecretStore: AnyObject, Sendable {
+    func secret(_ key: Keychain.Key) -> String?
+    func setSecret(_ value: String?, for key: Keychain.Key)
+    var tokenStore: StravaTokenStore { get }
+}
+
+public final class KeychainSecretStore: SecretStore, @unchecked Sendable {
+    let keychain = Keychain()
+    public init() {}
+    public func secret(_ key: Keychain.Key) -> String? { keychain.string(key) }
+    public func setSecret(_ value: String?, for key: Keychain.Key) { keychain.set(value, for: key) }
+    public var tokenStore: StravaTokenStore { KeychainStravaTokenStore(keychain: keychain) }
+}
+
+public final class InMemorySecretStore: SecretStore, StravaTokenStore, @unchecked Sendable {
+    private var values: [Keychain.Key: String] = [:]
+    private var tokens: StravaTokens?
+    private let lock = NSLock()
+    public init() {}
+    public func secret(_ key: Keychain.Key) -> String? { lock.withLock { values[key] } }
+    public func setSecret(_ value: String?, for key: Keychain.Key) { lock.withLock { values[key] = value } }
+    public var tokenStore: StravaTokenStore { self }
+    public func loadTokens() -> StravaTokens? { lock.withLock { tokens } }
+    public func saveTokens(_ tokens: StravaTokens?) { lock.withLock { self.tokens = tokens } }
+}
+
+public struct Banner: Identifiable, Equatable {
+    public let id = UUID()
+    public var message: String
+    public var isError: Bool
+}
+
+@MainActor
+@Observable
+public final class AppModel {
+    // MARK: Settings
+    public var profile: AthleteProfile { didSet { persistProfile() } }
+    public var stravaClientID: String { didSet { defaults.set(stravaClientID, forKey: Keys.stravaClientID) } }
+
+    // MARK: State
+    public private(set) var stravaAthleteName: String?
+    public private(set) var isStravaConnected = false
+    public private(set) var hasClaudeKey = false
+    public private(set) var hasStravaSecret = false
+    public private(set) var isSyncing = false
+    public private(set) var isPlanning = false
+    public private(set) var lastSync: Date?
+    public var banner: Banner?
+    public var proposal: PlanProposal?
+    public private(set) var proposalSource: WorkoutSource = .demo
+
+    public let context: ModelContext
+    let secrets: SecretStore
+    let defaults: UserDefaults
+    let calendarService: CalendarService
+    let transport: HTTPTransport
+
+    enum Keys {
+        static let profile = "profile.v1"
+        static let stravaClientID = "strava.clientID"
+        static let lastSync = "strava.lastSync"
+    }
+
+    public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
+                transport: HTTPTransport = URLSessionTransport()) {
+        self.context = context
+        self.secrets = secrets
+        self.defaults = defaults
+        self.transport = transport
+        self.calendarService = CalendarService()
+        if let data = defaults.data(forKey: Keys.profile), let p = try? JSONDecoder().decode(AthleteProfile.self, from: data) {
+            profile = p
+        } else {
+            profile = AthleteProfile()
+        }
+        stravaClientID = defaults.string(forKey: Keys.stravaClientID) ?? ""
+        lastSync = defaults.object(forKey: Keys.lastSync) as? Date
+        refreshCredentialState()
+    }
+
+    // MARK: - Credentials
+
+    public func refreshCredentialState() {
+        let tokens = secrets.tokenStore.loadTokens()
+        isStravaConnected = tokens != nil
+        stravaAthleteName = tokens?.athleteName
+        hasClaudeKey = !(secrets.secret(.claudeAPIKey) ?? "").isEmpty
+        hasStravaSecret = !(secrets.secret(.stravaClientSecret) ?? "").isEmpty
+    }
+
+    public func setClaudeAPIKey(_ key: String) {
+        secrets.setSecret(key, for: .claudeAPIKey)
+        refreshCredentialState()
+    }
+
+    public func setStravaClientSecret(_ secret: String) {
+        secrets.setSecret(secret, for: .stravaClientSecret)
+        refreshCredentialState()
+    }
+
+    public var isDemoMode: Bool { !isStravaConnected }
+
+    var stravaConfig: StravaConfig {
+        StravaConfig(clientID: stravaClientID.trimmingCharacters(in: .whitespaces),
+                     clientSecret: secrets.secret(.stravaClientSecret) ?? "")
+    }
+
+    var stravaClient: StravaClient {
+        StravaClient(config: stravaConfig, store: secrets.tokenStore, transport: transport)
+    }
+
+    // MARK: - Demo data
+
+    /// Seeds demo rides (and a demo plan) when nothing is connected, so every screen has content.
+    public func bootstrap() {
+        guard isDemoMode else { return }
+        let count = (try? context.fetchCount(FetchDescriptor<StoredRide>())) ?? 0
+        guard count == 0 else { return }
+        for ride in DemoData.rides(ftp: profile.ftp) {
+            context.insert(StoredRide(ride, isDemo: true))
+        }
+        let ctx = planContext(wish: "", startToday: true)
+        let plan = DemoCoach.makePlan(ctx)
+        for w in plan.workouts {
+            context.insert(StoredWorkout(proposal: w, source: .demo, weekFocus: plan.weekFocus))
+        }
+        try? context.save()
+    }
+
+    public func resetDemoData() {
+        try? context.delete(model: StoredRide.self, where: #Predicate { $0.isDemo })
+        try? context.delete(model: StoredWorkout.self, where: #Predicate { $0.sourceRaw == "demo" })
+        try? context.save()
+    }
+
+    // MARK: - Strava
+
+    /// Runs OAuth via the provided web-auth closure (ASWebAuthenticationSession in the UI layer).
+    public func connectStrava(authenticate: (URL) async throws -> URL) async {
+        let config = stravaConfig
+        guard config.isComplete else {
+            show(StravaError.notConfigured.localizedDescription, error: true); return
+        }
+        let state = UUID().uuidString
+        do {
+            let callback = try await authenticate(config.authorizeURL(state: state))
+            let tokens = try await stravaClient.completeAuthorization(callbackURL: callback, expectedState: state)
+            refreshCredentialState()
+            show("Mit Strava verbunden\(tokens.athleteName.map { " als \($0)" } ?? "").", error: false)
+            resetDemoData()
+            await syncStrava(full: true)
+        } catch {
+            show(error.localizedDescription, error: true)
+        }
+    }
+
+    public func disconnectStrava() async {
+        await stravaClient.disconnect()
+        try? context.delete(model: StoredRide.self)
+        try? context.save()
+        defaults.removeObject(forKey: Keys.lastSync)
+        lastSync = nil
+        refreshCredentialState()
+        bootstrap()
+        show("Strava getrennt – Demo-Daten aktiv.", error: false)
+    }
+
+    /// Incremental sync (overlap of 2 days to catch edits); full sync loads 120 days.
+    public func syncStrava(full: Bool = false) async {
+        guard isStravaConnected, !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+        let since: Date
+        if !full, let lastSync {
+            since = lastSync.addingTimeInterval(-2 * 86_400)
+        } else {
+            since = Calendar.current.date(byAdding: .day, value: -120, to: .now)!
+        }
+        do {
+            let rides = try await stravaClient.fetchRides(after: since)
+            let existing = try context.fetch(FetchDescriptor<StoredRide>())
+            var byID = Dictionary(uniqueKeysWithValues: existing.map { ($0.stravaID, $0) })
+            for ride in rides {
+                if let stored = byID[ride.id] { stored.update(from: ride) }
+                else {
+                    let stored = StoredRide(ride)
+                    context.insert(stored)
+                    byID[ride.id] = stored
+                }
+            }
+            linkCompletedWorkouts()
+            try context.save()
+            lastSync = .now
+            defaults.set(lastSync, forKey: Keys.lastSync)
+            show(rides.isEmpty ? "Strava: keine neuen Fahrten." : "Strava: \(rides.count) Fahrten synchronisiert.", error: false)
+        } catch {
+            refreshCredentialState()
+            show(error.localizedDescription, error: true)
+        }
+    }
+
+    /// Marks past planned workouts as done when a ride exists on the same day.
+    func linkCompletedWorkouts() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        guard let workouts = try? context.fetch(FetchDescriptor<StoredWorkout>()),
+              let rides = try? context.fetch(FetchDescriptor<StoredRide>()) else { return }
+        for w in workouts where w.status == .planned && w.date <= today {
+            let sameDay = rides.filter { calendar.isDate($0.startDate, inSameDayAs: w.date) }
+            if let ride = sameDay.first(where: { $0.summary.isIndoor }) ?? sameDay.first {
+                w.status = .done
+                w.linkedRideID = ride.stravaID
+            }
+        }
+    }
+
+    // MARK: - Data access
+
+    public func allRides() -> [RideSummary] {
+        let descriptor = FetchDescriptor<StoredRide>(sortBy: [SortDescriptor(\.startDate)])
+        return ((try? context.fetch(descriptor)) ?? []).map(\.summary)
+    }
+
+    public func loadSeries(rides: [RideSummary], days: Int = 90, now: Date = .now) -> [TrainingLoad.DayLoad] {
+        let calendar = Calendar.current
+        let end = calendar.startOfDay(for: now)
+        // Warm up the EWMA with everything we have, then show the last `days`.
+        let first = rides.map(\.startDate).min() ?? end
+        let daily = TrainingLoad.dailyTSS(rides: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate)
+        let full = TrainingLoad.series(dailyTSS: daily, from: min(first, end), to: end)
+        return Array(full.suffix(days))
+    }
+
+    // MARK: - Planning
+
+    public func planContext(wish: String, startToday: Bool, now: Date = .now) -> PlanContext {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let start = startToday ? today : calendar.date(byAdding: .day, value: 1, to: today)!
+        let end = calendar.date(byAdding: .day, value: max(profile.planHorizonDays, 1) - 1, to: start)!
+        let rides = allRides()
+        let series = loadSeries(rides: rides, now: now)
+        let weeks = TrainingLoad.weeks(rides: rides, ftp: profile.ftp,
+                                       from: calendar.date(byAdding: .day, value: -42, to: today)!, to: today)
+        let recent = rides.filter { $0.startDate >= calendar.date(byAdding: .day, value: -21, to: today)! }
+        let planned = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? [])
+            .filter { $0.status == .planned && $0.date >= start && $0.date <= end }
+            .map(\.proposal)
+        return PlanContext(profile: profile, today: today, horizonStart: start, horizonEnd: end,
+                           load: series.last, weeks: weeks, recentRides: recent, alreadyPlanned: planned, wish: wish)
+    }
+
+    public func generatePlan(wish: String, startToday: Bool) async {
+        guard !isPlanning else { return }
+        isPlanning = true
+        defer { isPlanning = false }
+        let ctx = planContext(wish: wish, startToday: startToday)
+        let key = secrets.secret(.claudeAPIKey) ?? ""
+        let coach: Coach = key.isEmpty
+            ? DemoCoach()
+            : ClaudeCoach(client: ClaudeClient(apiKey: key, model: profile.model, transport: transport))
+        do {
+            let plan = try await coach.plan(ctx)
+            proposalSource = key.isEmpty ? .demo : .claude
+            proposal = plan
+            if plan.workouts.isEmpty {
+                show("Der Coach hat für diesen Zeitraum keine Einheit vorgeschlagen.", error: false)
+            }
+        } catch {
+            show(error.localizedDescription, error: true)
+        }
+    }
+
+    public func acceptProposal(addToCalendar shouldAddToCalendar: Bool) async {
+        guard let plan = proposal else { return }
+        var created: [StoredWorkout] = []
+        for w in plan.workouts {
+            let stored = StoredWorkout(proposal: w, source: proposalSource, weekFocus: plan.weekFocus)
+            context.insert(stored)
+            created.append(stored)
+        }
+        try? context.save()
+        proposal = nil
+        if shouldAddToCalendar {
+            await addToCalendar(created)
+        } else {
+            show("\(created.count) Einheiten übernommen.", error: false)
+        }
+    }
+
+    public func discardProposal() { proposal = nil }
+
+    // MARK: - Workouts
+
+    public func startDate(for workout: StoredWorkout) -> Date {
+        Calendar.current.date(bySettingHour: profile.preferredStartHour, minute: profile.preferredStartMinute,
+                              second: 0, of: workout.date) ?? workout.date
+    }
+
+    public func calendarNotes(for workout: StoredWorkout) -> String {
+        let d = workout.definition
+        return """
+        \(d.summary)
+
+        \(d.plainTextDescription(ftp: profile.ftp))
+
+        Dauer \(Formatters.duration(d.totalDuration)) · TSS ≈ \(Int(d.estimatedTSS.rounded())) · IF \(Formatters.decimal(d.intensityFactor, digits: 2))
+
+        Warum: \(workout.rationale)
+
+        MyWhoosh: .zwo aus IndoorCoach teilen → workout.mywhoosh.com → Upload → „Export to MyWhoosh“.
+        """
+    }
+
+    public func addToCalendar(_ workouts: [StoredWorkout]) async {
+        var count = 0
+        do {
+            for w in workouts where w.status == .planned {
+                w.calendarEventID = try await calendarService.upsert(
+                    eventID: w.calendarEventID,
+                    title: "🚴 \(w.title)",
+                    start: startDate(for: w),
+                    durationSeconds: w.definition.totalDuration,
+                    notes: calendarNotes(for: w))
+                count += 1
+            }
+            try? context.save()
+            show(count == 1 ? "Im Kalender eingetragen." : "\(count) Einheiten im Kalender eingetragen.", error: false)
+        } catch {
+            show(error.localizedDescription, error: true)
+        }
+    }
+
+    public func delete(_ workout: StoredWorkout) async {
+        if let id = workout.calendarEventID { try? await calendarService.remove(eventID: id) }
+        context.delete(workout)
+        try? context.save()
+    }
+
+    public func setStatus(_ status: WorkoutStatus, for workout: StoredWorkout) {
+        workout.status = status
+        try? context.save()
+    }
+
+    /// Writes the `.zwo` into a temporary file for the share sheet.
+    public func zwoFile(for workout: StoredWorkout) throws -> URL {
+        let d = workout.definition
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("zwo", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent(ZWOExporter.fileName(for: d, date: workout.date))
+        try ZWOExporter.xml(for: d).write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    // MARK: - Helpers
+
+    public func show(_ message: String, error: Bool) {
+        banner = Banner(message: message, isError: error)
+    }
+
+    private func persistProfile() {
+        if let data = try? JSONEncoder().encode(profile) { defaults.set(data, forKey: Keys.profile) }
+    }
+}

@@ -1,0 +1,68 @@
+import SwiftData
+import SwiftUI
+
+public enum AppTab: Hashable { case today, plan, history, profile }
+
+public struct RootView: View {
+    @Environment(AppModel.self) private var model
+    @State private var tab: AppTab = .today
+
+    public init() {}
+
+    public var body: some View {
+        TabView(selection: $tab) {
+            Tab("Heute", systemImage: "sun.max.fill", value: AppTab.today) {
+                TodayView(tab: $tab)
+            }
+            Tab("Plan", systemImage: "calendar", value: AppTab.plan) {
+                PlanView()
+            }
+            Tab("Verlauf", systemImage: "chart.bar.xaxis", value: AppTab.history) {
+                HistoryView()
+            }
+            Tab("Profil", systemImage: "person.crop.circle", value: AppTab.profile) {
+                ProfileView()
+            }
+        }
+        .tint(Theme.accent)
+        .overlay(alignment: .top) {
+            if let banner = model.banner {
+                BannerView(banner: banner)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .task(id: banner.id) {
+                        try? await Task.sleep(for: .seconds(banner.isError ? 6 : 3))
+                        withAnimation { if model.banner?.id == banner.id { model.banner = nil } }
+                    }
+                    .onTapGesture { withAnimation { model.banner = nil } }
+            }
+        }
+        .animation(.spring(duration: 0.35), value: model.banner)
+        .task {
+            model.bootstrap()
+            await model.syncStrava()
+        }
+    }
+}
+
+/// Container + model factory used by the app, previews and the snapshot tool.
+@MainActor
+public enum AppEnvironment {
+    public static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
+        let schema = Schema([StoredRide.self, StoredWorkout.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
+        return try ModelContainer(for: schema, configurations: [config])
+    }
+
+    public static func makeModel(container: ModelContainer) -> AppModel {
+        AppModel(context: container.mainContext, secrets: KeychainSecretStore())
+    }
+
+    /// Fully in-memory demo model (no Keychain, no persistent defaults).
+    public static func makePreviewModel() -> (ModelContainer, AppModel) {
+        let container = try! makeContainer(inMemory: true)
+        let defaults = UserDefaults(suiteName: "preview-\(UUID().uuidString)")!
+        let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), defaults: defaults)
+        model.bootstrap()
+        return (container, model)
+    }
+}
