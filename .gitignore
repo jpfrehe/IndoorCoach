@@ -1,0 +1,10 @@
+.DS_Store
+.build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+.swiftpm/
+IndoorCoachKit/.build/
+build/
+snapshots/
+Config/Local.xcconfig
