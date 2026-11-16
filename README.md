@@ -3,11 +3,11 @@
 Persönliche iOS-App zur Planung von Indoor-Rennrad-Einheiten: Strava-Daten auswerten, mit Claude planen,
 in den Kalender eintragen und als `.zwo` nach MyWhoosh bringen. Läuft vollständig auf dem iPhone, ohne Backend.
 
-| Heute | Einheit | Plan | Verlauf |
-|-------|---------|------|---------|
-| ![](snapshots/01-heute.png) | ![](snapshots/02-workout.png) | ![](snapshots/03-plan.png) | ![](snapshots/04-verlauf.png) |
+| Heute | Plan | Einheit | Planer | Verlauf | Profil |
+|-------|------|---------|--------|---------|--------|
+| ![](snapshots/sim/01-heute.png) | ![](snapshots/sim/02-plan.png) | ![](snapshots/sim/03-workout.png) | ![](snapshots/sim/04-planer.png) | ![](snapshots/sim/05-verlauf.png) | ![](snapshots/sim/06-profil.png) |
 
-*(Screens aus dem Snapshot-Tool, Demo-Daten. Buttons werden dort als Platzhalter gerendert.)*
+*(iOS-27-Simulator, iPhone 18 Pro, Demo-Daten. Dunkelmodus: `snapshots/sim/07-heute-dark.png`)*
 
 ## Dokumente
 

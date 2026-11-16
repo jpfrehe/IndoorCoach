@@ -5,9 +5,23 @@ public enum AppTab: Hashable { case today, plan, history, profile }
 
 public struct RootView: View {
     @Environment(AppModel.self) private var model
-    @State private var tab: AppTab = .today
+    @State private var tab: AppTab = RootView.initialTab
 
     public init() {}
+
+    /// Debug-only launch argument for screenshots/UI checks: `-uiTab plan|history|profile`.
+    static var initialTab: AppTab {
+        #if DEBUG
+        switch UserDefaults.standard.string(forKey: "uiTab") {
+        case "plan": return .plan
+        case "history": return .history
+        case "profile": return .profile
+        default: return .today
+        }
+        #else
+        return .today
+        #endif
+    }
 
     public var body: some View {
         TabView(selection: $tab) {

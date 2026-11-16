@@ -4,13 +4,22 @@ import SwiftUI
 struct PlanView: View {
     @Environment(AppModel.self) private var model
     @Query(sort: \StoredWorkout.date) private var workouts: [StoredWorkout]
-    @State private var showGenerator = false
+    @State private var showGenerator = PlanView.debugFlag("uiPlanner")
     @State private var showPast = false
+    @State private var path: [StoredWorkout] = []
+
+    static func debugFlag(_ key: String) -> Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: key)
+        #else
+        false
+        #endif
+    }
 
     private var today: Date { Calendar.current.startOfDay(for: .now) }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 let upcoming = workouts.filter { $0.date >= today }
                 if upcoming.isEmpty {
@@ -71,6 +80,13 @@ struct PlanView: View {
             .sheet(isPresented: $showGenerator) {
                 PlanGeneratorSheet()
             }
+            .task {
+                // Debug launch argument `-uiDetail YES` opens the first upcoming workout.
+                if Self.debugFlag("uiDetail"), path.isEmpty,
+                   let first = workouts.first(where: { $0.date >= today && $0.type != .endurance }) ?? workouts.first {
+                    path = [first]
+                }
+            }
         }
     }
 
@@ -110,6 +126,10 @@ struct PlanGeneratorSheet: View {
     @State private var startToday = false
     /// Cached so typing in the wish field does not re-run fetches and load calculations.
     @State private var ctx: PlanContext?
+
+    static func shortDay(_ date: Date) -> String {
+        date.formatted(.dateTime.weekday(.abbreviated).day().month(.twoDigits).locale(Locale(identifier: "de_DE")))
+    }
 
     var body: some View {
         @Bindable var model = model
@@ -156,7 +176,7 @@ struct PlanGeneratorSheet: View {
                 }
                 .pickerStyle(.segmented)
                 Toggle("Ab heute planen", isOn: $startToday)
-                LabeledContent("Zeitraum", value: "\(Formatters.isoDay.string(from: ctx.horizonStart)) – \(Formatters.isoDay.string(from: ctx.horizonEnd))")
+                LabeledContent("Zeitraum", value: "\(Self.shortDay(ctx.horizonStart)) – \(Self.shortDay(ctx.horizonEnd))")
             } header: { Text("Was soll geplant werden?") }
 
             Section {

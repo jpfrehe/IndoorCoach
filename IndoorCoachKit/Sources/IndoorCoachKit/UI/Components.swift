@@ -272,7 +272,7 @@ struct WorkoutRow: View {
         if cal.isDateInToday(date) { return "Heute" }
         if cal.isDateInTomorrow(date) { return "Morgen" }
         if cal.isDateInYesterday(date) { return "Gestern" }
-        return date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE")))
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: "de_DE")))
     }
 }
 
