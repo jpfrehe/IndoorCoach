@@ -52,4 +52,24 @@ Vier Arbeitspakete, jedes in einem eigenen Git-Worktree. Ich prüfe jedes Ergebn
 | WP3 Onboarding | B01 | RootView, neue Onboarding-Views, AppModel-Flag, UI-Test |
 | WP4 Diagnose & Testplan | B05, B12 | Logger, Profil, docs |
 
-Ergebnis der Prüfung: siehe Abschnitt „Abnahme“ unten (wird nach der Umsetzung ergänzt).
+## Abnahme (Prüfung durch die Hauptsession, 17.11.2026)
+
+Vorgehen je Paket: Bericht gelesen, Diff der riskanten Stellen gelesen (AppModel, Services, Profil), Branch zusammengeführt, `swift test` und Build selbst ausgeführt, UI-Tests im Simulator selbst gefahren (die Agenten durften den Simulator nicht nutzen).
+
+| Paket | Ergebnis | Erfüllt | Nacharbeit durch mich |
+|---|---|---|---|
+| WP1 Release & Compliance (B02, B03, B06) | ✅ angenommen | Privacy-Manifest im Bundle, „Alle Daten löschen“ mit Tests, „Powered by Strava“ (Kontrast ≥ 4,5:1), Archiv- und Build-Nummer-Skripte, Release-Build grün | Konflikt mit WP2 im Kalenderdienst gelöst (Löschfunktion ins Backend-Protokoll verschoben, Fake ergänzt). „Alle Daten löschen“ meldet jetzt auch von MyWhoosh ab. |
+| WP2 Robustheit (B04, B10, B11) | ✅ angenommen | Rate-Limit/5xx mit Tests, Kalender heilt sich selbst (Fake-Backend), Demo-Bereinigung inkl. zweier gefundener Lücken, echter Migrationstest | Migrationstest war im parallelen Gesamtlauf instabil (Spaltenprüfung während WAL). Plausibilitätsprüfung entschärft, Kernaussage bleibt. |
+| WP3 Onboarding (B01) | ✅ angenommen | 3 Schritte, überspringbar, bestehende Nutzer sehen es nicht, Unit-Tests der Entscheidungslogik, UI-Tests test15/test16 | Onboarding-Flag in die Löschliste aufgenommen (Hinweis aus WP1). Previews setzen das Flag. |
+| WP4 Diagnose & Testplan (B05, B12) | ✅ angenommen mit Hinweis | Redigierter Diagnose-Export (Tests gegen Keys/Tokens/GPS), Feedback-Link, Pilot-Testplan | Konflikte mit WP2 gelöst. **Hinweis:** Die neuen Log-Zeilen im Kalenderdienst gingen beim Konflikt zugunsten von WP2s Umbau verloren. Die Fehler-Logs im AppModel blieben erhalten. UI-Test für das Teilen-Sheet fehlt (Accessibility-IDs vorhanden). `AppConfig.feedbackEmail` ist leer und vor dem Pilot zu setzen. |
+| B21 MyWhoosh-Direktupload | ✅ umgesetzt (Hauptsession) | Login, Upload, Ersetzen, Löschen, MyWhoosh-Kalender, Auto-Senden, 9 Unit-Tests, UI-Tests test17/test18 mit Debug-Stub | **Nicht live getestet**, weil kein MyWhoosh-Konto vorlag: Antwortformate und Platform-Wert stammen aus der Community-Doku. |
+
+**Integrierter Lauf nach allen Merges** (113 Unit-Tests grün; UI-Tests 01, 02, 05, 06, 14–18 im Simulator, iPhone 18 Pro):
+
+- Die vier Fehlschläge im ersten Lauf waren keine App-Fehler, sondern Testartefakte. Alle sind behoben:
+  - Die Trainingstage liegen jetzt unter dem Winter-Arc-Abschnitt und müssen gescrollt werden.
+  - Der Erfolgsbanner (3 s) war schon weg, als der Test danach suchte.
+  - Der FTP-Wert im Onboarding steht im Stepper-Label.
+  - Das Scrollen hat am Secret-Feld vorbeigeschossen.
+- Offen bleibt: Das Audit meldet im Einheit-Detail nach dem MyWhoosh-Senden 8 bis 12 Mal „Contrast failed“. Auf demselben Screen ohne vorheriges Senden (test01) heißt es nur „nearly passed“. Der Screenshot zeigt keinen Überlagerer, die Farben sind identisch. Das wird bei B13 mit dem Accessibility Inspector auf dem Gerät mitgeprüft.
+

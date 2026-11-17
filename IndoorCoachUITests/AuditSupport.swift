@@ -93,8 +93,11 @@ class AuditCase: XCTestCase {
     func scrollTo(_ element: XCUIElement, maxSwipes: Int = 8) {
         var n = 0
         while !element.isHittable && n < maxSwipes {
+            let existed = element.exists
             app.swipeUp(velocity: .slow)
             n += 1
+            // Overshot: the lazy Form dropped the row above the visible area – come back once and stop.
+            if existed && !element.exists { app.swipeDown(velocity: .slow); break }
         }
     }
 

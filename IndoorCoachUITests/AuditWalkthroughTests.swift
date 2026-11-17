@@ -105,10 +105,11 @@ final class AuditWalkthroughTests: AuditCase {
 
         tap(button(containing: "Übernehmen & in Kalender"), "Übernehmen & in Kalender")
         route = "plan"
+        // The success banner stays 3 s – look for it before the slower sheet checks.
+        let bannerShown = waitForBanner(containing: "Kalender")
         let closed = waitFast(app.navigationBars["Plan"], timeout: 6)
             && !app.navigationBars["Vorschlag"].exists && !app.navigationBars["Neuer Plan"].exists
         check(closed, "Sheet schließt nach Übernehmen")
-        let bannerShown = waitForBanner(containing: "Kalender")
         check(bannerShown, "Bestätigung nach Übernehmen sichtbar")
         shot("after-accept")
 
@@ -244,7 +245,9 @@ final class AuditWalkthroughTests: AuditCase {
         type(goal, " – Ötztaler Radmarathon '27 🚴", "Zielfeld")
         shot("goal-typed")
 
-        tap(app.buttons["Montag"], "Trainingstag Montag")
+        // The Winter-Arc section sits above the training days and the Form is lazy: scroll them into existence.
+        if app.keyboards.firstMatch.exists { app.swipeDown(velocity: .fast) }
+        tap(scrollUntilExists(app.buttons["Montag"]), "Trainingstag Montag")
         check(app.buttons["Montag"].isSelected, "Montag ist als gewählt markiert")
 
         // Close the goal keyboard first (Form does not scroll the key field into view while it is up).
@@ -298,7 +301,7 @@ final class AuditWalkthroughTests: AuditCase {
         launch(seed: nil)
         openTab("Profil")
         check(text(containing: "255 W").exists, "FTP 255 W überlebt Neustart")
-        check(app.buttons["Montag"].isSelected, "Montag überlebt Neustart")
+        check(scrollUntilExists(app.buttons["Montag"]).isSelected, "Montag überlebt Neustart")
         shot("after-relaunch")
     }
 
@@ -585,6 +588,8 @@ final class AuditWalkthroughTests: AuditCase {
         check(text(containing: "im MyWhoosh-Kalender").exists, "Status zeigt Eintrag im MyWhoosh-Kalender")
         shot("after-send")
         sleep(4) // let the confirmation banner fade out before auditing contrast
+        check(!text(containing: "an MyWhoosh gesendet").exists, "Banner vor dem Audit ausgeblendet")
+        shot("before-audit")
         accessibilityAudit("Einheit-MyWhoosh")
         let fallback = button(containing: "Alternativ: .zwo-Datei")
         check(fallback.exists, ".zwo bleibt als eingeklappte Alternative")
@@ -630,7 +635,8 @@ final class AuditWalkthroughTests: AuditCase {
         let ftp = app.steppers["onboarding.ftp"]
         tap(ftp.buttons.element(boundBy: 1), "FTP +5")
         tap(ftp.buttons.element(boundBy: 1), "FTP +5")
-        check(text(containing: "260 W").exists, "FTP steigt auf 260 W")
+        // The value lives in the stepper's label ("260 W, FTP"), not in a separate static text.
+        check(ftp.label.contains("260 W") || text(containing: "260 W").exists, "FTP steigt auf 260 W")
         tap(app.buttons["Montag"], "Trainingstag Montag")
         check(app.buttons["Montag"].isSelected, "Montag ist als gewählt markiert")
         shot("2-profil")
