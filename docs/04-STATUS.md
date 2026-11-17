@@ -19,7 +19,7 @@ Stand: v0.1 (Pilot-Vorbereitung) · 17.11.2026 · öffentlich auf [GitHub](https
 
 **Tests:**
 - 322 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
-- 31 UI-Tests (Walkthrough, Größenmatrix inkl. neuer Oberflächen, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
+- 32 UI-Tests (Walkthrough, Größenmatrix inkl. neuer Oberflächen, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
 
 ## Live auf dem iPhone geprüft
 
