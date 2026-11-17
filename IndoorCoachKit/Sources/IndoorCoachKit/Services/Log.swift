@@ -8,7 +8,7 @@ import OSLog
 /// runs through `Redactor.scrub` before it reaches the unified log.
 public enum Log {
     public enum Category: String, CaseIterable, Sendable {
-        case strava, claude, calendar, sync, plan
+        case strava, claude, calendar, sync, plan, mywhoosh
         /// User-visible banners and app-level events.
         case app
     }
@@ -70,6 +70,10 @@ public enum Redactor {
         (#"(?i)("?\b(?:access_token|refresh_token|client_secret|code|api[_-]?key|x-api-key|password|secret|token)"?\s*[:=]\s*"?)[^\s&",}]+"#, "$1…"),
         // 32+ hex characters (Strava tokens, client secrets and OAuth codes are 40 hex)
         (#"\b[0-9a-fA-F]{32,}\b"#, "‹hex›"),
+        // JWTs (MyWhoosh access tokens)
+        (#"eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.?[A-Za-z0-9_\-]*"#, "‹JWT›"),
+        // e-mail addresses (e.g. echoed back in a server message)
+        (#"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"#, "‹E-Mail›"),
         // GPS coordinate pairs
         (#"-?\d{1,3}\.\d{4,}\s*,\s*-?\d{1,3}\.\d{4,}"#, "‹Koordinaten›")
     ]

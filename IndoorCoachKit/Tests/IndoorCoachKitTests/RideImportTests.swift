@@ -153,12 +153,31 @@ struct MyWhooshHistoryTests {
         #expect(MyWhooshError.historyUnavailable.localizedDescription.contains("FIT"))
     }
 
-    @Test func expiredTokenStopsImmediately() async {
-        let transport = RoutingTransport { _ in (401, Data()) }
+    /// Regression: a 401/403 from the undocumented history endpoint signed the user out right after login.
+    @Test func historyRefusalKeepsTheSession() async {
+        let transport = RoutingTransport { _ in (403, Data(#"{"message":"Forbidden"}"#.utf8)) }
         let store = signedIn()
         let client = MyWhooshClient(store: store, transport: transport)
-        await #expect(throws: MyWhooshError.sessionExpired) { try await client.activities() }
-        #expect(transport.requests.count == 1 && store.session == nil)
+        await #expect(throws: MyWhooshError.historyUnavailable) { try await client.activities() }
+        #expect(transport.requests.count == 3 && store.session != nil)
+    }
+
+    @Test func loginAcceptsNumericWhooshIdAndKeepsDocumentedRefusal() async throws {
+        let ok = RoutingTransport { _ in (200, Data(#"{"Success":true,"WhooshId":123456,"AccessToken":"\#(token())","RefreshToken":"r"}"#.utf8)) }
+        let store = MemoryMyWhooshStore()
+        try await MyWhooshClient(store: store, transport: ok).login(username: "rider@example.com", password: "pw")
+        #expect(store.session?.whooshId == "123456")
+
+        let refused = RoutingTransport { _ in (200, Data(#"{"Success":false,"Message":"Invalid credentials"}"#.utf8)) }
+        await #expect(throws: MyWhooshError.loginFailed) {
+            try await MyWhooshClient(store: MemoryMyWhooshStore(), transport: refused).login(username: "a", password: "b")
+        }
+    }
+
+    @Test func logRedactionCoversTokensAndEmails() {
+        let line = Redactor.scrub("Login ok für rider@example.com, token \(token())")
+        #expect(!line.contains("rider@example.com") && !line.contains("eyJ"))
+        #expect(MyWhooshClient.serverMessage(["Message": String(repeating: "x", count: 500)])?.count == 160)
     }
 
     @Test func tokenGoesOnlyToMyWhooshHosts() async throws {

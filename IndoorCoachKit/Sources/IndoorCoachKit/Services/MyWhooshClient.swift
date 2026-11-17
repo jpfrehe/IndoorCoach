@@ -275,12 +275,18 @@ public actor MyWhooshClient {
                                    "CorrelationId": UUID().uuidString, "DeviceId": Self.deviceID, "Authorization": ""]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await transport.data(for: request)
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        // Diagnostics: status, success flag, server message and field names – never the password or tokens.
+        Log.notice(.mywhoosh, "Login: HTTP \(response.statusCode), Success=\(json?["Success"].map { "\($0)" } ?? "–"), "
+                   + "Meldung=\(Self.serverMessage(json) ?? "–"), Felder=\(json.map { $0.keys.sorted() } ?? ["<kein JSON: \(data.count) Bytes>"]), "
+                   + "WhooshId-Typ=\(json?["WhooshId"].map { "\(type(of: $0))" } ?? "–")")
         guard (200..<300).contains(response.statusCode) else {
             throw response.statusCode == 401 || response.statusCode == 403 ? MyWhooshError.loginFailed : MyWhooshError.http(response.statusCode)
         }
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              json["Success"] as? Bool == true,
-              let whooshId = json["WhooshId"] as? String, let access = json["AccessToken"] as? String else {
+        let success = (json?["Success"] as? Bool) ?? ((json?["Success"] as? String)?.lowercased() == "true")
+        // WhooshId may come as a string or a number.
+        let whooshId = (json?["WhooshId"] as? String) ?? (json?["WhooshId"] as? NSNumber)?.stringValue
+        guard let json, success, let whooshId, !whooshId.isEmpty, let access = json["AccessToken"] as? String, !access.isEmpty else {
             throw MyWhooshError.loginFailed
         }
         store.saveSession(MyWhooshSession(username: username, whooshId: whooshId, accessToken: access,
@@ -345,6 +351,7 @@ public actor MyWhooshClient {
     public func activities(limit: Int = 200) async throws -> ActivityList {
         let session = try validSession()
         let bodies: [[String: Any]] = [[:], ["limit": limit, "offset": 0], ["page": 1, "limit": limit]]
+        // A refusal here does not mean the login expired (uploads may still work): keep the session.
         var attempts: [String] = []
         for body in bodies {
             var request = authorized(URLRequest(url: Self.activitiesURL), session)
@@ -352,7 +359,7 @@ public actor MyWhooshClient {
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             do {
-                let data = try await send(request)
+                let data = try await send(request, label: "Fahrtenliste", endsSessionOnAuthError: false)
                 if let list = MyWhooshActivity.list(from: data) { return list }
                 attempts.append("200, unbekanntes Format")
             } catch MyWhooshError.sessionExpired {
@@ -374,7 +381,7 @@ public actor MyWhooshClient {
         if host == "mywhoosh.com" || host.hasSuffix(".mywhoosh.com") {
             request = authorized(request, try validSession())
         }
-        return try await send(request)
+        return try await send(request, label: "FIT-Download", endsSessionOnAuthError: false)
     }
 
     static let activitiesURL = URL(string: "https://service14.mywhoosh.com/v2/rider/profile/activities")!
@@ -401,15 +408,28 @@ public actor MyWhooshClient {
         return r
     }
 
-    private func send(_ request: URLRequest) async throws -> Data {
+    /// `endsSessionOnAuthError`: 401/403 means "log in again" for the documented endpoints. For the undocumented
+    /// history endpoints it only means "not allowed there" and must not sign the user out.
+    private func send(_ request: URLRequest, label: String? = nil, endsSessionOnAuthError: Bool = true) async throws -> Data {
         let (data, response) = try await transport.data(for: request)
+        let name = label ?? "\(request.httpMethod ?? "GET") \(request.url?.host() ?? "?")/\(request.url?.pathComponents.dropFirst().prefix(3).joined(separator: "/") ?? "")"
+        if !(200..<300).contains(response.statusCode) {
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            Log.error(.mywhoosh, "\(name): HTTP \(response.statusCode), Meldung=\(Self.serverMessage(json) ?? "–"), \(data.count) Bytes")
+        }
         switch response.statusCode {
         case 200..<300: return data
-        case 401, 403:
+        case 401, 403 where endsSessionOnAuthError:
             store.saveSession(nil)
             throw MyWhooshError.sessionExpired
         default: throw MyWhooshError.http(response.statusCode)
         }
+    }
+
+    /// Short server message for the log (MyWhoosh uses `Message` or `message`).
+    static func serverMessage(_ json: [String: Any]?) -> String? {
+        guard let text = (json?["Message"] ?? json?["message"] ?? json?["error"]) as? String else { return nil }
+        return String(text.prefix(160))
     }
 
     /// Stable per-install id (not hardware-bound).

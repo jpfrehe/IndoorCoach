@@ -189,11 +189,13 @@ public final class AppModel {
         do {
             try await myWhoosh.login(username: username.trimmingCharacters(in: .whitespaces), password: password)
             refreshCredentialState()
+            Log.notice(.mywhoosh, "Angemeldet")
             show("Mit MyWhoosh verbunden.", error: false)
             // First connect: bring in the ride history right away (replaces Strava for non-subscribers).
             await importMyWhooshRides(full: true)
             return true
         } catch {
+            Log.error(.mywhoosh, "Anmeldung fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
             show(error.localizedDescription, error: true)
             return false
         }
