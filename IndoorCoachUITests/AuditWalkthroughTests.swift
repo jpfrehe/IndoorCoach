@@ -662,6 +662,33 @@ final class AuditWalkthroughTests: AuditCase {
 
     // ANCHOR-UITEST-K3
 
+    // MARK: Challenges + Trophäenschrank (K3)
+
+    func test22_ChallengesAndTrophies() {
+        launch()                                     // demo in November: Monats-Konstanz November läuft
+        route = "heute"
+        let highlight = app.descendants(matching: .any)["challenge.highlight"].firstMatch
+        check(scrollUntilExists(highlight, maxSwipes: 3).exists, "Challenge-Highlight auf Heute")
+        shot("challenge-highlight")
+        tap(highlight, "Challenge-Highlight öffnen")
+        route = "winterarc"
+        check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
+        let challenges = app.descendants(matching: .any)["challenges.card"].firstMatch
+        check(scrollUntilExists(challenges).exists, "Karte „Challenges“")
+        shot("challenges")
+        let trophies = app.descendants(matching: .any)["trophies.card"].firstMatch
+        check(scrollUntilExists(trophies).exists, "Karte „Trophäen“")
+        let all = app.descendants(matching: .any)["trophies.all"].firstMatch
+        check(scrollUntilExists(all).exists, "„Alle anzeigen“ in der Trophäen-Karte")
+        tap(all, "Alle Trophäen anzeigen")
+        check(waitFast(app.navigationBars["Trophäen"]), "Trophäenschrank öffnet")
+        check(app.descendants(matching: .any)["trophies.count"].firstMatch.waitForExistence(timeout: 5), "Trophäen-Zähler sichtbar")
+        shot("trophaeenschrank")
+        accessibilityAudit("Trophaeenschrank")
+        back()
+        back()
+    }
+
     // ---
 
     // ANCHOR-UITEST-K4
