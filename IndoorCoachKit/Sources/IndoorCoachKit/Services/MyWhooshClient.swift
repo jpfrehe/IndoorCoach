@@ -378,8 +378,44 @@ public actor MyWhooshClient {
                                    "TotalKilometers": 0, "TotalElevation": 0, "TSS": tss, "SportMode": "E_Cycling"]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let data = try await send(request)
-        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        return (json?["data"] as? [String: Any])?["id"] as? String
+        // The response is not documented: log it once (redacted) and look for the id in the usual places.
+        Log.notice(.mywhoosh, "Kalender-Antwort: \(Self.bodyExcerpt(data))")
+        if let id = Self.taskID(in: (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) { return id }
+        // Fallback: find the new entry in that day's task list (documented: Unix seconds, data.taskList).
+        return try? await findTaskID(workoutID: workoutID, around: start, session: session)
+    }
+
+    /// `id` / `_id` / `TaskId` at the top level, in `data` or in `data.task`.
+    static func taskID(in json: [String: Any]?) -> String? {
+        func id(_ dict: [String: Any]?) -> String? {
+            for key in ["id", "_id", "TaskId", "taskId"] {
+                if let s = dict?[key] as? String, !s.isEmpty { return s }
+                if let n = dict?[key] as? NSNumber { return n.stringValue }
+            }
+            return nil
+        }
+        let data = json?["data"] as? [String: Any]
+        return id(data) ?? id(data?["task"] as? [String: Any]) ?? id(json)
+    }
+
+    private func findTaskID(workoutID: String, around start: Date, session: MyWhooshSession) async throws -> String? {
+        let day = Calendar.current.startOfDay(for: start)
+        var components = URLComponents(url: Self.taskBase.appendingPathComponent("task/date-range-task-list"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "startDate", value: "\(Int(day.timeIntervalSince1970))"),
+                                 URLQueryItem(name: "endDate", value: "\(Int(day.timeIntervalSince1970) + 86_399)")]
+        var request = authorized(URLRequest(url: components.url!), session)
+        request.httpMethod = "GET"
+        let data = try await send(request, label: "Kalenderliste", endsSessionOnAuthError: false)
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let tasks = ((json?["data"] as? [String: Any])?["taskList"] as? [[String: Any]]) ?? []
+        let match = tasks.first { task in
+            ["TaskTypeId", "taskTypeId", "workoutId", "WorkoutId"].contains { key in
+                (task[key] as? String) == workoutID || (task[key] as? NSNumber)?.stringValue == workoutID
+            }
+        }
+        let found = match.flatMap { Self.taskID(in: $0) }
+        Log.notice(.mywhoosh, "Kalenderliste: \(tasks.count) Einträge am Tag, Treffer \(found != nil), Felder \(tasks.first.map { $0.keys.sorted() } ?? [])")
+        return found
     }
 
     public func deleteTask(_ taskID: String) async throws {

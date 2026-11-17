@@ -122,6 +122,25 @@ struct MyWhooshClientTests {
         #expect(store.session == nil)
     }
 
+    @Test func taskIDIsFoundInOtherShapesOrInTheDayList() async throws {
+        #expect(MyWhooshClient.taskID(in: ["data": ["TaskId": "t-7"]]) == "t-7")
+        #expect(MyWhooshClient.taskID(in: ["data": ["task": ["_id": "t-8"]]]) == "t-8")
+        #expect(MyWhooshClient.taskID(in: ["id": 42]) == "42")
+        #expect(MyWhooshClient.taskID(in: ["status": true, "message": ""]) == nil)
+
+        let store = MemoryMyWhooshStore(MyWhooshSession(username: "u", whooshId: "w-42", accessToken: jwt(exp: .now.addingTimeInterval(3600)), refreshToken: "r"))
+        let transport = MockTransport([(200, #"{"status":true,"code":200,"message":"Task created"}"#, [:]),
+                                       (200, #"{"status":true,"data":{"taskList":[{"TaskId":"other","TaskTypeId":"999"},{"TaskId":"t-55","TaskTypeId":"1001"}]}}"#, [:])])
+        let client = MyWhooshClient(store: store, transport: transport)
+        let start = Date(timeIntervalSince1970: 1_765_402_200)
+        let id = try await client.schedule(workoutID: "1001", name: "SST", description: "d", start: start, durationSeconds: 3600, tss: 72)
+        #expect(id == "t-55")
+        let list = try #require(transport.requests.last?.url)
+        #expect(list.path.hasSuffix("/task/date-range-task-list"))
+        let day = Int(Calendar.current.startOfDay(for: start).timeIntervalSince1970)
+        #expect(list.query == "startDate=\(day)&endDate=\(day + 86_399)")
+    }
+
     @Test func deleteAndScheduleHitDocumentedEndpoints() async throws {
         let store = MemoryMyWhooshStore(MyWhooshSession(username: "u", whooshId: "w-42", accessToken: jwt(exp: .now.addingTimeInterval(3600)), refreshToken: "r"))
         let transport = MockTransport([(200, #"{"message":"Custom workout is being deleted."}"#, [:]),
