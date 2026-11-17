@@ -25,7 +25,7 @@ Legende: **Agent** = im Repo umsetzbar und an Subagenten vergeben · **Nutzer** 
 
 | ID | Aufgabe | Wer | Paket |
 |---|---|---|---|
-| B12 | Pilot-Testplan `docs/07-PILOT-TESTPLAN.md` (Gerätematrix, Szenarien, Feedback-Fragen) | Agent | WP4 |
+| B12 | Pilot-Testplan [`docs/07-PILOT-TESTPLAN.md`](07-PILOT-TESTPLAN.md) (Gerätematrix, Szenarien, Feedback-Fragen) | Agent | WP4 |
 | B13 | 7 offene Kontrast-Knoten auf 375 pt mit dem Accessibility Inspector auf echtem SE/mini prüfen | Nutzer | – |
 | B14 | VoiceOver-Durchlauf der 5 Threads auf dem Gerät | Nutzer | – |
 | B15 | Performance im Release-Build auf dem Gerät (Kaltstart, Scrollen im Verlauf mit 2 Jahren Daten) | Nutzer | – |

@@ -18,6 +18,7 @@ in den Kalender eintragen und als `.zwo` nach MyWhoosh bringen. Läuft vollstän
 5. [UX-Audit 17.11.2026](docs/ux-audit-2026-11-17.md) – ux-audit-Skill, 15 Befunde behoben, Farbsystem
 6. [Winter Arc: Relative Effort, Fitness & Freshness, Level](docs/05-FEATURES-WINTER-ARC.md)
 7. [Backlog bis zur Pilotphase](docs/06-BACKLOG-PILOT.md)
+8. [Pilot-Testplan](docs/07-PILOT-TESTPLAN.md) – Gerätematrix, Szenarien, Live-Checks, 4-Wochen-Ablauf, Feedback-Fragen
 
 ## Aufbau
 
