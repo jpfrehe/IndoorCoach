@@ -97,8 +97,12 @@ final class EventKitCalendarBackend: CalendarBackend {
     func requestAccess() async throws {
         let status = EKEventStore.authorizationStatus(for: .event)
         if status == .fullAccess { return }
-        let granted = try await store.requestFullAccessToEvents()
-        guard granted else { throw CalendarError.accessDenied }
+        let granted: Bool
+        do { granted = try await store.requestFullAccessToEvents() } catch {
+            Log.error(.calendar, "Zugriffsanfrage fehlgeschlagen: \(error.localizedDescription)")
+            throw error
+        }
+        guard granted else { Log.error(.calendar, "Kein Kalenderzugriff (Status \(status.rawValue))"); throw CalendarError.accessDenied }
     }
 
     func updateEvent(id: String, with draft: CalendarEventDraft) throws -> String? {

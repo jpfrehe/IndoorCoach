@@ -86,16 +86,29 @@ public struct ClaudeClient: Sendable {
         var request = try makeRequest(body: body)
         var attempt = 0
         var usedFallbackFeature = true
+        Log.notice(.claude, "Anfrage: Modell \(model), effort \(effort)")
         while true {
             attempt += 1
             let (data, response) = try await transport.data(for: request)
+            Log.notice(.claude, "HTTP \(response.statusCode) (Versuch \(attempt))")
             switch response.statusCode {
             case 200..<300:
-                return try Self.parseResponse(data)
+                do {
+                    let result = try Self.parseResponse(data)
+                    if let usage = result.usage {
+                        Log.notice(.claude, "Tokens: input \(usage.input_tokens), output \(usage.output_tokens), Modell \(result.model ?? model)")
+                    }
+                    return result
+                } catch {
+                    Log.error(.claude, "Antwort nicht verwendbar: \(error.localizedDescription)")
+                    throw error
+                }
             case 401, 403:
+                Log.error(.claude, "API-Key abgelehnt (HTTP \(response.statusCode))")
                 throw ClaudeError.invalidAPIKey
             case 400 where usedFallbackFeature && Self.errorMessage(from: data).lowercased().contains("fallback"):
                 // Safety net: if the refusal-fallback beta is not available for this key/model, retry without it.
+                Log.notice(.claude, "Fallback-Beta nicht verfügbar – erneuter Versuch ohne")
                 usedFallbackFeature = false
                 body["fallbacks"] = nil
                 request = try makeRequest(body: body)
@@ -104,11 +117,13 @@ public struct ClaudeClient: Sendable {
             case 429, 529:
                 if attempt < 2 {
                     let wait = Double(response.value(forHTTPHeaderField: "retry-after") ?? "") ?? 5
+                    Log.notice(.claude, "HTTP \(response.statusCode) – neuer Versuch in \(Int(min(wait, 20))) s")
                     try await Task.sleep(for: .seconds(min(wait, 20)))
                     continue
                 }
                 throw response.statusCode == 429 ? ClaudeError.rateLimited : ClaudeError.overloaded
             default:
+                Log.error(.claude, "HTTP \(response.statusCode): \(Self.errorMessage(from: data))")
                 throw ClaudeError.http(response.statusCode, Self.errorMessage(from: data))
             }
         }
@@ -145,9 +160,9 @@ public struct ClaudeClient: Sendable {
         return redact(raw)
     }
 
-    /// Strips anything that looks like an API key and truncates – server text ends up in the UI.
+    /// Strips anything that looks like a key or token (see `Redactor`) and truncates – server text ends up in the UI.
     public static func redact(_ text: String) -> String {
-        let redacted = text.replacingOccurrences(of: #"sk-ant-[A-Za-z0-9_\-]+"#, with: "sk-ant-…", options: .regularExpression)
+        let redacted = Redactor.scrub(text)
         return redacted.count > 200 ? String(redacted.prefix(199)) + "…" : redacted
     }
 }
@@ -168,6 +183,7 @@ public struct ClaudeCoach: Coach {
         do {
             return try PlanPrompt.parse(result.text, context: context)
         } catch {
+            Log.error(.plan, "Plan-JSON nicht lesbar: \(type(of: error))")
             throw ClaudeError.badResponse("Plan konnte nicht gelesen werden")
         }
     }

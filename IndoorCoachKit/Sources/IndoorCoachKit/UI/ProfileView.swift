@@ -20,6 +20,7 @@ struct ProfileView: View {
                 coachSection(model)
                 stravaSection(model)
                 myWhooshSection(model)
+                helpSection()
                 infoSection
                 dataSection(model)
             }
@@ -281,6 +282,10 @@ struct ProfileView: View {
         } header: { Text("MyWhoosh") } footer: {
             Text("Einheiten landen direkt in MyWhoosh unter „Custom Workouts“ und im MyWhoosh-Kalender. Nutzt die inoffizielle MyWhoosh-Schnittstelle (Community-Dokumentation) – sie kann sich jederzeit ändern; dann bleibt die .zwo-Datei als Weg. Dein Passwort wird nur zur Anmeldung gesendet und nicht gespeichert.")
         }
+    }
+
+    private func helpSection() -> some View {
+        HelpFeedbackSection()
     }
 
     private var infoSection: some View {
