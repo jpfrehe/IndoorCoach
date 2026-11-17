@@ -21,9 +21,9 @@ struct WinterArcCard: View {
             }
             HStack(spacing: 8) {
                 JellyChip(text: status.pace.label, systemImage: paceSymbol, fill: paceColor)
-                if status.streakWeeks > 0 {
-                    JellyChip(text: "\(status.streakWeeks) \(status.streakWeeks == 1 ? "Woche" : "Wochen") in Folge",
-                              systemImage: "flame", fill: Color(Palette.mangoPop))
+                if let streak = Consistency.summary(streak: status.streakWeeks, jokers: status.jokers) {
+                    JellyChip(text: streak, systemImage: "flame", fill: Color(Palette.mangoPop))
+                        .accessibilityIdentifier("arc.streak")
                 }
             }
         }
@@ -80,6 +80,8 @@ struct WinterArcView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if let status = model.winterArc(rides: rides) {   // series is cached in AppModel
                     WinterArcCard(status: status)
+                    // ANCHOR-K1-WINTERARC (Konstanz-Serie & Joker)
+                    ConsistencyCard(result: model.consistency(rides: rides))
                     Card(title: "Fitness auf dem Weg zum Ziel", systemImage: "chart.line.uptrend.xyaxis") {
                         courseChart(status: status, points: model.fitnessSeries(rides: rides).points)
                         HStack {
@@ -96,7 +98,7 @@ struct WinterArcView: View {
                     Card(title: "So funktioniert der Winter Arc", systemImage: "info.circle") {
                         Text("Der Arc misst, wie viel Fitness du vom Saisonstart bis zu deinem Ziel-Tag aufbaust. Jedes Zehntel des Wegs zur Ziel-Fitness ist ein Level. Ein Level bleibt dir auch nach einer Pause – nur der Kurs zeigt ehrlich, ob du gerade vorne oder hinten liegst.")
                             .font(.subheadline)
-                        Text("Serie: Wochen in Folge mit mindestens 80 % deines Wochenbudgets. Start, Ziel-Tag und Ziel-Fitness stellst du im Profil ein.")
+                        Text("Serie: Wochen in Folge, in denen du dein Wochenbudget zu 80 % schaffst, alle geplanten Einheiten erledigst oder eine geplante Erholungswoche fährst. Ein Joker fängt eine verpasste Woche auf (Details in der Karte „Konstanz“). Start, Ziel-Tag und Ziel-Fitness stellst du im Profil ein.")
                             .font(.footnote).foregroundStyle(Theme.rowSecondary)
                     }
                 } else {

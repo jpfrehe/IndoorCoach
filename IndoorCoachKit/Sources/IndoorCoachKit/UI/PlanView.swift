@@ -4,6 +4,7 @@ import SwiftUI
 struct PlanView: View {
     @Environment(AppModel.self) private var model
     @Query(sort: \StoredWorkout.date) private var workouts: [StoredWorkout]
+    @Query(sort: \StoredRide.startDate) private var storedRides: [StoredRide]
     @State private var showGenerator = PlanView.debugFlag("uiPlanner")
     @State private var showPast = false
     @State private var path: [StoredWorkout] = []
@@ -143,11 +144,29 @@ struct PlanView: View {
         else { title = "Woche ab " + group.start.formatted(.dateTime.day().month().locale(Locale(identifier: "de_DE"))) }
         let seconds = group.items.reduce(0) { $0 + $1.definition.totalDuration }
         let tss = group.items.reduce(0.0) { $0 + $1.definition.estimatedTSS }
-        return HStack {
-            Text(title)
-            Spacer()
-            Text("\(Formatters.duration(seconds)) · TSS \(Int(tss.rounded()))").monospacedDigit()
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(Formatters.duration(seconds)) · TSS \(Int(tss.rounded()))").monospacedDigit()
+            }
+            if let thisWeek, group.start <= thisWeek, let text = adherence(weekStart: group.start)?.text {
+                Text(text).font(.caption).monospacedDigit()
+                    .accessibilityLabel("Plan-Treue: \(text)")
+                    .accessibilityIdentifier("plan.adherence")
+            }
         }
+    }
+
+    /// K1 – Plan-Treue of a week from *all* planned workouts of that week (also those before today) and its rides.
+    private func adherence(weekStart: Date) -> Consistency.Adherence? {
+        let end = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+        let planned = workouts.filter { $0.date >= weekStart && $0.date < end }.map {
+            Consistency.PlannedItem(date: $0.date, tss: $0.definition.estimatedTSS, done: $0.status == .done || $0.linkedRideID != nil)
+        }
+        let rides = model.consistencyRides(storedRides.filter { $0.startDate >= weekStart && $0.startDate < end }.map(\.summary))
+        let result = Consistency.adherence(weekStart: weekStart, rides: rides, planned: planned)
+        return result.planned > 0 ? result : nil
     }
 }
 
