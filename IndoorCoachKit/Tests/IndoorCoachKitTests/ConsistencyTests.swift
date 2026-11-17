@@ -152,4 +152,10 @@ struct ConsistencyTests {
         #expect(a.planned == 1 && a.done == 1)
         #expect(a.text == "1 von 1 Einheiten · 0 % TSS")
     }
+
+    @Test func summaryText() {
+        #expect(Consistency.summary(streak: 5, jokers: 1) == "5 Wochen in Folge · 1 Joker")
+        #expect(Consistency.summary(streak: 1, jokers: 0) == "1 Woche in Folge")
+        #expect(Consistency.summary(streak: 0, jokers: 2) == nil)
+    }
 }

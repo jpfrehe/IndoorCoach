@@ -81,6 +81,14 @@ public enum Consistency {
         public static let empty = Result(weeks: [], streak: 0, jokers: 0)
     }
 
+    /// "5 Wochen in Folge · 1 Joker"; nil without a streak.
+    public static func summary(streak: Int, jokers: Int) -> String? {
+        guard streak > 0 else { return nil }
+        var text = "\(streak) \(streak == 1 ? "Woche" : "Wochen") in Folge"
+        if jokers > 0 { text += " · \(jokers) Joker" }
+        return text
+    }
+
     private static func isoCalendar(_ base: Calendar) -> Calendar {
         var c = base
         c.firstWeekday = 2
