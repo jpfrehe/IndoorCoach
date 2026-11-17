@@ -357,9 +357,14 @@ public actor MyWhooshClient {
 
     public func delete(workoutID: String) async throws {
         let session = try validSession()
-        let url = Self.coachingBase.appendingPathComponent("client/custom-workout-upload/\(session.whooshId)/\(workoutID)")
-        var request = authorized(URLRequest(url: url), session)
+        // Device log, Nov 2026: without the sport the server fails with 500 "Cast to Number failed for value NaN
+        // at path sportsModeType" – pass it as query and body (0 = cycling, as on upload).
+        var components = URLComponents(url: Self.coachingBase.appendingPathComponent("client/custom-workout-upload/\(session.whooshId)/\(workoutID)"),
+                                       resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "sportsModeType", value: "0")]
+        var request = authorized(URLRequest(url: components.url!), session)
         request.httpMethod = "DELETE"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["SportsModeType": 0, "sportsModeType": 0])
         _ = try await send(request)
     }
 

@@ -150,7 +150,9 @@ struct MyWhooshClientTests {
         let taskID = try await client.schedule(workoutID: "1001", name: "Sweet Spot", description: "d",
                                                start: Date(timeIntervalSince1970: 1_765_402_200), durationSeconds: 3600, tss: 72)
         #expect(transport.requests[0].httpMethod == "DELETE")
-        #expect(transport.requests[0].url?.absoluteString == "https://coaching.mywhoosh.com/api/v2/client/custom-workout-upload/w-42/1001")
+        #expect(transport.requests[0].url?.absoluteString == "https://coaching.mywhoosh.com/api/v2/client/custom-workout-upload/w-42/1001?sportsModeType=0")
+        let deleteBody = try JSONSerialization.jsonObject(with: transport.requests[0].httpBody!) as! [String: Any]
+        #expect(deleteBody["SportsModeType"] as? Int == 0)
         #expect(transport.requests[1].url?.absoluteString == "https://service14.mywhoosh.com/v1/task/create")
         let body = try JSONSerialization.jsonObject(with: transport.requests[1].httpBody!) as! [String: Any]
         #expect(body["TaskType"] as? String == "E_Simple_Workout" && body["TaskTypeId"] as? String == "1001")
