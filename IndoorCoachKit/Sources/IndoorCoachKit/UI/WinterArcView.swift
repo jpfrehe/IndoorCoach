@@ -96,6 +96,7 @@ struct WinterArcView: View {
                     ChallengesCard(rides: rides)
                     TrophiesCard(rides: rides, arc: status)
                     // ANCHOR-P4-WINTERARC (Winter-Reise)
+                    WinterJourneyCard(level: status.level.number, levelProgress: status.levelProgress)
 
                     Card(title: "Fitness auf dem Weg zum Ziel", systemImage: "chart.line.uptrend.xyaxis") {
                         courseChart(status: status, points: model.fitnessSeries(rides: rides).points)
