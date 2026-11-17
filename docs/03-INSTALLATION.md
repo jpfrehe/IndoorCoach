@@ -55,6 +55,39 @@ Die Startzeit wird für Kalendereinträge verwendet.
    **Create New / Upload** → `.zwo`-Datei wählen → **Export to MyWhoosh**.
 5. In MyWhoosh am Mac: Workouts → **My Workouts** → Einheit starten (ERG-Modus auf der Wahoo).
 
+## TestFlight (Pilot)
+
+Voraussetzung: Apple Developer Program, App-Eintrag in App Store Connect mit der Bundle-ID
+`app.indoorcoach.personal` (oder deiner geänderten), in Xcode mit diesem Team angemeldet.
+
+```bash
+scripts/bump-build.sh                                   # Build-Nummer = Zeitstempel (z. B. 202611171045)
+scripts/bump-build.sh 42                                # oder feste Build-Nummer
+DEVELOPMENT_TEAM=ABCDE12345 scripts/archive.sh          # Archiv + Export nach build/export/
+DEVELOPMENT_TEAM=ABCDE12345 UPLOAD=1 scripts/archive.sh # Archiv + direkter Upload zu App Store Connect
+```
+
+- **`scripts/bump-build.sh [nummer]`** setzt `CURRENT_PROJECT_VERSION` (CFBundleVersion) in allen
+  Konfigurationen von `IndoorCoach.xcodeproj`. Jeder Upload derselben Version (`MARKETING_VERSION`, aktuell 0.1)
+  braucht eine höhere Build-Nummer. Die Änderung danach committen.
+- **`scripts/archive.sh`** baut mit `xcodebuild archive` ein Release-Archiv (`build/IndoorCoach.xcarchive`)
+  und exportiert es mit `xcodebuild -exportArchive` und `scripts/ExportOptions.plist`
+  (Methode `app-store-connect`, automatische Signierung). Die Team-ID kommt aus der Umgebungsvariable
+  `DEVELOPMENT_TEAM` (developer.apple.com → Account → Membership). Fehlt sie, bricht das Skript mit einer
+  Meldung ab. Ohne `UPLOAD=1` liegt die `.ipa` in `build/export/` und wird mit Transporter oder dem
+  Xcode Organizer hochgeladen.
+- Nach der Verarbeitung (ca. 10–30 min) erscheint der Build in App Store Connect unter **TestFlight**.
+  Dort die Exportkonformität beantworten (die App nutzt nur HTTPS/Standardverschlüsselung) und die
+  Pilot-Tester einladen.
+
+**Datenschutz:** `App/PrivacyInfo.xcprivacy` wird automatisch ins App-Bundle übernommen. Es erklärt kein
+Tracking, keine Tracking-Domains und keine erhobenen Datentypen: Alle Daten bleiben auf dem iPhone.
+Netzwerkzugriffe gibt es nur, wenn der Nutzer sie auslöst: an Strava mit seiner eigenen API-App und an
+Anthropic mit seinem eigenen API-Key. Der Entwickler erhält keine Daten. Als Grund-pflichtige API wird nur
+`UserDefaults` (CA92.1, nur app-eigene Daten) genutzt. Für die App-Datenschutzangaben in App Store Connect
+gilt daher „Keine Daten erfasst“. Unter **Profil → Daten → Alle Daten löschen** entfernt der Nutzer alles
+Lokale: Fahrten, Einheiten, Kalender „Indoor Training“, Schlüsselbund und Einstellungen.
+
 ## Entwicklung
 
 ```bash
