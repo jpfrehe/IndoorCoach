@@ -63,6 +63,7 @@ public struct RootView: View {
         }
         .task {
             model.bootstrap()
+            await model.rescheduleWorkoutReminders()
             await model.syncRides()
         }
     }

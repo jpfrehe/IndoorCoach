@@ -14,6 +14,11 @@ struct ReminderSection: View {
                 .frame(minHeight: 44)
                 .disabled(busy)
                 .accessibilityIdentifier("reminder.toggle")
+            Toggle("Erinnerung 30 Minuten vor der Einheit", isOn: Binding(get: { model.profile.workoutReminder },
+                                                                          set: { changeWorkout(to: $0) }))
+                .frame(minHeight: 44)
+                .disabled(busy)
+                .accessibilityIdentifier("reminder.workoutToggle")
             if denied {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Mitteilungen sind für IndoorCoach ausgeschaltet.").font(.subheadline.weight(.semibold))
@@ -28,7 +33,7 @@ struct ReminderSection: View {
                 .accessibilityIdentifier("reminder.openSettings")
             }
         } header: { Text("Erinnerungen") } footer: {
-            Text("Sonntag um 18:00 Uhr bekommst du eine Mitteilung, dass dein Wochenrückblick bereit ist. Sie wird nur auf diesem Gerät geplant.")
+            Text("Sonntag um 18:00 Uhr bekommst du eine Mitteilung, dass dein Wochenrückblick bereit ist. Vor geplanten Einheiten der nächsten 14 Tage kommt eine Mitteilung mit Titel, Dauer und TSS. Beides wird nur auf diesem Gerät geplant.")
         }
         .task { await reconcile() }
     }
@@ -57,9 +62,39 @@ struct ReminderSection: View {
         }
     }
 
+    private func changeWorkout(to enabled: Bool) {
+        if !enabled {
+            model.profile.workoutReminder = false
+            Task { await model.reminderCenter.cancelAll(withPrefix: WorkoutReminder.idPrefix) }
+            return
+        }
+        busy = true
+        Task {
+            defer { busy = false }
+            var status = await model.reminderCenter.authorization()
+            if status == .notDetermined { status = await model.reminderCenter.requestAuthorization() ? .authorized : .denied }
+            guard status == .authorized else {
+                model.profile.workoutReminder = false
+                denied = true
+                return
+            }
+            denied = false
+            model.profile.workoutReminder = true
+            await model.rescheduleWorkoutReminders()
+        }
+    }
+
     /// Keeps the schedule in line with the switch: re-registers it, or turns the switch off when the
     /// permission was withdrawn in Settings in the meantime.
     private func reconcile() async {
+        if model.profile.workoutReminder {
+            if await model.reminderCenter.authorization() == .authorized {
+                await model.rescheduleWorkoutReminders()
+            } else {
+                model.profile.workoutReminder = false
+                denied = true
+            }
+        }
         guard model.profile.weeklyReviewReminder else { return }
         if await model.reminderCenter.authorization() == .authorized {
             _ = await WeeklyReviewReminder.schedule(center: model.reminderCenter)

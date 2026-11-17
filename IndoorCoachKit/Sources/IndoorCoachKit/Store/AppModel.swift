@@ -729,6 +729,7 @@ public final class AppModel {
             await sendToMyWhoosh(created)
         }
         // ANCHOR-P4-APPMODEL (Erinnerung vor geplanten Einheiten)
+        await rescheduleWorkoutReminders()
     }
 
     public func discardProposal() { proposal = nil }
@@ -790,6 +791,7 @@ public final class AppModel {
         let whooshID = workout.myWhooshWorkoutID, whooshTask = workout.myWhooshTaskID
         context.delete(workout)
         try? context.save()
+        await rescheduleWorkoutReminders()
         if let eventID {
             do { try await calendarService.remove(eventID: eventID) } catch {
                 Log.error(.calendar, "Kalendereintrag nicht entfernt: \(type(of: error))")
@@ -826,6 +828,7 @@ public final class AppModel {
         try? context.save()
         calendarService.removeAppData(eventIDs: eventIDs)
         reminderCenter.cancel(id: WeeklyReviewReminder.identifier)
+        await reminderCenter.cancelAll(withPrefix: WorkoutReminder.idPrefix)
         LogFile.shared?.clear()
 
         secrets.setSecret(nil, for: .claudeAPIKey)
