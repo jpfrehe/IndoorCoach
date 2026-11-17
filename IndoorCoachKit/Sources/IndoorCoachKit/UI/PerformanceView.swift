@@ -58,6 +58,10 @@ struct PerformanceView: View {
                 VO2maxCard(rides: rides, showTrend: true, range: range)
                 // ANCHOR-K4-LEISTUNG (Aerobe Effizienz)
                 AerobicEfficiencyCard(rides: rides, ftp: model.profile.ftp, range: range)
+                // ANCHOR-P1-LEISTUNG (Trainingsverteilung, eFTP-Verlauf)
+
+                // ANCHOR-P2-LEISTUNG (Fähigkeitslevel, Ermüdungsresistenz)
+
 
                 explanation
             }

@@ -772,6 +772,22 @@ final class AuditWalkthroughTests: AuditCase {
               "Feedback-Weg vorhanden (Mail oder GitHub-Issue)")
     }
 
+    // ANCHOR-UITEST-P1
+
+    // ---
+
+    // ANCHOR-UITEST-P2
+
+    // ---
+
+    // ANCHOR-UITEST-P3
+
+    // ---
+
+    // ANCHOR-UITEST-P4
+
+    // ---
+
     // ANCHOR-UITEST-K4
 
     // MARK: K4 – Aerobe Effizienz und Entkopplung

@@ -95,6 +95,8 @@ struct WinterArcView: View {
                     // ANCHOR-K3-WINTERARC (Challenges & Trophäen)
                     ChallengesCard(rides: rides)
                     TrophiesCard(rides: rides, arc: status)
+                    // ANCHOR-P4-WINTERARC (Winter-Reise)
+
                     Card(title: "Fitness auf dem Weg zum Ziel", systemImage: "chart.line.uptrend.xyaxis") {
                         courseChart(status: status, points: model.fitnessSeries(rides: rides).points)
                         HStack {
@@ -108,6 +110,10 @@ struct WinterArcView: View {
                             levelRow(level, current: status.level.number)
                         }
                     }
+                    // ANCHOR-P1-WINTERARC (Ziel-Prognose & Was-wäre-wenn)
+
+                    // ANCHOR-P3-WINTERARC (Saisonrückblick teilen)
+
                     Card(title: "So funktioniert der Winter Arc", systemImage: "info.circle") {
                         Text("Der Arc misst, wie viel Fitness du vom Saisonstart bis zu deinem Ziel-Tag aufbaust. Jedes Zehntel des Wegs zur Ziel-Fitness ist ein Level. Ein Level bleibt dir auch nach einer Pause – nur der Kurs zeigt ehrlich, ob du gerade vorne oder hinten liegst.")
                             .font(.subheadline)

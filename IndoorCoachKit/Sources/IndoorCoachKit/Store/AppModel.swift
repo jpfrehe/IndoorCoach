@@ -728,6 +728,7 @@ public final class AppModel {
         if isMyWhooshConnected && profile.autoSendToMyWhoosh {
             await sendToMyWhoosh(created)
         }
+        // ANCHOR-P4-APPMODEL (Erinnerung vor geplanten Einheiten)
     }
 
     public func discardProposal() { proposal = nil }
