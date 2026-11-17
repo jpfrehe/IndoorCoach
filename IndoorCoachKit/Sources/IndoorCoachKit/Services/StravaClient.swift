@@ -59,7 +59,10 @@ public enum StravaError: LocalizedError, Equatable {
     case stateMismatch
     case missingScope
     case http(Int, String)
-    case rateLimited
+    /// HTTP 429. `retryAfter` (seconds) comes from `Retry-After` or Strava's `X-RateLimit-*` headers, nil if unknown.
+    case rateLimited(retryAfter: TimeInterval?)
+    /// HTTP 5xx that persisted after one retry.
+    case unavailable(Int)
 
     public var errorDescription: String? {
         switch self {
@@ -68,9 +71,20 @@ public enum StravaError: LocalizedError, Equatable {
         case .authorizationDenied: "Strava-Anmeldung abgebrochen oder verweigert."
         case .stateMismatch: "Ungültige Strava-Antwort (state stimmt nicht)."
         case .missingScope: "Bitte bei Strava den Zugriff auf alle Aktivitäten erlauben."
-        case .rateLimited: "Strava-Limit erreicht – bitte in 15 Minuten erneut versuchen."
+        case let .rateLimited(retryAfter): Self.rateLimitMessage(retryAfter: retryAfter)
+        case let .unavailable(code): "Strava ist gerade nicht erreichbar (Fehler \(code)) – bitte später erneut synchronisieren."
         case let .http(code, message): "Strava-Fehler \(code): \(message)"
         }
+    }
+
+    static func rateLimitMessage(retryAfter: TimeInterval?) -> String {
+        // Strava's short-term window is 15 minutes; without headers that is the best guess.
+        let minutes = max(1, Int((max(retryAfter ?? 15 * 60, 0) / 60).rounded(.up)))
+        if minutes > 90 {
+            let hours = Int((Double(minutes) / 60).rounded(.up))
+            return "Strava-Tageslimit erreicht – bitte in ca. \(hours) Stunden erneut synchronisieren."
+        }
+        return "Strava-Limit erreicht – bitte in ca. \(minutes) \(minutes == 1 ? "Minute" : "Minuten") erneut synchronisieren."
     }
 }
 
@@ -150,11 +164,17 @@ public actor StravaClient {
     private let config: StravaConfig
     private let store: StravaTokenStore
     private let transport: HTTPTransport
+    private let sleep: @Sendable (Duration) async throws -> Void
 
-    public init(config: StravaConfig, store: StravaTokenStore, transport: HTTPTransport = URLSessionTransport()) {
+    /// Backoff before the single retry of a 5xx response.
+    static let serverErrorBackoff: Duration = .seconds(2)
+
+    public init(config: StravaConfig, store: StravaTokenStore, transport: HTTPTransport = URLSessionTransport(),
+                sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
         self.config = config
         self.store = store
         self.transport = transport
+        self.sleep = sleep
     }
 
     /// Exchanges the authorization code from the OAuth callback URL for tokens.
@@ -198,13 +218,22 @@ public actor StravaClient {
             ]
             var request = URLRequest(url: c.url!)
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            let (data, response) = try await transport.data(for: request)
-            try Self.check(response, data)
+            let (data, response) = try await sendRetryingServerErrors(request)
+            try Self.check(response, data, redacting: [token])
             let list = try StravaActivityDTO.decodeList(data)
             rides += list.filter(\.isRide).map(\.summary)
             if list.count < 100 { break }
         }
         return rides
+    }
+
+    /// GET requests are idempotent: retry a 5xx exactly once after a short backoff. 429 is never retried here –
+    /// Strava's window lasts up to 15 minutes, so the user gets a message instead.
+    private func sendRetryingServerErrors(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let first = try await transport.data(for: request)
+        guard (500...599).contains(first.1.statusCode) else { return first }
+        try await sleep(Self.serverErrorBackoff)
+        return try await transport.data(for: request)
     }
 
     private func tokenRequest(_ params: [String: String]) async throws -> StravaTokens {
@@ -233,16 +262,54 @@ public actor StravaClient {
             .joined(separator: "&")
     }
 
-    static func check(_ response: HTTPURLResponse, _ data: Data) throws {
+    /// Maps HTTP errors; server messages are redacted (Claude keys and the given secrets, e.g. the access token).
+    static func check(_ response: HTTPURLResponse, _ data: Data, redacting secrets: [String] = [], now: Date = .now) throws {
         switch response.statusCode {
         case 200..<300: return
-        case 429: throw StravaError.rateLimited
+        case 429: throw StravaError.rateLimited(retryAfter: retryAfter(from: response, now: now))
+        case 500...599: throw StravaError.unavailable(response.statusCode)
         case 401: throw StravaError.notConnected
         default:
             struct Fault: Decodable { let message: String? }
             let message = (try? JSONDecoder().decode(Fault.self, from: data))?.message
                 ?? String(data: data.prefix(200), encoding: .utf8) ?? ""
-            throw StravaError.http(response.statusCode, ClaudeClient.redact(message))
+            let redacted = secrets.filter { !$0.isEmpty }
+                .reduce(ClaudeClient.redact(message)) { $0.replacingOccurrences(of: $1, with: "…") }
+            throw StravaError.http(response.statusCode, redacted)
         }
+    }
+
+    /// Seconds until a request may succeed again: `Retry-After` (seconds or HTTP date) wins; otherwise Strava's
+    /// `X-ReadRateLimit-*` / `X-RateLimit-*` headers ("15-min,daily"). The 15-minute window resets at :00/:15/:30/:45,
+    /// the daily one at midnight UTC.
+    static func retryAfter(from response: HTTPURLResponse, now: Date) -> TimeInterval? {
+        if let raw = response.value(forHTTPHeaderField: "Retry-After")?.trimmingCharacters(in: .whitespaces) {
+            if let seconds = TimeInterval(raw) { return max(0, seconds) }
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(identifier: "GMT")
+            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+            if let date = formatter.date(from: raw) { return max(0, date.timeIntervalSince(now)) }
+        }
+        func pair(_ name: String) -> [Int]? {
+            let values = response.value(forHTTPHeaderField: name)?.split(separator: ",")
+                .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+            return values?.count == 2 ? values : nil
+        }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        var waits: [TimeInterval] = []
+        for prefix in ["X-ReadRateLimit", "X-RateLimit"] {
+            guard let limit = pair("\(prefix)-Limit"), let usage = pair("\(prefix)-Usage") else { continue }
+            if usage[1] >= limit[1],
+               let midnight = utc.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0),
+                                           matchingPolicy: .nextTime) {
+                waits.append(midnight.timeIntervalSince(now))
+            } else if usage[0] >= limit[0] {
+                let c = utc.dateComponents([.minute, .second], from: now)
+                waits.append(TimeInterval(15 * 60 - ((c.minute ?? 0) % 15 * 60 + (c.second ?? 0))))
+            }
+        }
+        return waits.max()
     }
 }

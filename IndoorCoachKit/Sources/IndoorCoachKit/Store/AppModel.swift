@@ -237,10 +237,16 @@ public final class AppModel {
     }
     #endif
 
+    /// Removes the seeded demo rides and demo plan. Real rides and workouts the user accepted stay
+    /// (accepted DemoCoach plans are stored as `.manual`, see `acceptProposal`).
     public func resetDemoData() {
+        deleteDemoData()
+        try? context.save()
+    }
+
+    private func deleteDemoData() {
         try? context.delete(model: StoredRide.self, where: #Predicate { $0.isDemo })
         try? context.delete(model: StoredWorkout.self, where: #Predicate { $0.sourceRaw == "demo" })
-        try? context.save()
     }
 
     // MARK: - Strava
@@ -289,6 +295,10 @@ public final class AppModel {
         }
         do {
             let rides = try await stravaClient.fetchRides(after: since)
+            // Leftover demo data (e.g. tokens restored without the connect flow) goes with the first real sync.
+            if try context.fetchCount(FetchDescriptor<StoredRide>(predicate: #Predicate { $0.isDemo })) > 0 {
+                deleteDemoData()
+            }
             let existing = try context.fetch(FetchDescriptor<StoredRide>())
             var byID = Dictionary(existing.map { ($0.stravaID, $0) }, uniquingKeysWith: { first, _ in first })
             for ride in rides {
@@ -466,8 +476,11 @@ public final class AppModel {
     public func acceptProposal(addToCalendar shouldAddToCalendar: Bool) async {
         guard let plan = proposal else { return }
         var created: [StoredWorkout] = []
+        // `.demo` marks only the seeded demo plan; a DemoCoach plan the user accepts is theirs and survives
+        // the demo cleanup when Strava gets connected.
+        let source: WorkoutSource = proposalSource == .claude ? .claude : .manual
         for w in plan.workouts {
-            let stored = StoredWorkout(proposal: w, source: proposalSource, weekFocus: plan.weekFocus)
+            let stored = StoredWorkout(proposal: w, source: source, weekFocus: plan.weekFocus)
             context.insert(stored)
             created.append(stored)
         }
