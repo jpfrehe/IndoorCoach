@@ -56,6 +56,7 @@ struct PerformanceView: View {
                 if current.estimatedFTP != nil { eftpCard(current) }
                 VO2maxCard(rides: rides, showTrend: true, range: range)
                 // ANCHOR-K4-LEISTUNG (Aerobe Effizienz)
+                AerobicEfficiencyCard(rides: rides, ftp: model.profile.ftp, range: range)
 
                 explanation
             }

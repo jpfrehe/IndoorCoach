@@ -24,6 +24,9 @@ public final class StoredRide {
     public var maxWatts: Double?
     /// Measured mean-maximal curve as JSON (see `PowerCurve.encode`); nil for rides without 1 Hz data.
     public var powerCurveData: Data?
+    // Added with the aerobic-efficiency feature – optional so SwiftData migrates lightweight.
+    /// Pw:HR decoupling in percent from a FIT file; nil when the ride has no 1 Hz power and heart rate.
+    public var decoupling: Double?
 
     public init(_ r: RideSummary, isDemo: Bool = false) {
         stravaID = r.id
@@ -44,6 +47,7 @@ public final class StoredRide {
         stravaRelativeEffort = r.stravaRelativeEffort
         maxWatts = r.maxWatts
         powerCurveData = r.powerCurve.flatMap(PowerCurve.encode)
+        decoupling = r.decoupling
     }
 
     public func update(from r: RideSummary) {
@@ -63,6 +67,7 @@ public final class StoredRide {
         // A summary-only sync (Strava) must not wipe a curve measured from a FIT file, nor a known max.
         if let max = r.maxWatts { maxWatts = max }
         if let curve = r.powerCurve, let data = PowerCurve.encode(curve) { powerCurveData = data }
+        if let d = r.decoupling { decoupling = d }
     }
 
     public var powerCurve: [Int: Double]? { PowerCurve.decode(powerCurveData) }
@@ -76,6 +81,7 @@ public final class StoredRide {
         r.stravaRelativeEffort = stravaRelativeEffort
         r.maxWatts = maxWatts
         r.powerCurve = powerCurve
+        r.decoupling = decoupling
         return r
     }
 }

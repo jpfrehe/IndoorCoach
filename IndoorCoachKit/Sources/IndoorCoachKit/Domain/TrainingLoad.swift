@@ -24,6 +24,8 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
     public var maxWatts: Double? = nil
     /// Measured mean-maximal power per standard duration (only rides with 1 Hz data, see `PowerCurve`).
     public var powerCurve: [Int: Double]? = nil
+    /// Pw:HR decoupling in percent (see `AerobicEfficiency.decoupling`); only rides imported from a FIT file.
+    public var decoupling: Double? = nil
 
     public init(id: Int, name: String, sportType: String, startDate: Date, movingTime: Int, distance: Double,
                 averageWatts: Double? = nil, weightedAverageWatts: Double? = nil, kilojoules: Double? = nil,
@@ -55,6 +57,7 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
                   trainer: true)
         maxWatts = fit.maxWatts
         powerCurve = fit.powerCurve
+        decoupling = fit.decoupling
     }
 }
 

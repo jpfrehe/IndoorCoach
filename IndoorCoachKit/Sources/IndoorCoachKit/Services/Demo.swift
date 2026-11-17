@@ -91,20 +91,33 @@ public enum DemoData {
             let avg = np * (p.indoor ? 0.96 : 0.88)
             let start = calendar.date(bySettingHour: p.indoor ? 18 : 9, minute: 30, second: 0, of: day)!
             id += 1
+            // Gentle fitness gain over the window: the same power costs up to 9 % less pulse by yesterday (EF trend).
+            let progress = Double(days - offset) / Double(max(1, days - 1))
+            let pulse = (1 - 0.09 * progress)
             var ride = RideSummary(id: id, name: p.name,
                                       sportType: p.indoor ? "VirtualRide" : "Ride", startDate: start,
                                       movingTime: minutes * 60,
                                       distance: Double(minutes) * (p.indoor ? 520 : 470),
                                       averageWatts: avg, weightedAverageWatts: np,
                                       kilojoules: avg * Double(minutes) * 60 / 1000,
-                                      averageHeartrate: 118 + 50 * (p.intensity - 0.55), maxHeartrate: 150 + 40 * (p.intensity - 0.55),
+                                      averageHeartrate: (118 + 50 * (p.intensity - 0.55)) * pulse, maxHeartrate: 150 + 40 * (p.intensity - 0.55),
                                       trainer: p.indoor)
             ride.powerCurve = syntheticCurve(rideID: id, durationSeconds: minutes * 60, averageWatts: avg,
                                              intensity: p.intensity, ftp: ftp)
             ride.maxWatts = ride.powerCurve?[1]
+            ride.decoupling = syntheticDecoupling(rideID: id, minutes: minutes, intensity: p.intensity, progress: progress)
             result.append(ride)
         }
         return result
+    }
+
+    /// Plausible Pw:HR decoupling in percent: grows with intensity and duration, shrinks as the (demo) athlete gets fitter.
+    /// Uses its own generator so the ride sequence above stays unchanged.
+    static func syntheticDecoupling(rideID: Int, minutes: Int, intensity: Double, progress: Double) -> Double {
+        var rng = SeededGenerator(seed: UInt64(truncatingIfNeeded: rideID) &* 7919)
+        let jitter = Double.random(in: -1...1.5, using: &rng)
+        let value = 1.0 + 12 * (intensity - 0.55) + Double(minutes) / 60 + jitter - 2 * progress
+        return (value * 10).rounded() / 10
     }
 
     /// Plausible, deterministic mean-maximal curve for a demo ride (critical-power model with a sprint cap),
