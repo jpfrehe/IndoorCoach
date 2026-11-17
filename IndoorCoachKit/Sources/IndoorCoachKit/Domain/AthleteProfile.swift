@@ -28,13 +28,15 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
     public var autoSendToMyWhoosh: Bool = true
     /// Weekly local notification on Sunday 18:00 pointing at the Wochenrückblick (opt-in, K2).
     public var weeklyReviewReminder: Bool = false
+    /// Local notification 30 minutes before each planned workout of the next 14 days (opt-in, G7).
+    public var workoutReminder: Bool = false
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
         case name, ftp, weightKg, thresholdHeartRate, goal, goalDate, weeklyHours, trainingDays, longestSessionMinutes,
              preferredStartHour, preferredStartMinute, notes, planHorizonDays, model,
-             restingHeartRate, maxHeartRate, arcStart, targetCTL, autoSendToMyWhoosh, weeklyReviewReminder
+             restingHeartRate, maxHeartRate, arcStart, targetCTL, autoSendToMyWhoosh, weeklyReviewReminder, workoutReminder
     }
 
     /// Tolerant decoding: keys added in later versions fall back to their defaults instead of failing –
@@ -62,6 +64,7 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
         targetCTL = try c.decodeIfPresent(Double.self, forKey: .targetCTL)
         autoSendToMyWhoosh = try c.decodeIfPresent(Bool.self, forKey: .autoSendToMyWhoosh) ?? d.autoSendToMyWhoosh
         weeklyReviewReminder = try c.decodeIfPresent(Bool.self, forKey: .weeklyReviewReminder) ?? d.weeklyReviewReminder
+        workoutReminder = try c.decodeIfPresent(Bool.self, forKey: .workoutReminder) ?? d.workoutReminder
     }
 
     /// Heart-rate anchors for Relative Effort. Max HR falls back to LTHR / 0.9, then 190.

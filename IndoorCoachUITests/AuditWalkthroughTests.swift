@@ -816,6 +816,30 @@ final class AuditWalkthroughTests: AuditCase {
 
     // ANCHOR-UITEST-P4
 
+    // MARK: P4 – Winter-Reise und Erinnerung vor Einheiten
+
+    func test28_JourneyAndReminder() {
+        launch()
+        route = "heute"
+        let arcCard = button(containing: "Winter Arc")
+        check(scrollUntilExists(arcCard, maxSwipes: 3).exists, "Winter-Arc-Karte auf Heute")
+        tap(arcCard, "Winter-Arc-Karte")
+        route = "winterarc"
+        check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
+        let journey = app.descendants(matching: .any)["journey.card"].firstMatch
+        check(scrollUntilExists(journey).exists, "Karte „Winter-Reise“ im Winter-Arc-Detail")
+        check(journey.label.hasPrefix("Etappe "), "VoiceOver nennt Etappe und Fortschritt: \(journey.label)")
+        shot("winter-reise")
+        accessibilityAudit("Winter-Reise")
+        back()
+
+        openTab("Profil")
+        route = "profil"
+        let toggle = app.descendants(matching: .any)["reminder.workoutToggle"].firstMatch
+        check(scrollUntilExists(toggle).exists, "Schalter „Erinnerung 30 Minuten vor der Einheit“ im Profil")
+        shot("einheiten-erinnerung")
+    }
+
     // ---
 
     // ANCHOR-UITEST-K4
