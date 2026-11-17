@@ -39,6 +39,17 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
     }
 
     public var isIndoor: Bool { trainer || sportType == "VirtualRide" }
+
+    /// Strava activity ids are positive; imported rides (MyWhoosh, FIT) use negative ids.
+    public var isFromStrava: Bool { id > 0 }
+
+    /// An indoor ride read from a FIT file (normalized power stands in for Strava's weighted average watts).
+    public init(fit: FITParser.Summary, id: Int, name: String) {
+        self.init(id: id, name: name, sportType: "VirtualRide", startDate: fit.startDate, movingTime: fit.movingTime,
+                  distance: fit.distance, averageWatts: fit.averageWatts, weightedAverageWatts: fit.normalizedPower,
+                  kilojoules: fit.kilojoules, averageHeartrate: fit.averageHeartrate, maxHeartrate: fit.maxHeartrate,
+                  trainer: true)
+    }
 }
 
 public enum TSSSource: String, Sendable {

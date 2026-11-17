@@ -19,8 +19,7 @@ struct TodayView: View {
             .navigationTitle("Heute")
             .navigationDestination(for: StoredWorkout.self) { WorkoutDetailView(workout: $0) }
             .refreshable {
-                if model.isStravaConnected { await model.syncStrava() }
-                else { model.show("Strava ist nicht verbunden – verbinde es im Profil.", error: false) }
+                await model.syncRides(userInitiated: true)
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -73,7 +72,7 @@ struct TodayDashboard: View {
                 Image(systemName: "sparkles").font(.title2).foregroundStyle(Theme.sunset)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Demo-Modus").font(.headline)
-                    Text("Du siehst Beispieldaten. Verbinde Strava und hinterlege deinen Claude-API-Key im Profil, um mit deinen echten Fahrten zu planen.")
+                    Text("Du siehst Beispieldaten. Verbinde Strava oder MyWhoosh (oder importiere FIT-Dateien) und hinterlege deinen Claude-API-Key im Profil, um mit deinen echten Fahrten zu planen.")
                         .font(.subheadline).foregroundStyle(.secondary)
                     Button { tab = .profile } label: {
                         Text("Zum Profil").frame(minHeight: 44).contentShape(Rectangle())

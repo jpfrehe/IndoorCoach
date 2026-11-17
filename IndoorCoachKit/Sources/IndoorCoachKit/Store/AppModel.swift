@@ -50,6 +50,9 @@ public final class AppModel {
     public private(set) var isSyncing = false
     public private(set) var isPlanning = false
     public private(set) var lastSync: Date?
+    /// Rides came from MyWhoosh or FIT files (ends demo mode without Strava).
+    public private(set) var hasImportedRides = false
+    public private(set) var lastMyWhooshImport: Date?
     public var banner: Banner?
     public var proposal: PlanProposal?
     /// Set by "Plan erstellen" outside the Plan tab; PlanView opens the planner and resets it.
@@ -79,8 +82,10 @@ public final class AppModel {
         static let stravaClientID = "strava.clientID"
         static let lastSync = "strava.lastSync"
         static let onboardingCompleted = "onboarding.completed.v1"
+        static let ridesImported = "rides.imported.v1"
+        static let myWhooshLastImport = "mywhoosh.lastImport"
         /// Everything "Alle Daten löschen" removes – add every new persisted key here.
-        static let all = [profile, stravaClientID, lastSync, onboardingCompleted]
+        static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport]
     }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
@@ -100,6 +105,8 @@ public final class AppModel {
         }
         stravaClientID = defaults.string(forKey: Keys.stravaClientID) ?? ""
         lastSync = defaults.object(forKey: Keys.lastSync) as? Date
+        hasImportedRides = defaults.bool(forKey: Keys.ridesImported)
+        lastMyWhooshImport = defaults.object(forKey: Keys.myWhooshLastImport) as? Date
         refreshCredentialState()
         needsOnboarding = Self.resolveOnboarding(defaults: defaults, isExistingInstall: isExistingInstall)
         #if DEBUG
@@ -183,6 +190,8 @@ public final class AppModel {
             try await myWhoosh.login(username: username.trimmingCharacters(in: .whitespaces), password: password)
             refreshCredentialState()
             show("Mit MyWhoosh verbunden.", error: false)
+            // First connect: bring in the ride history right away (replaces Strava for non-subscribers).
+            await importMyWhooshRides(full: true)
             return true
         } catch {
             show(error.localizedDescription, error: true)
@@ -242,7 +251,7 @@ public final class AppModel {
         refreshCredentialState()
     }
 
-    public var isDemoMode: Bool { !isStravaConnected }
+    public var isDemoMode: Bool { !isStravaConnected && !hasImportedRides }
 
     var stravaConfig: StravaConfig {
         StravaConfig(clientID: stravaClientID.trimmingCharacters(in: .whitespaces),
@@ -309,7 +318,7 @@ public final class AppModel {
         try? context.save()
     }
 
-    private func deleteDemoData() {
+    func deleteDemoData() {
         try? context.delete(model: StoredRide.self, where: #Predicate { $0.isDemo })
         try? context.delete(model: StoredWorkout.self, where: #Predicate { $0.sourceRaw == "demo" })
     }
@@ -341,13 +350,14 @@ public final class AppModel {
     public func disconnectStrava() async {
         await stravaClient.disconnect()
         Log.notice(.strava, "Getrennt")
-        try? context.delete(model: StoredRide.self)
+        // Only Strava's rides go; rides imported from MyWhoosh or FIT files (negative ids) stay.
+        try? context.delete(model: StoredRide.self, where: #Predicate { $0.stravaID > 0 })
         try? context.save()
         defaults.removeObject(forKey: Keys.lastSync)
         lastSync = nil
         refreshCredentialState()
         bootstrap()
-        show("Strava getrennt – Demo-Daten aktiv.", error: false)
+        show(isDemoMode ? "Strava getrennt – Demo-Daten aktiv." : "Strava getrennt.", error: false)
     }
 
     /// Incremental sync (overlap of 2 days to catch edits); full sync loads 120 days.
@@ -394,6 +404,124 @@ public final class AppModel {
             refreshCredentialState()
             show(error.localizedDescription, error: true)
         }
+    }
+
+    // MARK: - Ride import without Strava (MyWhoosh history, FIT files)
+
+    /// Pull-to-refresh / app start: every connected source. `userInitiated` also reports "nothing new".
+    public func syncRides(userInitiated: Bool = false) async {
+        if isStravaConnected { await syncStrava() }
+        if isMyWhooshConnected { await importMyWhooshRides(announce: userInitiated) }
+        if userInitiated && !isStravaConnected && !isMyWhooshConnected {
+            show("Keine Datenquelle verbunden – verbinde Strava oder MyWhoosh im Profil oder importiere FIT-Dateien.", error: false)
+        }
+    }
+
+    /// Stable negative id for rides that do not come from Strava (Strava ids are positive, so they never collide).
+    static func importedRideID(_ key: String) -> Int {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325                 // FNV-1a, stable across launches (unlike Hasher)
+        for byte in key.utf8 { hash = (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01B3 }
+        return -Int(hash & 0x3FFF_FFFF_FFFF_FFFF) - 1
+    }
+
+    /// Loads past MyWhoosh rides (list + FIT file per ride). New rides only; the first import covers 210 days.
+    public func importMyWhooshRides(full: Bool = false, announce: Bool = true) async {
+        guard isMyWhooshConnected, !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+        let started = ContinuousClock.now
+        let since = (!full ? lastMyWhooshImport?.addingTimeInterval(-7 * 86_400) : nil)
+            ?? Calendar.current.date(byAdding: .day, value: -210, to: .now)!
+        do {
+            let list = try await myWhoosh.activities()
+            // Field names only (no values) – lets a diagnostics export show how MyWhoosh answers.
+            Log.notice(.sync, "MyWhoosh-Fahrtenliste: \(list.activities.count) Einträge, Antwort-Felder \(list.responseKeys), Eintrags-Felder \(list.itemKeys)")
+            let known = Set(((try? context.fetch(FetchDescriptor<StoredRide>())) ?? []).map(\.stravaID))
+            let fresh = list.activities
+                .filter { ($0.date ?? .now) >= since && !known.contains(Self.importedRideID("mywhoosh:\($0.id)")) }
+                .prefix(80)
+            var rides: [RideSummary] = []
+            var unreadable = 0
+            for activity in fresh {
+                if let ride = await myWhooshRide(activity) { rides.append(ride) } else { unreadable += 1 }
+            }
+            let inserted = storeImportedRides(rides)
+            lastMyWhooshImport = .now
+            defaults.set(lastMyWhooshImport, forKey: Keys.myWhooshLastImport)
+            Log.notice(.sync, "MyWhoosh-Import: \(fresh.count) neu gelistet, \(inserted) gespeichert, \(unreadable) ohne Daten, \(Self.elapsed(since: started))")
+            if inserted > 0 {
+                show("MyWhoosh: \(inserted) \(inserted == 1 ? "Fahrt" : "Fahrten") importiert.", error: false)
+            } else if unreadable > 0 {
+                show("MyWhoosh liefert zu \(unreadable) Fahrten keine auswertbaren Daten. Importiere sie als FIT-Dateien (Profil → MyWhoosh).", error: true)
+            } else if announce {
+                show("MyWhoosh: keine neuen Fahrten.", error: false)
+            }
+        } catch {
+            Log.error(.sync, "MyWhoosh-Import fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
+            refreshCredentialState()
+            show(error.localizedDescription, error: true)
+        }
+    }
+
+    /// One listed activity → ride: from its FIT file when available, otherwise from the list's own numbers.
+    private func myWhooshRide(_ activity: MyWhooshActivity) async -> RideSummary? {
+        let id = Self.importedRideID("mywhoosh:\(activity.id)")
+        let name = activity.name ?? "MyWhoosh-Fahrt"
+        if let url = activity.fitURL {
+            do {
+                let fit = try FITParser.summary(from: try await myWhoosh.downloadFIT(url))
+                return RideSummary(fit: fit, id: id, name: name)
+            } catch {
+                Log.error(.sync, "FIT-Datei von MyWhoosh nicht lesbar: \(type(of: error))")
+            }
+        }
+        guard let date = activity.date, let seconds = activity.durationSeconds, seconds > 0 else { return nil }
+        return RideSummary(id: id, name: name, sportType: "VirtualRide", startDate: date, movingTime: seconds, distance: 0,
+                           averageWatts: activity.averageWatts, averageHeartrate: activity.averageHeartrate, trainer: true)
+    }
+
+    /// Imports FIT files picked in the Files app (MyWhoosh, Zwift, Wahoo … all write FIT).
+    public func importFITFiles(_ urls: [URL]) {
+        var rides: [RideSummary] = []
+        var failed = 0
+        for url in urls {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url), let fit = try? FITParser.summary(from: data) else { failed += 1; continue }
+            let name = url.deletingPathExtension().lastPathComponent
+            rides.append(RideSummary(fit: fit, id: Self.importedRideID("fit:\(Int(fit.startDate.timeIntervalSince1970))"),
+                                     name: name.isEmpty ? "Indoor-Fahrt" : name))
+        }
+        let inserted = storeImportedRides(rides)
+        Log.notice(.sync, "FIT-Import: \(urls.count) Dateien, \(inserted) neu, \(failed) nicht lesbar")
+        switch (inserted, failed) {
+        case (0, 0): show("Diese Fahrten sind schon in der App.", error: false)
+        case (_, 0): show("\(inserted) \(inserted == 1 ? "Fahrt" : "Fahrten") importiert.", error: false)
+        case (0, _): show("Die Datei ist keine lesbare FIT-Aktivität.", error: true)
+        default: show("\(inserted) importiert, \(failed) nicht lesbar.", error: true)
+        }
+    }
+
+    /// Inserts new rides, skipping ones already present – same id, or any ride starting within 5 minutes
+    /// (the same ride via Strava, the MyWhoosh list or a FIT file). Real rides end demo mode. Returns the count.
+    @discardableResult
+    func storeImportedRides(_ rides: [RideSummary]) -> Int {
+        guard !rides.isEmpty else { return 0 }
+        if (try? context.fetchCount(FetchDescriptor<StoredRide>(predicate: #Predicate { $0.isDemo }))) ?? 0 > 0 {
+            deleteDemoData()
+        }
+        var starts = ((try? context.fetch(FetchDescriptor<StoredRide>())) ?? []).map(\.startDate)
+        var inserted = 0
+        for ride in rides where !starts.contains(where: { abs($0.timeIntervalSince(ride.startDate)) < 300 }) {
+            context.insert(StoredRide(ride))
+            starts.append(ride.startDate)
+            inserted += 1
+        }
+        linkCompletedWorkouts()
+        try? context.save()
+        hasImportedRides = true
+        defaults.set(true, forKey: Keys.ridesImported)
+        return inserted
     }
 
     /// Marks past planned workouts as done when a ride exists on the same day.
@@ -683,6 +811,8 @@ public final class AppModel {
         profile = AthleteProfile()
         stravaClientID = ""
         lastSync = nil
+        hasImportedRides = false
+        lastMyWhooshImport = nil
         proposal = nil
         plannerRequested = false
         seriesCache = nil

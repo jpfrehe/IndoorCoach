@@ -63,7 +63,7 @@ public struct RootView: View {
         }
         .task {
             model.bootstrap()
-            await model.syncStrava()
+            await model.syncRides()
         }
     }
 }
@@ -73,7 +73,9 @@ public struct RootView: View {
 struct StubTransport: HTTPTransport {
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         try await Task.sleep(for: .milliseconds(300))
-        let body = request.url?.path.contains("task/create") == true ? #"{"status":true,"data":{"id":"stub-task"}}"# : #"{"message":"ok"}"#
+        let path = request.url?.path ?? ""
+        let body = path.contains("task/create") ? #"{"status":true,"data":{"id":"stub-task"}}"#
+            : path.contains("profile/activities") ? #"{"activities":[]}"# : #"{"message":"ok"}"#
         return (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
     }
 }

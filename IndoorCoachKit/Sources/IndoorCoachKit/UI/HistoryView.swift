@@ -56,7 +56,7 @@ struct HistoryView: View {
                         }
                     }
                 }
-                if !model.isDemoMode {
+                if model.isStravaConnected {
                     Section {
                         PoweredByStrava()
                     }
@@ -67,8 +67,7 @@ struct HistoryView: View {
             .navigationTitle("Verlauf")
             .navigationDestination(for: RideSummary.self) { RideDetailView(ride: $0) }
             .refreshable {
-                if model.isStravaConnected { await model.syncStrava() }
-                else { model.show("Strava ist nicht verbunden – verbinde es im Profil.", error: false) }
+                await model.syncRides(userInitiated: true)
             }
         }
     }
@@ -182,7 +181,7 @@ struct RideDetailView: View {
                           systemImage: "info.circle")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                if !model.isDemoMode, let url = URL(string: "https://www.strava.com/activities/\(ride.id)") {
+                if model.isStravaConnected, ride.isFromStrava, let url = URL(string: "https://www.strava.com/activities/\(ride.id)") {
                     Link(destination: url) {
                         Label("Auf Strava ansehen", systemImage: "arrow.up.right.square")
                             .font(.headline)

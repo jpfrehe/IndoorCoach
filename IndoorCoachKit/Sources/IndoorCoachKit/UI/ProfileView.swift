@@ -1,5 +1,6 @@
 import AuthenticationServices
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ProfileView: View {
     @Environment(AppModel.self) private var model
@@ -8,6 +9,7 @@ struct ProfileView: View {
     @State private var stravaSecretInput = ""
     @State private var confirmDisconnect = false
     @State private var confirmDeleteAll = false
+    @State private var showFITImporter = false
 
     var body: some View {
         @Bindable var model = model
@@ -27,6 +29,9 @@ struct ProfileView: View {
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .scrollsToStravaSectionOnRequest()
+            .fileImporter(isPresented: $showFITImporter, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { model.importFITFiles(urls) }
+            }
             .navigationTitle("Profil")
             .confirmationDialog("Strava trennen?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
                 Button("Trennen", role: .destructive) { Task { await model.disconnectStrava() } }
@@ -250,6 +255,18 @@ struct ProfileView: View {
             if let user = model.myWhooshUser {
                 LabeledContent("Verbunden", value: user)
                 Toggle("Neue Pläne automatisch senden", isOn: $model.profile.autoSendToMyWhoosh)
+                Button {
+                    Task { await model.importMyWhooshRides() }
+                } label: {
+                    HStack {
+                        Label("Fahrten aus MyWhoosh laden", systemImage: "arrow.down.circle")
+                        if model.isSyncing { Spacer(); ProgressView() }
+                    }
+                }
+                .disabled(model.isSyncing)
+                if let last = model.lastMyWhooshImport {
+                    LabeledContent("Letzter Import", value: last.formatted(.relative(presentation: .named).locale(Locale(identifier: "de_DE"))))
+                }
                 Button("Bei MyWhoosh abmelden", role: .destructive) { Task { await model.disconnectMyWhoosh() } }
             } else {
                 LabeledContent("E-Mail") {
@@ -280,8 +297,11 @@ struct ProfileView: View {
                 }
                 .disabled(whooshBusy || whooshEmail.isEmpty || whooshPassword.isEmpty)
             }
+            Button { showFITImporter = true } label: {
+                Label("FIT-Dateien importieren …", systemImage: "doc.badge.plus")
+            }
         } header: { Text("MyWhoosh") } footer: {
-            Text("Einheiten landen direkt in MyWhoosh unter „Custom Workouts“ und im MyWhoosh-Kalender. Nutzt die inoffizielle MyWhoosh-Schnittstelle (Community-Dokumentation) – sie kann sich jederzeit ändern; dann bleibt die .zwo-Datei als Weg. Dein Passwort wird nur zur Anmeldung gesendet und nicht gespeichert.")
+            Text("Einheiten landen direkt in MyWhoosh unter „Custom Workouts“ und im MyWhoosh-Kalender, deine gefahrenen Einheiten lädt die App von dort zurück – ganz ohne Strava. Nutzt die inoffizielle MyWhoosh-Schnittstelle; sie kann sich jederzeit ändern. Dann bleiben die .zwo-Datei und der FIT-Import (Dateien-App, auch von Zwift oder Wahoo) als Weg. Dein Passwort wird nur zur Anmeldung gesendet und nicht gespeichert.")
         }
     }
 

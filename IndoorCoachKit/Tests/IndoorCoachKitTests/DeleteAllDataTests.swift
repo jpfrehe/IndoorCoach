@@ -21,6 +21,8 @@ struct DeleteAllDataTests {
         model.profile.goal = "FTP 320"
         model.stravaClientID = "123456"
         defaults.set(Date.now, forKey: AppModel.Keys.lastSync)
+        defaults.set(true, forKey: AppModel.Keys.ridesImported)
+        defaults.set(Date.now, forKey: AppModel.Keys.myWhooshLastImport)
         model.setClaudeAPIKey("placeholder-claude-key")
         model.setStravaClientSecret("client-secret")
         secrets.saveTokens(StravaTokens(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, athleteName: "Test"))

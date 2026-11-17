@@ -597,6 +597,10 @@ final class AuditWalkthroughTests: AuditCase {
         let connected = scrollUntilExists(text(containing: "test@example.com"))
         check(connected.exists, "Profil zeigt verbundenes MyWhoosh-Konto")
         check(app.switches["Neue Pläne automatisch senden"].exists, "Schalter für automatisches Senden")
+        let history = scrollUntilExists(button(containing: "Fahrten aus MyWhoosh laden"))
+        check(history.exists, "Fahrten-Import aus MyWhoosh angeboten")
+        tap(history, "Fahrten aus MyWhoosh laden")
+        check(waitForBanner(containing: "keine neuen Fahrten"), "Import meldet sich (Stub: keine Fahrten)")
         shot("profile-connected")
     }
 
@@ -612,6 +616,7 @@ final class AuditWalkthroughTests: AuditCase {
         openTab("Profil")
         let login = scrollUntilExists(button(containing: "Bei MyWhoosh anmelden"))
         check(login.exists && !login.isEnabled, "Anmelden erst mit E-Mail und Passwort aktiv")
+        check(scrollUntilExists(button(containing: "FIT-Dateien importieren")).exists, "FIT-Import auch ohne Konto")
         shot("profile-login")
         accessibilityAudit("Profil-MyWhoosh")
     }

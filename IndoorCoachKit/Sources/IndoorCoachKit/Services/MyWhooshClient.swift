@@ -156,8 +156,87 @@ public final class InMemoryMyWhooshSessionStore: MyWhooshSessionStore, @unchecke
     public func saveSession(_ session: MyWhooshSession?) { lock.withLock { self.session = session } }
 }
 
+/// One past ride as listed by MyWhoosh. Field names are not documented, so several spellings are accepted.
+public struct MyWhooshActivity: Sendable, Equatable {
+    public var id: String
+    public var name: String?
+    public var date: Date?
+    public var fitURL: URL?
+    public var durationSeconds: Int?
+    public var averageWatts: Double?
+    public var averageHeartrate: Double?
+
+    static func list(from data: Data) -> MyWhooshClient.ActivityList? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) else { return nil }
+        let listKeys = ["activities", "data", "rides", "rideHistory", "items", "results", "list"]
+        func findList(_ value: Any, depth: Int) -> [[String: Any]]? {
+            if let array = value as? [[String: Any]] { return array }
+            if let array = value as? [Any], array.isEmpty { return [] }
+            guard depth < 2, let dict = value as? [String: Any] else { return nil }
+            for key in listKeys { if let v = dict[key], let found = findList(v, depth: depth + 1) { return found } }
+            return nil
+        }
+        guard let items = findList(json, depth: 0) else { return nil }
+        return MyWhooshClient.ActivityList(activities: items.compactMap(MyWhooshActivity.init(json:)),
+                                           responseKeys: ((json as? [String: Any])?.keys).map { $0.sorted() } ?? ["<Liste>"],
+                                           itemKeys: items.first.map { $0.keys.sorted() } ?? [])
+    }
+
+    init?(json: [String: Any]) {
+        func value(_ keys: [String]) -> Any? {
+            for key in keys { if let v = json[key], !(v is NSNull) { return v } }
+            return nil
+        }
+        func string(_ keys: [String]) -> String? {
+            switch value(keys) {
+            case let s as String where !s.isEmpty: s
+            case let n as NSNumber: n.stringValue
+            default: nil
+            }
+        }
+        func number(_ keys: [String]) -> Double? {
+            switch value(keys) {
+            case let n as NSNumber: n.doubleValue
+            case let s as String: Double(s)
+            default: nil
+            }
+        }
+        guard let id = string(["id", "_id", "activityId", "ActivityId", "rideId", "RideId", "Id"]) else { return nil }
+        self.id = id
+        name = string(["name", "title", "Name", "activityName", "routeName", "RouteName"])
+        date = Self.date(value(["date", "startTime", "StartTime", "createdAt", "rideDate", "startDate"]))
+        fitURL = string(["downloadUrl", "fitFileUrl", "fileUrl", "s3Url", "fitFile", "FitFileUrl", "fitUrl"])
+            .flatMap(URL.init(string:)).flatMap { $0.scheme == "https" ? $0 : nil }
+        durationSeconds = number(["duration", "rideTime", "totalTime", "movingTime", "elapsedTime", "TotalRideTime"]).map { Int($0) }
+        averageWatts = number(["avgPower", "averagePower", "avgWatts", "AveragePower"])
+        averageHeartrate = number(["avgHeartRate", "averageHeartRate", "avgHr", "AverageHeartRate"])
+    }
+
+    static func date(_ raw: Any?) -> Date? {
+        switch raw {
+        case let n as NSNumber:
+            let v = n.doubleValue
+            return Date(timeIntervalSince1970: v > 100_000_000_000 ? v / 1000 : v)   // ms or s
+        case let s as String:
+            if let v = Double(s) { return date(NSNumber(value: v)) }
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let d = iso.date(from: s) { return d }
+            iso.formatOptions = [.withInternetDateTime]
+            if let d = iso.date(from: s) { return d }
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.timeZone = TimeZone(identifier: "UTC")
+            f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            return f.date(from: s)
+        default:
+            return nil
+        }
+    }
+}
+
 public enum MyWhooshError: Error, Equatable, LocalizedError {
-    case notConnected, loginFailed, sessionExpired, http(Int), unexpectedResponse
+    case notConnected, loginFailed, sessionExpired, http(Int), unexpectedResponse, historyUnavailable
 
     public var errorDescription: String? {
         switch self {
@@ -166,6 +245,7 @@ public enum MyWhooshError: Error, Equatable, LocalizedError {
         case .sessionExpired: "MyWhoosh-Anmeldung abgelaufen – bitte im Profil neu anmelden."
         case .http(let code): "MyWhoosh antwortet mit Fehler \(code). Die inoffizielle Schnittstelle hat sich evtl. geändert – nutze solange die .zwo-Datei."
         case .unexpectedResponse: "Unerwartete Antwort von MyWhoosh – nutze solange die .zwo-Datei."
+        case .historyUnavailable: "MyWhoosh liefert die Fahrtenliste nicht wie erwartet. Importiere deine Fahrten solange als FIT-Dateien (Profil → MyWhoosh)."
         }
     }
 }
@@ -251,6 +331,53 @@ public actor MyWhooshClient {
         request.httpMethod = "DELETE"
         _ = try await send(request)
     }
+
+    // MARK: Ride history (undocumented endpoint, used by community tools – response format is guessed tolerantly)
+
+    public struct ActivityList: Sendable {
+        public var activities: [MyWhooshActivity]
+        /// Field names (no values) of the response and of the first item – logged for diagnostics.
+        public var responseKeys: [String]
+        public var itemKeys: [String]
+    }
+
+    /// Lists the rider's past activities. Tries the request bodies community tools use, in order.
+    public func activities(limit: Int = 200) async throws -> ActivityList {
+        let session = try validSession()
+        let bodies: [[String: Any]] = [[:], ["limit": limit, "offset": 0], ["page": 1, "limit": limit]]
+        var attempts: [String] = []
+        for body in bodies {
+            var request = authorized(URLRequest(url: Self.activitiesURL), session)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            do {
+                let data = try await send(request)
+                if let list = MyWhooshActivity.list(from: data) { return list }
+                attempts.append("200, unbekanntes Format")
+            } catch MyWhooshError.sessionExpired {
+                throw MyWhooshError.sessionExpired
+            } catch MyWhooshError.http(let code) {
+                attempts.append("HTTP \(code)")
+            }
+        }
+        Log.error(.sync, "MyWhoosh-Fahrtenliste nicht lesbar: \(attempts.joined(separator: ", "))")
+        throw MyWhooshError.historyUnavailable
+    }
+
+    /// Downloads an activity's FIT file. Only https URLs are followed; the token goes only to MyWhoosh hosts
+    /// (S3 links are pre-signed).
+    public func downloadFIT(_ url: URL) async throws -> Data {
+        guard url.scheme == "https", let host = url.host() else { throw MyWhooshError.unexpectedResponse }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 60
+        if host == "mywhoosh.com" || host.hasSuffix(".mywhoosh.com") {
+            request = authorized(request, try validSession())
+        }
+        return try await send(request)
+    }
+
+    static let activitiesURL = URL(string: "https://service14.mywhoosh.com/v2/rider/profile/activities")!
 
     // MARK: Helpers
 
