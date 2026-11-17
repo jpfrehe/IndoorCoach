@@ -183,6 +183,13 @@ class AuditCase: XCTestCase {
 
     final class IssueBox: @unchecked Sendable { var count = 0; var occluded = 0 }
 
+    /// Waits until a push/scroll has come to rest (audit 2): screenshots and contrast/clipping checks taken
+    /// mid-transition measured half-visible text against the previous screen.
+    func settle(_ seconds: TimeInterval = 1.2) {
+        _ = app.navigationBars.buttons["BackButton"].waitForExistence(timeout: 3)
+        Thread.sleep(forTimeInterval: seconds)
+    }
+
     /// Runs Apple's accessibility audit. Issues on elements that sit (partly) under the translucent tab bar or
     /// navigation bar are logged as `A11Y-OCCLUDED`: their contrast is measured against the bar material,
     /// not against the card the user sees once the content is scrolled into view.
@@ -197,7 +204,9 @@ class AuditCase: XCTestCase {
                 let frame = issue.element?.frame ?? .zero
                 let element = issue.element.map { "\($0.elementType.name)[label=\"\($0.label)\" id=\"\($0.identifier)\"]" } ?? "-"
                 let occluded = !frame.isEmpty && (chrome.contains { $0.intersects(frame) } || !screenBounds.contains(frame))
-                print("\(occluded ? "A11Y-OCCLUDED" : "A11Y")|\(screen)|\(issue.auditType.name)|\(issue.compactDescription)|\(element)")
+                // Position (audit 2): y range of the element and of the window, to tell edge effects from real issues.
+                let position = frame.isEmpty ? "-" : "y=\(Int(frame.minY))…\(Int(frame.maxY))/\(Int(screenBounds.height))"
+                print("\(occluded ? "A11Y-OCCLUDED" : "A11Y")|\(screen)|\(issue.auditType.name)|\(issue.compactDescription)|\(element)|\(position)")
                 if issue.element == nil {
                     print("A11Y-DETAIL|\(screen)|\(issue.detailedDescription.replacingOccurrences(of: "\n", with: " "))")
                 }

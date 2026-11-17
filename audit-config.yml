@@ -30,6 +30,11 @@ console_allow:
   - "error fetching file provider domain for URL"       # ShareSheet, simulator
   - "error fetching item for URL"                       # ShareSheet, simulator
   - "/^building pipeline .* took/"                      # renderbox Metal pipeline compile (system glass effects)
+  - "Failed to send CA Event for app launch measurements"  # app_launch_measurement (system), XCTest launch metric in the simulator
+  # Audit 2: CoreAnimation, popping back to the scrolled large-title screen Heute (from Winter Arc and from
+  # Fitness & Freshness). Bisected: still logged without the new Winter-Arc cards and without the Heute
+  # highlight slot, no visible effect – framework-internal navigation-bar snapshot of zero height.
+  - "/^Failed to create \\d+x0 image slot/"
   - "/^Snapshot request 0x[0-9a-f]+ complete with error/"  # FrontBoard app-switcher snapshot on Home press
 
 network_allow: []  # demo mode makes no network requests

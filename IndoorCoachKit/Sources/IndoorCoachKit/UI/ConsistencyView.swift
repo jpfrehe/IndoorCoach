@@ -4,6 +4,7 @@ import SwiftUI
 struct ConsistencyCard: View {
     var result: Consistency.Result
     var weeksShown = 8
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var weeks: [Consistency.Week] { Array(result.weeks.suffix(weeksShown)) }
 
@@ -17,23 +18,35 @@ struct ConsistencyCard: View {
                 Text("Sobald die erste volle Woche der Saison vorbei ist, siehst du hier deine Wochen.")
                     .font(.footnote).foregroundStyle(Theme.rowSecondary)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 38), spacing: 6, alignment: .top)], alignment: .leading, spacing: 8) {
-                    ForEach(weeks) { week in
-                        VStack(spacing: 3) {
-                            WeekDot(state: week.state)
-                            Text("KW \(Self.isoWeek(week.start))").font(.caption2).foregroundStyle(Theme.rowSecondary)
-                                .lineLimit(1).minimumScaleFactor(0.7)
+                // Non-lazy grids (audit 2, A2-06): lazy grids inside the card's plain VStack left zero-height
+                // placeholder layers – CoreAnimation "Failed to create …x0 image slot" when leaving the screen.
+                let perRow = dynamicTypeSize.isAccessibilitySize ? 2 : 4
+                Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 8) {
+                    ForEach(Array(stride(from: 0, to: weeks.count, by: perRow)), id: \.self) { start in
+                        GridRow {
+                            ForEach(weeks[start..<min(start + perRow, weeks.count)]) { week in
+                                VStack(spacing: 3) {
+                                    WeekDot(state: week.state)
+                                    Text("KW \(Self.isoWeek(week.start))").font(.caption2).foregroundStyle(Theme.rowSecondary)
+                                        .lineLimit(1).fixedSize()
+                                }
+                                .frame(minWidth: 48)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel("Woche ab \(Self.dayLabel(week.start))")
+                                .accessibilityValue(Self.description(week.state))
+                            }
                         }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("Woche ab \(Self.dayLabel(week.start))")
-                        .accessibilityValue(Self.description(week.state))
                     }
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 6) {
-                    ForEach(Self.legend, id: \.title) { item in
-                        HStack(spacing: 6) {
-                            WeekDot(state: item.state, size: 20)
-                            Text(item.title).font(.caption).foregroundStyle(Theme.rowSecondary)
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                    ForEach(Array(stride(from: 0, to: Self.legend.count, by: 2)), id: \.self) { start in
+                        GridRow {
+                            ForEach(Self.legend[start..<min(start + 2, Self.legend.count)], id: \.title) { item in
+                                HStack(spacing: 6) {
+                                    WeekDot(state: item.state, size: 20)
+                                    Text(item.title).font(.caption).foregroundStyle(Theme.rowSecondary)
+                                }
+                            }
                         }
                     }
                 }

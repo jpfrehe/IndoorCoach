@@ -27,6 +27,7 @@ Läuft vollständig auf dem iPhone, ohne Backend.
 9. [Leistung: Leistungskurve, Bestleistungen, VO2max](docs/08-FEATURES-LEISTUNG.md)
 10. [Brainstorming & Marktanalyse: Winter-Motivation](docs/09-BRAINSTORM-WINTER-MOTIVATION.md)
 11. [Konstanz-Paket: Serie mit Joker, Wochenrückblick, Challenges, Effizienz](docs/10-KONSTANZ-PAKET.md)
+12. [UX-Audit 2 der erweiterten Version](docs/ux-audit-2026-11-17-b.md) – 6 Befunde behoben, offen: Kontrast-Knoten fürs Gerät
 
 ## Secrets
 

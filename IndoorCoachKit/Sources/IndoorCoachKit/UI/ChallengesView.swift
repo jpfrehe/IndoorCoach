@@ -146,6 +146,9 @@ struct ChallengesCard: View {
             Text("Zählt nur Indoor-Fahrten. Der Fortschritt wird aus deinen Fahrten berechnet.")
                 .font(.caption).foregroundStyle(Theme.rowSecondary)
         }
+        // A container element: otherwise the card's identifier is copied onto every child and replaces their own
+        // (audit 2, A2-03b: "Alle anzeigen" lost its id "trophies.all" and could not be found).
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("challenges.card")
     }
 }
@@ -212,6 +215,7 @@ struct TrophiesCard: View {
             }
             .accessibilityIdentifier("trophies.all")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("trophies.card")
     }
 }

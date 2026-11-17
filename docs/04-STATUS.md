@@ -14,6 +14,7 @@ Stand: v0.1 (Pilot-Vorbereitung) · 17.11.2026 · öffentlich auf [GitHub](https
 | B22 Fahrten ohne Strava: MyWhoosh-Fahrtenliste, FIT-Import | ✅ **auf dem iPhone getestet** | Import aus MyWhoosh mit echtem Konto bestätigt (3 Fahrten der letzten 210 Tage) |
 | Leistung: Leistungskurve, Bestleistungen, eFTP, VO2max | ✅ | [Feature-Dokument](08-FEATURES-LEISTUNG.md) |
 | Konstanz-Paket: Serie mit Joker, Plan-Treue, Wochenrückblick + Erinnerung, Saison-Challenges, Trophäen, aerobe Effizienz | ✅ | [Feature-Dokument](10-KONSTANZ-PAKET.md) |
+| UX-Audit 2 der erweiterten Version | ✅ 6 Befunde behoben | [Bericht](ux-audit-2026-11-17-b.md); formal offen: automatisch gemeldete Kontrast-Knoten (Gerät, B13) |
 
 **Tests:**
 - 270 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
@@ -46,7 +47,6 @@ Stand: v0.1 (Pilot-Vorbereitung) · 17.11.2026 · öffentlich auf [GitHub](https
 | Schritt | Wer |
 |---|---|
 | Ersetzen einer Einheit in MyWhoosh live prüfen | Nutzer + Hauptsession (Log direkt vom iPhone) |
-| UX-Audit der erweiterten App, Befunde beheben | Hauptsession |
 | Offene Ideen aus dem [Brainstorming](09-BRAINSTORM-WINTER-MOTIVATION.md): Ziel-Prognose, Vorjahres-Schatten, Erinnerungen/Widget | Hauptsession |
 | Apple Developer Program + TestFlight für den Pilot (B07) | Nutzer |
 | Kontrast-Knoten auf 375 pt und VoiceOver-Durchlauf auf dem Gerät (B13, B14) | Nutzer |

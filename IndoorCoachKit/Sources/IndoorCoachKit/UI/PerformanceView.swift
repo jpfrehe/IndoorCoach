@@ -31,6 +31,7 @@ enum PerformanceFormat {
 /// "Leistung": power curve, best efforts, eFTP and VO2max (opened from the Verlauf tab).
 struct PerformanceView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \StoredRide.startDate) private var storedRides: [StoredRide]
     @State private var range: PerformanceRange = .days90
 
@@ -157,18 +158,30 @@ struct PerformanceView: View {
     private func effortRow(_ p: PowerCurve.Point) -> some View {
         let perKg = model.profile.weightKg > 0 ? p.watts / model.profile.weightKg : nil
         let measured = p.source == .measured
-        return HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(PerformanceFormat.duration(p.duration)).font(.headline).frame(minWidth: 56, alignment: .leading)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(PerformanceFormat.watts(p.watts)).font(.title3.weight(.semibold)).monospacedDigit()
-                Text([perKg.map { "\(Formatters.decimal($0, digits: 2)) W/kg" }, PerformanceFormat.date(p.date)]
-                    .compactMap { $0 }.joined(separator: " · "))
-                    .font(.caption).foregroundStyle(Theme.rowSecondary)
+        let duration = Text(PerformanceFormat.duration(p.duration)).font(.headline).lineLimit(1).fixedSize()
+        let watts = Text(PerformanceFormat.watts(p.watts)).font(.title3.weight(.semibold)).monospacedDigit().lineLimit(1)
+        let detail = Text([perKg.map { "\(Formatters.decimal($0, digits: 2)) W/kg" }, PerformanceFormat.date(p.date)]
+            .compactMap { $0 }.joined(separator: " · "))
+            .font(.caption).foregroundStyle(Theme.rowSecondary)
+        let chip = JellyChip(text: measured ? "gemessen" : "mindestens", fill: measured ? Theme.fill(.z2) : Theme.softFill)
+            .fixedSize()                                                // audit: chip text was clipped
+        // Audit 2, A2-02: at accessibility sizes the columns collapsed ("10 / min", W/kg word by word) – stack instead.
+        return Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) { duration; watts }
+                    detail
+                    chip
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    duration.frame(minWidth: 56, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 2) { watts; detail }
+                    Spacer(minLength: 8)
+                    chip.layoutPriority(1)
+                }
             }
-            Spacer(minLength: 8)
-            JellyChip(text: measured ? "gemessen" : "mindestens", fill: measured ? Theme.fill(.z2) : Theme.softFill)
-                .fixedSize()                                            // audit: chip text was clipped
-                .layoutPriority(1)
         }
         .padding(.vertical, 8)
         .frame(minHeight: 44)

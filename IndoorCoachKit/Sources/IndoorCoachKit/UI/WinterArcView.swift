@@ -19,16 +19,24 @@ struct WinterArcCard: View {
                     Text(subtitle).font(.caption).foregroundStyle(Theme.rowSecondary)
                 }
             }
-            HStack(spacing: 8) {
-                JellyChip(text: status.pace.label, systemImage: paceSymbol, fill: paceColor)
-                if let streak = Consistency.summary(streak: status.streakWeeks, jokers: status.jokers) {
-                    JellyChip(text: streak, systemImage: "flame", fill: Color(Palette.mangoPop))
-                        .accessibilityIdentifier("arc.streak")
-                }
+            // Side by side when they fit, otherwise stacked – never clipped (audit 2, A2-05: "5 Wochen in Folge · 1 Joker").
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { chips }
+                VStack(alignment: .leading, spacing: 8) { chips }
             }
         }
         // One VoiceOver stop: "Winter Arc, Level 5 Wintersonnenwende, 40 % zum nächsten Level, …"
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var chips: some View {
+        JellyChip(text: status.pace.label, systemImage: paceSymbol, fill: paceColor).fixedSize()
+        if let streak = Consistency.summary(streak: status.streakWeeks, jokers: status.jokers) {
+            JellyChip(text: streak, systemImage: "flame", fill: Color(Palette.mangoPop))
+                .fixedSize()
+                .accessibilityIdentifier("arc.streak")
+        }
     }
 
     private var subtitle: String {
@@ -82,6 +90,11 @@ struct WinterArcView: View {
                     WinterArcCard(status: status)
                     // ANCHOR-K1-WINTERARC (Konstanz-Serie & Joker)
                     ConsistencyCard(result: model.consistency(rides: rides))
+                    // Audit 2, A2-03: the season hub shows what to do now (streak, challenges, trophies) before the
+                    // reference content; they used to sit below the 10-row level path, 5+ swipes down.
+                    // ANCHOR-K3-WINTERARC (Challenges & Trophäen)
+                    ChallengesCard(rides: rides)
+                    TrophiesCard(rides: rides, arc: status)
                     Card(title: "Fitness auf dem Weg zum Ziel", systemImage: "chart.line.uptrend.xyaxis") {
                         courseChart(status: status, points: model.fitnessSeries(rides: rides).points)
                         HStack {
@@ -95,10 +108,6 @@ struct WinterArcView: View {
                             levelRow(level, current: status.level.number)
                         }
                     }
-                    // ANCHOR-K3-WINTERARC (Challenges & Trophäen)
-                    ChallengesCard(rides: rides)
-                    TrophiesCard(rides: rides, arc: status)
-
                     Card(title: "So funktioniert der Winter Arc", systemImage: "info.circle") {
                         Text("Der Arc misst, wie viel Fitness du vom Saisonstart bis zu deinem Ziel-Tag aufbaust. Jedes Zehntel des Wegs zur Ziel-Fitness ist ein Level. Ein Level bleibt dir auch nach einer Pause – nur der Kurs zeigt ehrlich, ob du gerade vorne oder hinten liegst.")
                             .font(.subheadline)

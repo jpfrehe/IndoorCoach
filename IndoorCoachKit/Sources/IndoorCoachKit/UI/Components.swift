@@ -100,34 +100,47 @@ struct JellyChip: View {
 /// Primary action: sunset gradient with ink label (6.9–10:1), pressed feedback, dimmed when disabled.
 struct JellyButtonStyle: ButtonStyle {
     var large = true
-    @Environment(\.isEnabled) private var isEnabled
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font((large ? Font.body : .subheadline).weight(.semibold))
-            .foregroundStyle(Theme.ink)
-            .padding(.horizontal, large ? 18 : 12)
-            .padding(.vertical, large ? 14 : 7)
-            .frame(minHeight: 44)
-            .background(Theme.sunset, in: Capsule())
-            .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+    func makeBody(configuration: Configuration) -> some View { StyledLabel(configuration: configuration, large: large) }
+
+    /// `isEnabled` is read inside a View: `AnyButtonStyle` calls `makeBody` directly, where a style's own
+    /// `@Environment` is not installed (audit 2, A2-01: SwiftUI runtime warning, dimming never applied).
+    private struct StyledLabel: View {
+        var configuration: Configuration
+        var large: Bool
+        @Environment(\.isEnabled) private var isEnabled
+        var body: some View {
+            configuration.label
+                .font((large ? Font.body : .subheadline).weight(.semibold))
+                .foregroundStyle(Theme.ink)
+                .padding(.horizontal, large ? 18 : 12)
+                .padding(.vertical, large ? 14 : 7)
+                .frame(minHeight: 44)
+                .background(Theme.sunset, in: Capsule())
+                .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+        }
     }
 }
 
 /// Secondary action: soft peach wash with accent text.
 struct SoftButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.body.weight(.semibold))
-            .foregroundStyle(Theme.accent)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
-            .frame(minHeight: 44)
-            .background(Theme.softFill, in: Capsule())
-            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+    func makeBody(configuration: Configuration) -> some View { StyledLabel(configuration: configuration) }
+
+    private struct StyledLabel: View {
+        var configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        var body: some View {
+            configuration.label
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .frame(minHeight: 44)
+                .background(Theme.softFill, in: Capsule())
+                .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+        }
     }
 }
 
@@ -189,7 +202,7 @@ struct StatTile: View {
                 // Never break a number across lines ("18 / 4" for 184 W at large Dynamic Type): shrink instead.
                 Text(value).font(.title2.weight(.semibold)).monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.5)
-                if let unit { Text(unit).font(.caption.weight(.medium)).foregroundStyle(.secondary).lineLimit(1) }
+                if let unit { Text(unit).font(.caption.weight(.medium)).foregroundStyle(.secondary).lineLimit(1).fixedSize() }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -922,6 +922,58 @@ final class AuditMatrixTests: AuditCase {
         }
     }
 
+    /// Audit 2 (erweiterte Version): every surface added since the first audit, at L and Accessibility-L.
+    func testMatrixNewSurfaces() {
+        let sizes = ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityL"]
+        for size in sizes {
+            let tag = size == sizes[0] ? "L" : "AXL"
+            launch(extra: ["-UIPreferredContentSizeCategoryName", size, "-uiWeeklyReview", "YES"])
+            route = "heute"
+            shot("\(tag)-highlight")
+            accessibilityAudit("Heute-Highlight@\(tag)")
+            let review = app.descendants(matching: .any)["weeklyReview.card"].firstMatch
+            if review.waitForExistence(timeout: 3) {
+                tap(review, "Wochenrückblick öffnen")
+                route = "wochenrueckblick"
+                settle()
+                shot("\(tag)-top")
+                accessibilityAudit("Wochenrückblick@\(tag)")
+                app.swipeUp(); shot("\(tag)-scrolled")
+                back()
+            }
+            openTab("Verlauf")
+            tap(scrollUntilExists(app.buttons["performance.open"]), "Leistung öffnen")
+            route = "leistung"
+            settle()
+            shot("\(tag)-top")
+            accessibilityAudit("Leistung@\(tag)")
+            for _ in 0..<3 { app.swipeUp(); settle(0.8); shot("\(tag)-scrolled") }
+            accessibilityAudit("Leistung-unten@\(tag)")
+            back()
+            openTab("Heute")
+            let arc = scrollUntilExists(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Winter Arc'")).firstMatch)
+            tap(arc, "Winter Arc öffnen")
+            route = "winterarc"
+            settle()
+            shot("\(tag)-top")
+            accessibilityAudit("WinterArc@\(tag)")
+            for _ in 0..<4 { app.swipeUp(); settle(0.8); shot("\(tag)-scrolled") }
+            accessibilityAudit("WinterArc-unten@\(tag)")
+            let all = app.descendants(matching: .any)["trophies.all"].firstMatch
+            if scrollUntilExists(all, maxSwipes: 4).exists {
+                tap(all, "Alle Trophäen")
+                route = "trophaeen"
+                settle()
+                shot("\(tag)-top")
+                accessibilityAudit("Trophaeenschrank@\(tag)")
+                app.swipeUp(); shot("\(tag)-scrolled")
+            } else {
+                log("Trophäenschrank", "„Alle anzeigen“ nicht gefunden")
+            }
+            app.terminate()
+        }
+    }
+
     // MARK: Konstanz-Serie mit Joker + Plan-Treue (K1)
 
 

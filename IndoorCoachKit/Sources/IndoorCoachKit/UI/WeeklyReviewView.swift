@@ -26,35 +26,42 @@ struct WeeklyReviewCard: View {
 
     var body: some View {
         if !hidden, let review = model.weeklyReviews(rides: rides, workouts: workouts, focus: weekStart, count: 1).first {
-            VStack(alignment: .trailing, spacing: 0) {
-                NavigationLink {
-                    WeeklyReviewView(focus: weekStart)
-                } label: {
-                    Card(title: "Deine Woche · " + WeekLabel.text(for: weekStart), systemImage: "calendar.badge.checkmark") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(review.headline).font(.title3.weight(.bold)).foregroundStyle(.primary)
-                            ForEach(review.sentences, id: \.self) { sentence in
-                                Text(sentence).font(.subheadline).foregroundStyle(.secondary)
-                            }
-                            Text("Alle Details ansehen")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Theme.accent)
+            NavigationLink {
+                WeeklyReviewView(focus: weekStart)
+            } label: {
+                // Short title: the close button sits in the card's corner (audit 2, A2-04 – "Ausblenden" used to
+                // float detached below the card).
+                Card(title: "Deine Woche", systemImage: "calendar.badge.checkmark") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(WeekLabel.text(for: weekStart)).font(.caption).foregroundStyle(Theme.rowSecondary)
+                        Text(review.headline).font(.title3.weight(.bold)).foregroundStyle(.primary)
+                        ForEach(review.sentences, id: \.self) { sentence in
+                            Text(sentence).font(.subheadline).foregroundStyle(.secondary)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .multilineTextAlignment(.leading)
+                        Text("Alle Details ansehen")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.accent)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("weeklyReview.card")
-
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("weeklyReview.card")
+            .overlay(alignment: .topTrailing) {
                 Button {
                     model.dismissWeeklyReview(weekStart)
                     withAnimation { hidden = true }
                 } label: {
-                    Text("Ausblenden").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                    Image(systemName: "xmark")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.rowSecondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
-                .font(.subheadline)
-                .foregroundStyle(Theme.accent)
+                .padding(4)
+                .accessibilityLabel("Ausblenden")
                 .accessibilityIdentifier("weeklyReview.dismiss")
                 .accessibilityHint("Blendet den Rückblick dieser Woche auf Heute aus")
             }
