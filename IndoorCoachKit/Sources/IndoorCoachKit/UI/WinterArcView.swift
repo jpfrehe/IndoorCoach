@@ -80,6 +80,8 @@ struct WinterArcView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if let status = model.winterArc(rides: rides) {   // series is cached in AppModel
                     WinterArcCard(status: status)
+                    // ANCHOR-K1-WINTERARC (Konstanz-Serie & Joker)
+
                     Card(title: "Fitness auf dem Weg zum Ziel", systemImage: "chart.line.uptrend.xyaxis") {
                         courseChart(status: status, points: model.fitnessSeries(rides: rides).points)
                         HStack {
@@ -93,6 +95,8 @@ struct WinterArcView: View {
                             levelRow(level, current: status.level.number)
                         }
                     }
+                    // ANCHOR-K3-WINTERARC (Challenges & Trophäen)
+
                     Card(title: "So funktioniert der Winter Arc", systemImage: "info.circle") {
                         Text("Der Arc misst, wie viel Fitness du vom Saisonstart bis zu deinem Ziel-Tag aufbaust. Jedes Zehntel des Wegs zur Ziel-Fitness ist ein Level. Ein Level bleibt dir auch nach einer Pause – nur der Kurs zeigt ehrlich, ob du gerade vorne oder hinten liegst.")
                             .font(.subheadline)

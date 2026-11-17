@@ -205,7 +205,11 @@ struct RideDetailView: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("ride.pr")
                 }
+                // ANCHOR-K3-FAHRT (Challenge-Fortschritt/Trophäe)
+
                 RelativeEffortCard(ride: ride)
+
+                // ANCHOR-K4-FAHRT (Effizienz & Entkopplung)
                 if est.source != .power {
                     Label(est.source == .heartRate ? "TSS aus Herzfrequenz geschätzt." : "TSS aus der Dauer geschätzt (keine Leistungsdaten).",
                           systemImage: "info.circle")

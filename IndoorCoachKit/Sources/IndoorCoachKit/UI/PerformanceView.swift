@@ -55,6 +55,8 @@ struct PerformanceView: View {
                 coverageNote(current)
                 if current.estimatedFTP != nil { eftpCard(current) }
                 VO2maxCard(rides: rides, showTrend: true, range: range)
+                // ANCHOR-K4-LEISTUNG (Aerobe Effizienz)
+
                 explanation
             }
             .padding()

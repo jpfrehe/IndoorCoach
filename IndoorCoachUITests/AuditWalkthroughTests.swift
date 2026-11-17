@@ -652,6 +652,20 @@ final class AuditWalkthroughTests: AuditCase {
         shot("heute-vo2max")
     }
 
+    // ANCHOR-UITEST-K1
+
+    // ---
+
+    // ANCHOR-UITEST-K2
+
+    // ---
+
+    // ANCHOR-UITEST-K3
+
+    // ---
+
+    // ANCHOR-UITEST-K4
+
     // MARK: B01 – Onboarding beim ersten Start
 
     func test15_Onboarding() {

@@ -22,6 +22,8 @@ struct ProfileView: View {
                 coachSection(model)
                 stravaSection(model).id(ProfileView.stravaSectionID)
                 myWhooshSection(model)
+                // ANCHOR-K2-PROFIL (Erinnerungen)
+
                 helpSection()
                 infoSection
                 dataSection(model)

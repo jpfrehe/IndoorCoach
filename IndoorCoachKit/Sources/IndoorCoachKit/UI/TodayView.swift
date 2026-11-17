@@ -52,6 +52,12 @@ struct TodayDashboard: View {
 
             if model.isDemoMode { demoHint }
             nextWorkoutCard(next)
+            // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
+            // ANCHOR-K2-HEUTE (Wochenrückblick)
+
+            // ANCHOR-K3-HEUTE (Saison-Challenge)
+
+            // ── Ende Highlight-Slot ──
             if let arc = model.winterArc(rides: rides) {
                 NavigationLink { WinterArcView() } label: { WinterArcCard(status: arc) }
                     .buttonStyle(.plain)
