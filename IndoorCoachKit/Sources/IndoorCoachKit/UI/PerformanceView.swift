@@ -59,6 +59,8 @@ struct PerformanceView: View {
                 // ANCHOR-K4-LEISTUNG (Aerobe Effizienz)
                 AerobicEfficiencyCard(rides: rides, ftp: model.profile.ftp, range: range)
                 // ANCHOR-P1-LEISTUNG (Trainingsverteilung, eFTP-Verlauf)
+                TrainingDistributionCard(rides: rides, ftp: model.profile.ftp)
+                FTPHistoryCard(rides: rides, ftp: model.profile.ftp)
 
                 // ANCHOR-P2-LEISTUNG (Fähigkeitslevel, Ermüdungsresistenz)
 
