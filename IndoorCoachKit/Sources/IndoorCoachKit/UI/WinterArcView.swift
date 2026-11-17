@@ -98,7 +98,10 @@ struct WinterArcView: View {
                     // ANCHOR-P4-WINTERARC (Winter-Reise)
 
                     Card(title: "Fitness auf dem Weg zum Ziel", systemImage: "chart.line.uptrend.xyaxis") {
-                        courseChart(status: status, points: model.fitnessSeries(rides: rides).points)
+                        let points = model.fitnessSeries(rides: rides).points
+                        let shadow = SeasonShadow.points(from: points, window: status.start...status.goal)
+                        courseChart(status: status, points: points, shadow: shadow)
+                        ShadowLegend(showsShadow: shadow != nil)
                         HStack {
                             StatTile(title: "Start", value: Formatters.decimal(status.startCTL))
                             StatTile(title: "Heute", value: Formatters.decimal(status.currentCTL), dot: Theme.fitness)
@@ -113,6 +116,9 @@ struct WinterArcView: View {
                     // ANCHOR-P1-WINTERARC (Ziel-Prognose & Was-wäre-wenn)
 
                     // ANCHOR-P3-WINTERARC (Saisonrückblick teilen)
+                    SeasonShareSection(summary: SeasonSummary.make(status: status,
+                                                                   challenges: model.seasonChallenges(rides: rides),
+                                                                   rides: rides, name: model.profile.name))
 
                     Card(title: "So funktioniert der Winter Arc", systemImage: "info.circle") {
                         Text("Der Arc misst, wie viel Fitness du vom Saisonstart bis zu deinem Ziel-Tag aufbaust. Jedes Zehntel des Wegs zur Ziel-Fitness ist ein Level. Ein Level bleibt dir auch nach einer Pause – nur der Kurs zeigt ehrlich, ob du gerade vorne oder hinten liegst.")
@@ -148,7 +154,14 @@ struct WinterArcView: View {
         .accessibilityValue(level.number == current ? "aktuelles Level" : (reached ? "erreicht" : "noch nicht erreicht"))
     }
 
-    private func courseChart(status: WinterArc.Status, points: [FitnessFreshness.Point]) -> some View {
+    /// "Heute 34, Vorjahr 29" (just "Heute 34" without a shadow).
+    private func todayText(status: WinterArc.Status, points: [FitnessFreshness.Point], shadow: [SeasonShadow.Point]?) -> String {
+        let previous = points.last.flatMap { last in shadow.flatMap { SeasonShadow.fitness(on: last.date, in: $0) } }
+        return SeasonShadow.comparisonText(today: status.currentCTL, previous: previous)
+    }
+
+    private func courseChart(status: WinterArc.Status, points: [FitnessFreshness.Point],
+                             shadow: [SeasonShadow.Point]?) -> some View {
         let shown = points.filter { $0.date >= status.start }
         return Chart {
             LineMark(x: .value("Tag", status.start), y: .value("Kurs", status.startCTL), series: .value("Linie", "Kurs"))
@@ -161,6 +174,13 @@ struct WinterArcView: View {
                 LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness), series: .value("Linie", "Fitness"))
                     .foregroundStyle(Theme.fitnessLine)
                     .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .interpolationMethod(.monotone)
+            }
+            // G6: last year's curve of the same window, shifted by one year (dashed, muted).
+            ForEach(shadow ?? []) { p in
+                LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness), series: .value("Linie", "Vorjahr"))
+                    .foregroundStyle(Theme.shadowLine)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 4]))
                     .interpolationMethod(.monotone)
             }
             PointMark(x: .value("Tag", status.goal), y: .value("Ziel", status.targetCTL))
@@ -182,6 +202,6 @@ struct WinterArcView: View {
         .frame(height: 180)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Fitness gegenüber Kurslinie")
-        .accessibilityValue("Heute \(Formatters.decimal(status.currentCTL)), Kurs \(Formatters.decimal(status.paceCTL)), Ziel \(Formatters.decimal(status.targetCTL))")
+        .accessibilityValue("\(todayText(status: status, points: points, shadow: shadow)), Kurs \(Formatters.decimal(status.paceCTL)), Ziel \(Formatters.decimal(status.targetCTL))")
     }
 }
