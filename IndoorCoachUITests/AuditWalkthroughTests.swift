@@ -774,6 +774,40 @@ final class AuditWalkthroughTests: AuditCase {
 
     // ANCHOR-UITEST-P1
 
+    /// A5/A8/A6: goal forecast with what-if slider (Winter Arc), distribution and eFTP history (Leistung).
+    func test25_ForecastAndDistribution() {
+        launch()
+        route = "heute"
+        let arcCard = button(containing: "Winter Arc")
+        check(scrollUntilExists(arcCard, maxSwipes: 3).exists, "Winter-Arc-Karte auf Heute")
+        tap(arcCard, "Winter-Arc-Karte")
+        route = "winterarc"
+        check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
+        let forecast = app.descendants(matching: .any)["forecast.card"].firstMatch
+        check(scrollUntilExists(forecast).exists, "Karte „Prognose zum Ziel“")
+        check(app.descendants(matching: .any)["forecast.slider"].firstMatch.exists, "Regler „Stunden pro Woche“")
+        check(text(containing: "Bei ").exists, "Prognose-Satz („Bei x h/Woche …“)")
+        shot("prognose")
+        accessibilityAudit("Prognose")
+        back()
+
+        openTab("Verlauf")
+        let open = app.descendants(matching: .any)["performance.open"].firstMatch
+        check(waitFast(open), "Zeile „Leistung“ oben im Verlauf")
+        tap(open, "Leistung öffnen")
+        route = "leistung"
+        check(waitFast(app.navigationBars["Leistung"]), "Leistung-Screen öffnet")
+        let distribution = app.descendants(matching: .any)["distribution.card"].firstMatch
+        check(scrollUntilExists(distribution).exists, "Karte „Trainingsverteilung“")
+        check(text(containing: "Grundlage").exists, "Zonen-Gruppe „Grundlage“ sichtbar")
+        shot("verteilung")
+        accessibilityAudit("Verteilung")
+        let history = app.descendants(matching: .any)["ftpHistory.card"].firstMatch
+        check(scrollUntilExists(history).exists, "Karte „eFTP-Verlauf“")
+        shot("eftp-verlauf")
+        accessibilityAudit("eFTP-Verlauf")
+    }
+
     // ---
 
     // ANCHOR-UITEST-P2
