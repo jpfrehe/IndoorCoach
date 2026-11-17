@@ -778,6 +778,36 @@ final class AuditWalkthroughTests: AuditCase {
 
     // ANCHOR-UITEST-P2
 
+    func test26_AbilitiesAndDurability() {
+        launch()                                     // demo seed: rides carry measured power curves
+        openTab("Verlauf")
+        tap(scrollUntilExists(app.buttons["performance.open"]), "Leistung öffnen")
+        route = "leistung"
+        check(waitFast(app.navigationBars["Leistung"]), "Leistung-Screen öffnet")
+        let abilities = app.descendants(matching: .any)["abilities.card"].firstMatch
+        check(scrollUntilExists(abilities).exists, "Karte „Fähigkeiten“ in Leistung")
+        check(app.descendants(matching: .any)["abilities.row.1200"].firstMatch.exists, "Zeile „Schwelle“ (20 min)")
+        check(text(containing: "Level").exists, "Level-Angabe sichtbar")
+        shot("faehigkeiten")
+        accessibilityAudit("Leistung-Fähigkeiten")
+        let durability = app.descendants(matching: .any)["durability.card"].firstMatch
+        check(scrollUntilExists(durability).exists, "Karte „Ermüdungsresistenz“ in Leistung")
+        shot("ermuedungsresistenz")
+        accessibilityAudit("Leistung-Ermüdungsresistenz")
+        back()
+
+        // Fahrt-Detail: the row exists only for FIT rides of at least 60 minutes, so its absence is not an error.
+        route = "verlauf"
+        tap(scrollUntilExists(row(0)), "Erste Fahrt")
+        route = "fahrt"
+        settle()
+        let rideRow = app.descendants(matching: .any)["ride.durability"].firstMatch
+        if scrollUntilExists(rideRow, maxSwipes: 6).exists {
+            shot("fahrt-ermuedungsresistenz")
+            accessibilityAudit("Fahrt-Ermüdungsresistenz")
+        }
+    }
+
     // ---
 
     // ANCHOR-UITEST-P3
