@@ -30,7 +30,8 @@ public struct MyWhooshStep: Codable, Hashable, Sendable {
 }
 
 public struct MyWhooshWorkout: Codable, Hashable, Sendable {
-    public var Id: String
+    /// MyWhoosh validates this as a number (device log, Nov 2026: "WorkoutsData.0.Id must be a number").
+    public var Id: Int
     public var Name: String
     public var Description: String
     public var Mode = "E_Ride"
@@ -65,7 +66,14 @@ public struct MyWhooshWorkout: Codable, Hashable, Sendable {
 
 /// Maps IndoorCoach segments onto MyWhoosh steps. Power stays a fraction of FTP (MyWhoosh scales with the rider's FTP).
 public enum MyWhooshMapper {
-    public static func workout(for d: WorkoutDefinition, id: String, ftp: Int) -> MyWhooshWorkout {
+    /// Stable positive 31-bit id per app workout, so a re-send replaces the same MyWhoosh workout.
+    public static func workoutID(for uuid: UUID) -> Int {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325                 // FNV-1a
+        for byte in uuid.uuidString.lowercased().utf8 { hash = (hash ^ UInt64(byte)) &* 0x0000_0100_0000_01B3 }
+        return Int(hash % 2_000_000_000) + 1
+    }
+
+    public static func workout(for d: WorkoutDefinition, id: Int, ftp: Int) -> MyWhooshWorkout {
         var steps: [MyWhooshStep] = []
         func add(_ type: String, time: Int, power: Double = 0, start: Double = 0, end: Double = 0,
                  rpm: Int? = nil, text: String? = nil) {
@@ -516,9 +524,9 @@ public actor MyWhooshClient {
     /// Error body for the log: one line, at most 300 characters; `Log` redacts tokens, e-mails and long hex ids.
     static func bodyExcerpt(_ data: Data) -> String {
         guard !data.isEmpty else { return "–" }
-        let text = String(decoding: data.prefix(600), as: UTF8.self)
+        let text = String(decoding: data.prefix(2_000), as: UTF8.self)
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-        return String(text.prefix(300))
+        return String(text.prefix(1_000))
     }
 
     /// Short server message for the log (MyWhoosh uses `Message` or `message`).

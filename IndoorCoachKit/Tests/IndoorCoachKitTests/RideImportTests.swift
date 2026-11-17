@@ -206,8 +206,8 @@ struct MyWhooshHistoryTests {
     }
 
     @Test func errorBodyExcerptIsOneShortLine() {
-        let excerpt = MyWhooshClient.bodyExcerpt(Data("{\n  \"errors\": [\"x\"],\n \"pad\": \"\(String(repeating: "y", count: 900))\"}".utf8))
-        #expect(!excerpt.contains("\n") && excerpt.count == 300 && excerpt.hasPrefix(#"{ "errors": ["x"]"#))
+        let excerpt = MyWhooshClient.bodyExcerpt(Data("{\n  \"errors\": [\"x\"],\n \"pad\": \"\(String(repeating: "y", count: 1_500))\"}".utf8))
+        #expect(!excerpt.contains("\n") && excerpt.count == 1_000 && excerpt.hasPrefix(#"{ "errors": ["x"]"#))
     }
 
     /// Field names as MyWhoosh actually answers (device log, 17.11.2026).

@@ -219,21 +219,23 @@ public final class AppModel {
                 // Replace an earlier upload instead of creating duplicates.
                 if let old = w.myWhooshWorkoutID { try? await myWhoosh.delete(workoutID: old) }
                 if let task = w.myWhooshTaskID { try? await myWhoosh.deleteTask(task) }
-                let payload = MyWhooshMapper.workout(for: w.definition, id: "ic-\(w.id.uuidString.lowercased())", ftp: profile.ftp)
+                let payload = MyWhooshMapper.workout(for: w.definition, id: MyWhooshMapper.workoutID(for: w.id), ftp: profile.ftp)
                 batch.append((id, payload, startDate(for: w), payload.TSS, w.summary))
             }
             try await myWhoosh.upload(batch.map(\.payload))
+            Log.notice(.mywhoosh, "Upload: \(batch.count) Einheiten angenommen")
             var scheduled = 0
             for item in batch {
-                let taskID = try? await myWhoosh.schedule(workoutID: item.payload.Id, name: item.payload.Name, description: item.summary,
+                let taskID = try? await myWhoosh.schedule(workoutID: String(item.payload.Id), name: item.payload.Name, description: item.summary,
                                                          start: item.start, durationSeconds: item.payload.Time, tss: item.tss)
                 if let w = context.model(for: item.id) as? StoredWorkout, !w.isDeleted {
-                    w.myWhooshWorkoutID = item.payload.Id
+                    w.myWhooshWorkoutID = String(item.payload.Id)
                     w.myWhooshTaskID = taskID
                     w.myWhooshSentAt = .now
                     if taskID != nil { scheduled += 1 }
                 }
             }
+            Log.notice(.mywhoosh, "Kalender: \(scheduled) von \(batch.count) Einheiten eingetragen")
             let what = batch.count == 1 ? "Einheit" : "\(batch.count) Einheiten"
             show(scheduled == batch.count ? "\(what) an MyWhoosh gesendet und im MyWhoosh-Kalender eingetragen."
                                           : "\(what) an MyWhoosh gesendet (unter „Custom Workouts“).", error: false)

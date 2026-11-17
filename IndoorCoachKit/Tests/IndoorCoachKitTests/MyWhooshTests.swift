@@ -26,8 +26,8 @@ private let sweetSpot = WorkoutDefinition(
 @Suite("MyWhoosh mapping")
 struct MyWhooshMappingTests {
     @Test func mapsEverySegmentKindAndKeepsTotalTime() throws {
-        let w = MyWhooshMapper.workout(for: sweetSpot, id: "ic-1", ftp: 250)
-        #expect(w.Id == "ic-1" && w.Name == "Sweet Spot 3×12" && w.Type == "E_Custom")
+        let w = MyWhooshMapper.workout(for: sweetSpot, id: 1001, ftp: 250)
+        #expect(w.Id == 1001 && w.Name == "Sweet Spot 3×12" && w.Type == "E_Custom")
         #expect(w.Time == sweetSpot.totalDuration)
         #expect(w.WorkoutStepsArray.reduce(0) { $0 + $1.Time } == sweetSpot.totalDuration)
         #expect(w.StepCount == w.WorkoutStepsArray.count)
@@ -45,16 +45,23 @@ struct MyWhooshMappingTests {
     }
 
     @Test func encodesTheDocumentedFieldNames() throws {
-        let json = String(decoding: try JSONEncoder().encode(MyWhooshMapper.workout(for: sweetSpot, id: "x", ftp: 250)), as: UTF8.self)
+        let json = String(decoding: try JSONEncoder().encode(MyWhooshMapper.workout(for: sweetSpot, id: 7, ftp: 250)), as: UTF8.self)
         for key in ["\"WorkoutStepsArray\"", "\"StepType\"", "\"StartPower\"", "\"FTPMode\"", "\"DisplayType\"", "\"WorkoutMessage\""] {
             #expect(json.contains(key), "\(key)")
         }
     }
 
+    @Test func workoutIDsAreStablePositive31BitNumbers() {
+        let a = UUID(), b = UUID()
+        #expect(MyWhooshMapper.workoutID(for: a) == MyWhooshMapper.workoutID(for: a))
+        #expect(MyWhooshMapper.workoutID(for: a) != MyWhooshMapper.workoutID(for: b))
+        #expect((1...2_000_000_000).contains(MyWhooshMapper.workoutID(for: a)))
+    }
+
     @Test func rampUpIsWarmUpAndRampDownIsCoolDown() {
         let d = WorkoutDefinition(title: "R", type: .tempo, summary: "",
                                   segments: [.ramp(5, from: 0.6, to: 0.9), .ramp(5, from: 0.9, to: 0.6)])
-        let steps = MyWhooshMapper.workout(for: d, id: "r", ftp: 250).WorkoutStepsArray
+        let steps = MyWhooshMapper.workout(for: d, id: 8, ftp: 250).WorkoutStepsArray
         #expect(steps.map(\.StepType) == ["E_WarmUp", "E_CoolDown"])
         #expect(steps[1].StartPower == 0.9 && steps[1].EndPower == 0.6)
     }
@@ -89,14 +96,14 @@ struct MyWhooshClientTests {
         let store = MemoryMyWhooshStore(MyWhooshSession(username: "u", whooshId: "w-42", accessToken: jwt(exp: .now.addingTimeInterval(3600)), refreshToken: "r"))
         let transport = MockTransport([(200, #"{"message":"Custom workout is being uploaded.","display":true}"#, [:])])
         let client = MyWhooshClient(store: store, transport: transport)
-        try await client.upload([MyWhooshMapper.workout(for: sweetSpot, id: "ic-1", ftp: 250)])
+        try await client.upload([MyWhooshMapper.workout(for: sweetSpot, id: 1001, ftp: 250)])
         let req = transport.requests[0]
         #expect(req.url?.absoluteString == "https://coaching.mywhoosh.com/api/v2/client/custom-workout-upload")
         #expect(req.httpMethod == "POST")
         #expect(req.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
         let body = try JSONSerialization.jsonObject(with: req.httpBody!) as! [String: Any]
         #expect(body["UserId"] as? String == "w-42")
-        #expect((body["WorkoutsData"] as? [[String: Any]])?.first?["Id"] as? String == "ic-1")
+        #expect((body["WorkoutsData"] as? [[String: Any]])?.first?["Id"] as? Int == 1001)                 // a JSON number, not a string
     }
 
     @Test func expiredSessionIsDetectedBeforeTheRequest() async {
@@ -110,7 +117,7 @@ struct MyWhooshClientTests {
     @Test func unauthorizedClearsTheSession() async {
         let store = MemoryMyWhooshStore(MyWhooshSession(username: "u", whooshId: "w", accessToken: jwt(exp: .now.addingTimeInterval(3600)), refreshToken: "r"))
         let client = MyWhooshClient(store: store, transport: MockTransport([(401, "{}", [:])]))
-        await #expect(throws: MyWhooshError.sessionExpired) { try await client.upload([MyWhooshMapper.workout(for: sweetSpot, id: "a", ftp: 250)]) }
+        await #expect(throws: MyWhooshError.sessionExpired) { try await client.upload([MyWhooshMapper.workout(for: sweetSpot, id: 9, ftp: 250)]) }
         #expect(store.session == nil)
     }
 
@@ -119,14 +126,14 @@ struct MyWhooshClientTests {
         let transport = MockTransport([(200, #"{"message":"Custom workout is being deleted."}"#, [:]),
                                        (200, #"{"status":true,"code":200,"data":{"id":"task-9"}}"#, [:])])
         let client = MyWhooshClient(store: store, transport: transport)
-        try await client.delete(workoutID: "ic-1")
-        let taskID = try await client.schedule(workoutID: "ic-1", name: "Sweet Spot", description: "d",
+        try await client.delete(workoutID: "1001")
+        let taskID = try await client.schedule(workoutID: "1001", name: "Sweet Spot", description: "d",
                                                start: Date(timeIntervalSince1970: 1_765_402_200), durationSeconds: 3600, tss: 72)
         #expect(transport.requests[0].httpMethod == "DELETE")
-        #expect(transport.requests[0].url?.absoluteString == "https://coaching.mywhoosh.com/api/v2/client/custom-workout-upload/w-42/ic-1")
+        #expect(transport.requests[0].url?.absoluteString == "https://coaching.mywhoosh.com/api/v2/client/custom-workout-upload/w-42/1001")
         #expect(transport.requests[1].url?.absoluteString == "https://service14.mywhoosh.com/v1/task/create")
         let body = try JSONSerialization.jsonObject(with: transport.requests[1].httpBody!) as! [String: Any]
-        #expect(body["TaskType"] as? String == "E_Simple_Workout" && body["TaskTypeId"] as? String == "ic-1")
+        #expect(body["TaskType"] as? String == "E_Simple_Workout" && body["TaskTypeId"] as? String == "1001")
         #expect(body["TaskStartedTimeEpoc"] as? Int == 1_765_402_200 && body["TaskEndEpochTime"] as? Int == 1_765_405_800)
         #expect(taskID == "task-9")
     }
