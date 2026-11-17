@@ -20,6 +20,13 @@ in den Kalender eintragen und als `.zwo` nach MyWhoosh bringen. Läuft vollstän
 7. [Backlog bis zur Pilotphase](docs/06-BACKLOG-PILOT.md)
 8. [Pilot-Testplan](docs/07-PILOT-TESTPLAN.md) – Gerätematrix, Szenarien, Live-Checks, 4-Wochen-Ablauf, Feedback-Fragen
 
+## Secrets
+
+Claude-API-Key, Strava-Client-Secret/-Tokens und die MyWhoosh-Sitzung werden in der App eingegeben und
+ausschließlich im iOS-Schlüsselbund (Keychain) gespeichert – nie im Code oder in Konfigurationsdateien.
+Keys, Signing-Zertifikate oder Provisioning-Profile niemals committen; lokale Overrides gehören in
+`Config/Local.xcconfig` (per `.gitignore` ausgeschlossen). Die eigene `DEVELOPMENT_TEAM`-ID bitte nur lokal setzen.
+
 ## Aufbau
 
 ```

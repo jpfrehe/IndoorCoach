@@ -1,13 +1,47 @@
+# macOS
 .DS_Store
-.build/
-DerivedData/
+
+# Xcode – user state & build output
 xcuserdata/
 *.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+*.xcresult
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Swift Package Manager
+.build/
 .swiftpm/
 IndoorCoachKit/.build/
-build/
-snapshots/*.png
+
+# Signing material – never commit
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+*.p8
+AuthKey_*.p8
+
+# Local config & secrets (keys live in the iOS Keychain at runtime)
+.env
+.env.*
 Config/Local.xcconfig
+*.local.xcconfig
+*.xcconfig.local
+Secrets*.xcconfig
+Secrets*.plist
+
+# Generated snapshots (curated ones under snapshots/sim/ stay tracked)
+snapshots/*.png
+
+# Audit / tooling output
+audit/
+.claude/settings.local.json
 
 # Subagent worktrees
 .claude/worktrees/
