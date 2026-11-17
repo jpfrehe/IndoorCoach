@@ -1,48 +1,64 @@
 # Status & nächste Schritte
 
-Stand: Prototyp v0.1 · 17.11.2026
+Stand: v0.1 (Pilot-Vorbereitung) · 17.11.2026 · öffentlich auf [GitHub](https://github.com/jpfrehe/IndoorCoach)
 
 ## Was fertig ist
 
-| Slice | Status | Nachweis |
-|-------|--------|----------|
-| S0 Scaffold (Xcode-Projekt, Swift Package, 4 Tabs, Demo-Daten) | ✅ | läuft im iOS-27-Simulator, Screenshots in `snapshots/sim` |
-| S1 Workout-Domain, Zonen, TSS/IF, `.zwo`-Export | ✅ | Unit-Tests (XML wird geparst und geprüft) |
-| S2 Verlauf, CTL/ATL/TSB, Wochenumfang, Charts | ✅ | Unit-Tests + Snapshots |
-| S3 Strava (OAuth, Token-Refresh, Sync, Paginierung) | ✅ Code, ⚠️ nicht live getestet | Unit-Tests mit Mock-HTTP |
-| S4 Coach (Prompt, Structured Output, Validierung, Demo-Coach) | ✅ Code, ⚠️ nicht live getestet | Unit-Tests mit Mock-HTTP |
-| S5 Kalender (eigener Kalender „Indoor Training“, Update/Löschen) | ✅ Code, ⚠️ nur auf Gerät prüfbar | – |
-| S6 Review & Härtung | ✅ | ECC `swift-reviewer` + `security-reviewer`, alle CRITICAL/HIGH behoben |
-| UX-Audit + Farbsystem „Sunset Jelly“ | ✅ | [Bericht](ux-audit-2026-11-17.md), 15 Befunde behoben, Kontrast-Unit-Tests |
-| S7–S12 Winter Arc (Relative Effort, Fitness & Freshness, Level) | ✅ | [Konzept](05-FEATURES-WINTER-ARC.md), 18 Unit-Tests, UI-Test `test14`, `swift-reviewer` ohne CRITICAL/HIGH, 6 MEDIUM behoben |
+| Bereich | Status | Nachweis |
+|---|---|---|
+| S0–S6 MVP: Workouts, `.zwo`-Export, Verlauf/CTL, Strava-Sync, Claude-Coach, Kalender, Härtung | ✅ | [Konzept](02-KONZEPT.md), Unit-Tests |
+| UX-Audit + Farbsystem „Sunset Jelly“ | ✅ | [Bericht](ux-audit-2026-11-17.md) |
+| Winter Arc: Relative Effort, Fitness & Freshness, Level | ✅ | [Konzept](05-FEATURES-WINTER-ARC.md) |
+| Pilot-Backlog WP1–WP4: Onboarding, Privacy-Manifest, „Alle Daten löschen“, Rate-Limits, Diagnose-Export | ✅ | [Backlog](06-BACKLOG-PILOT.md) |
+| B21 MyWhoosh-Direktupload: Custom Workout + MyWhoosh-Kalender, Ersetzen/Löschen | ✅ **auf dem iPhone getestet** | Upload und Kalendereintrag mit echtem Konto bestätigt |
+| B22 Fahrten ohne Strava: MyWhoosh-Fahrtenliste, FIT-Import | ✅ **auf dem iPhone getestet** | Import aus MyWhoosh mit echtem Konto bestätigt (3 Fahrten der letzten 210 Tage) |
+| Leistung: Leistungskurve, Bestleistungen, eFTP, VO2max | ✅ | [Feature-Dokument](08-FEATURES-LEISTUNG.md) |
+| Konstanz-Paket: Serie mit Joker, Plan-Treue, Wochenrückblick + Erinnerung, Saison-Challenges, Trophäen, aerobe Effizienz | ✅ | [Feature-Dokument](10-KONSTANZ-PAKET.md) |
 
-65 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
+**Tests:**
+- 270 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
+- 26 UI-Tests (Walkthrough, Größenmatrix, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
 
-## Was du morgen tun musst (≈ 20 min)
+## Live auf dem iPhone geprüft
 
-1. App per Xcode aufs iPhone ([Installation](03-INSTALLATION.md) §1).
-2. Strava-API-App anlegen, Client-ID/Secret eintragen, verbinden (§2).
-3. Claude-API-Key eintragen (§3) – **erster echter Planungsaufruf**: bitte prüfen, ob ein Plan ankommt.
-   Falls „Claude-Fehler 400“: Meldung notieren, ich passe den Request an.
-4. Einheit exportieren und den MyWhoosh-Import einmal durchspielen.
+- **Claude-Planung:** 14 Tage, 8 Einheiten in 33 s.
+- **Kalender:** 8 von 8 Einheiten eingetragen.
+- **MyWhoosh:**
+  - Anmeldung.
+  - Upload: Die numerische Workout-ID und `SportsModeType` waren nötig.
+  - Kalender-Eintrag: Task-ID in `data.TaskId`.
+  - Fahrten-Import über die Liste mit `page`/`sortDate`.
+- **Diagnose:** dauerhaftes Protokoll, mit Kabel direkt vom iPhone lesbar.
 
 ## Bekannte Einschränkungen
 
-- Strava/Claude/Kalender konnten ohne deine Zugangsdaten nicht end-to-end getestet werden.
-- Strava-API-Bedingungen: KI-*Training* ist verboten; ob das Senden eigener Kennzahlen an ein LLM erlaubt ist, ist offiziell ungeklärt.
-  Die App sendet nur Aggregate (keine Namen, Orte, GPS, Streams) und nur auf Klick. Siehe [Konzept §7](02-KONZEPT.md).
-- MyWhoosh hat keine API → Import über `.zwo` + Workout Builder (2 Klicks am Mac).
-- TSS ist eine Schätzung aus der gewichteten Durchschnittsleistung (kein Stream-basiertes NP).
-- Free Provisioning: App muss alle 7 Tage neu aus Xcode installiert werden.
+- **Strava:** Neue Standard-API-Apps brauchen seit Juni 2026 ein Strava-Abo. Ohne Abo liefern MyWhoosh oder FIT-Dateien die Fahrten.
+- **MyWhoosh:**
+  - Die Schnittstelle ist inoffiziell (Community-Doku) und kann jederzeit brechen. Die `.zwo`-Datei bleibt als Rückfallweg.
+  - Die FIT-Dateien der Fahrten verweigert MyWhoosh („Access Denied“). MyWhoosh-Fahrten haben daher nur Ø-Werte; die Leistungskurve zeigt dort Mindestwerte. Volle Kurve über den FIT-Import.
+  - Das Ersetzen einer bereits gesendeten Einheit (Löschen mit `sportsModeType`) ist noch nicht live bestätigt.
+- **TSS:** Ohne Sekundendaten wird der TSS aus NP oder Ø-Leistung geschätzt.
+- **Free Provisioning:** Die App muss alle 7 Tage neu aus Xcode installiert werden.
+- **Strava-API-Bedingungen** zu LLMs sind offiziell ungeklärt. Die App sendet nur Aggregate und nur auf Klick ([Konzept §7](02-KONZEPT.md)).
 
-## Ideen für Phase 2
+## Nächste Schritte
 
-| Idee | Nutzen | Aufwand |
-|------|--------|---------|
-| „Einheit anpassen“ (kürzer/leichter) per Claude direkt in der Detailansicht | flexibler Alltag | S |
-| FTP-Vorschlag aus Strava-Daten / nach Testeinheit | weniger Pflege | S |
-| Apple Health als zweite/alternative Datenquelle (MyWhoosh/Wahoo schreiben dort hinein) | unabhängig von Strava-API-Regeln | M |
-| Leistungsstreams laden → echte NP, Soll/Ist-Vergleich je Intervall | bessere Auswertung | M |
-| intervals.icu-Anbindung als Brücke für automatisches Übertragen nach MyWhoosh | kein manueller Upload | M |
-| Wöchentlicher Auto-Plan (Docker-Backend + Push) | „Plan ist sonntags einfach da“ | M–L |
-| Widget / Live Activity „Heutige Einheit“ | schneller Blick | S |
+| Schritt | Wer |
+|---|---|
+| Ersetzen einer Einheit in MyWhoosh live prüfen | Nutzer + Hauptsession (Log direkt vom iPhone) |
+| UX-Audit der erweiterten App, Befunde beheben | Hauptsession |
+| Offene Ideen aus dem [Brainstorming](09-BRAINSTORM-WINTER-MOTIVATION.md): Ziel-Prognose, Vorjahres-Schatten, Erinnerungen/Widget | Hauptsession |
+| Apple Developer Program + TestFlight für den Pilot (B07) | Nutzer |
+| Kontrast-Knoten auf 375 pt und VoiceOver-Durchlauf auf dem Gerät (B13, B14) | Nutzer |
+
+## Ideen für später
+
+| Idee | Status |
+|---|---|
+| „Einheit anpassen“ (kürzer/leichter) per Claude in der Detailansicht | offen |
+| FTP-Vorschlag aus den Daten | ✅ als eFTP in „Leistung“ |
+| Apple Health als Datenquelle (B17) | offen |
+| Leistungsstreams (Strava) für echte NP und Soll/Ist je Intervall (B16) | offen, Strava-Abo nötig |
+| intervals.icu-Brücke (B18) | nicht mehr nötig für den Upload (B21), evtl. für FIT-Dateien |
+| Wöchentlicher Auto-Plan (Backend + Push) | offen |
+| Widget „Heutige Einheit“ (B19) | offen, Teil von Brainstorming G7 |

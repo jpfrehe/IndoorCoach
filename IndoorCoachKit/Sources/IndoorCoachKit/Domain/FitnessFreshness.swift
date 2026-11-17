@@ -7,6 +7,17 @@ import Foundation
 /// existing heart-rate / duration TSS estimate. Fitness = 42-day, Fatigue = 7-day EWMA, Form = Fitness − Fatigue
 /// of the previous day.
 public enum FitnessFreshness {
+    /// The one wording for form (TSB) everywhere – cards, charts and the weekly review.
+    public static func formLabel(_ tsb: Double) -> String {
+        switch tsb {
+        case ..<(-30): "Überlastet"
+        case ..<(-10): "Produktiv"
+        case ..<5: "Ausgewogen"
+        case ..<25: "Frisch"
+        default: "Formverlust"
+        }
+    }
+
     public enum LoadSource: String, Sendable {
         case power, relativeEffort, estimate
     }

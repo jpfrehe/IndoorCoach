@@ -69,15 +69,29 @@ public final class CalendarService {
         let draft = CalendarEventDraft(title: title, start: start,
                                        end: start.addingTimeInterval(TimeInterval(max(durationSeconds, 600))),
                                        notes: notes, alarmOffset: -30 * 60)
-        if let eventID, let updated = try backend.updateEvent(id: eventID, with: draft) {
-            return updated
+        do {
+            if let eventID, let updated = try backend.updateEvent(id: eventID, with: draft) {
+                Log.notice(.calendar, "Termin aktualisiert")
+                return updated
+            }
+            let created = try backend.createEvent(in: trainingCalendarID(), with: draft)
+            Log.notice(.calendar, eventID == nil ? "Termin angelegt" : "Termin fehlte im Kalender – neu angelegt")
+            return created
+        } catch {
+            Log.error(.calendar, "Termin speichern fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
+            throw error
         }
-        return try backend.createEvent(in: trainingCalendarID(), with: draft)
     }
 
     public func remove(eventID: String) async throws {
         try await backend.requestAccess()
-        try backend.removeEvent(id: eventID)
+        do {
+            try backend.removeEvent(id: eventID)
+            Log.notice(.calendar, "Termin gelöscht")
+        } catch {
+            Log.error(.calendar, "Termin löschen fehlgeschlagen: \(type(of: error))")
+            throw error
+        }
     }
 
     /// Looked up on every write, so a calendar deleted in the Calendar app is simply recreated.

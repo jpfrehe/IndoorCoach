@@ -29,10 +29,10 @@ Zeitbedarf: ca. 20 Minuten beim ersten Mal.
 2. **Client ID** und **Client Secret** notieren.
 3. In der App: **Profil → Strava** → Client-ID und Client-Secret eintragen → **Mit Strava verbinden**.
 4. Im Strava-Login „Alle Aktivitäten anzeigen“ (inkl. privater) erlauben.
-5. Die App lädt automatisch die letzten 120 Tage. Danach synchronisiert sie bei jedem App-Start inkrementell
+5. Die App lädt automatisch die letzten 210 Tage. Danach synchronisiert sie bei jedem App-Start inkrementell
    (oder per Pull-to-Refresh).
 
-> Seit Juni 2026 setzt Strava für neue Standard-API-Apps ein Strava-Abo voraus.
+> Seit Juni 2026 setzt Strava für neue Standard-API-Apps ein Strava-Abo voraus. Ohne Abo: Fahrten über MyWhoosh oder FIT-Dateien (§5).
 
 ## 3. Claude verbinden
 
@@ -46,14 +46,28 @@ Zeitbedarf: ca. 20 Minuten beim ersten Mal.
 FTP, Gewicht, Ziel (+ Datum), Trainingstage, Wochenbudget, maximale Einheitendauer und Startzeit.
 Die Startzeit wird für Kalendereinträge verwendet.
 
-## 5. Planen → Kalender → MyWhoosh
+## 5. MyWhoosh verbinden (Upload und Fahrten)
+
+1. **Profil → MyWhoosh** → E-Mail und Passwort → **Bei MyWhoosh anmelden**.
+   - Gespeichert wird nur die Sitzung im Schlüsselbund, nie das Passwort.
+   - Wer sich bei MyWhoosh mit Google oder Apple anmeldet, legt dort zuerst ein Passwort fest.
+2. Nach der Anmeldung lädt die App deine Fahrten der letzten 210 Tage aus MyWhoosh. Danach holt sie bei jedem Start neue nach; „Fahrten aus MyWhoosh laden“ lädt das ganze Fenster neu.
+   - MyWhoosh liefert Ø-Leistung, Dauer, Distanz und Ø-Puls, aber keine Sekundendaten.
+3. **Volle Leistungskurve:** **FIT-Dateien importieren …** (Dateien-App, auch von Zwift oder Wahoo). Doppelte Fahrten werden übersprungen.
+
+> Die MyWhoosh-Schnittstelle ist inoffiziell (Community-Dokumentation) und kann sich jederzeit ändern.
+> Bitte die Nutzungsbedingungen von MyWhoosh beachten.
+
+## 6. Planen → Kalender → MyWhoosh
 
 1. **Plan** → **✨ Planen** → Zeitraum (7/14 Tage), optional Wunsch eingeben → **Mit Claude planen**.
 2. Vorschlag prüfen → **Übernehmen & in Kalender** (legt den Kalender „Indoor Training“ an).
-3. Einheit öffnen → **Für MyWhoosh exportieren (.zwo)** → per AirDrop an den Mac.
-4. Am Mac <https://workout.mywhoosh.com> öffnen → mit MyWhoosh-Account anmelden →
-   **Create New / Upload** → `.zwo`-Datei wählen → **Export to MyWhoosh**.
-5. In MyWhoosh am Mac: Workouts → **My Workouts** → Einheit starten (ERG-Modus auf der Wahoo).
+   Mit MyWhoosh-Anmeldung und „Neue Pläne automatisch senden“ landen die Einheiten direkt in MyWhoosh
+   (Custom Workouts + MyWhoosh-Kalender).
+3. Einzelne Einheit: öffnen → **An MyWhoosh senden** bzw. **In MyWhoosh aktualisieren**.
+4. **Rückfallweg ohne MyWhoosh-Anmeldung:** **Alternativ: .zwo-Datei** → per AirDrop an den Mac →
+   <https://workout.mywhoosh.com> → **Create New / Upload** → **Export to MyWhoosh**.
+5. In MyWhoosh: Workouts → **My Workouts** bzw. Kalender → Einheit starten (ERG-Modus auf der Rolle).
 
 ## TestFlight (Pilot)
 
@@ -82,8 +96,12 @@ DEVELOPMENT_TEAM=ABCDE12345 UPLOAD=1 scripts/archive.sh # Archiv + direkter Uplo
 
 **Datenschutz:** `App/PrivacyInfo.xcprivacy` wird automatisch ins App-Bundle übernommen. Es erklärt kein
 Tracking, keine Tracking-Domains und keine erhobenen Datentypen: Alle Daten bleiben auf dem iPhone.
-Netzwerkzugriffe gibt es nur, wenn der Nutzer sie auslöst: an Strava mit seiner eigenen API-App und an
-Anthropic mit seinem eigenen API-Key. Der Entwickler erhält keine Daten. Als Grund-pflichtige API wird nur
+Netzwerkzugriffe gibt es nur zu Diensten, die der Nutzer selbst verbindet:
+- an Strava mit seiner eigenen API-App;
+- an Anthropic mit seinem eigenen API-Key;
+- an MyWhoosh mit seinem eigenen Konto (Upload, Kalender, Fahrtenliste).
+
+Der Entwickler erhält keine Daten. Der Wochenrückblick nutzt nur lokale Mitteilungen (opt-in im Profil). Als Grund-pflichtige API wird nur
 `UserDefaults` (CA92.1, nur app-eigene Daten) genutzt. Für die App-Datenschutzangaben in App Store Connect
 gilt daher „Keine Daten erfasst“. Unter **Profil → Daten → Alle Daten löschen** entfernt der Nutzer alles
 Lokale: Fahrten, Einheiten, Kalender „Indoor Training“, Schlüsselbund und Einstellungen.
@@ -92,7 +110,7 @@ Lokale: Fahrten, Einheiten, Kalender „Indoor Training“, Schlüsselbund und E
 
 ```bash
 cd IndoorCoachKit
-swift test                                   # 37 Unit-Tests der Kernlogik (macOS, kein Simulator nötig)
+swift test                                   # Unit-Tests der Kernlogik (macOS, kein Simulator nötig)
 swift run SnapshotTool ../snapshots          # rendert die Haupt-Screens als PNG
 ```
 

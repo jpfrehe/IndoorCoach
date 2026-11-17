@@ -18,6 +18,7 @@ extension AppModel {
 
     /// Monday of the week the Heute card should show, or nil outside the window / after "Ausblenden".
     func weeklyReviewCardWeek(now: Date = .now) -> Date? {
+        _ = weeklyReviewDismissRevision                 // observed: Heute swaps in the challenge after "Ausblenden"
         var week = WeeklyReview.visibleWeekStart(now: now)
         #if DEBUG
         // UI tests: `-uiWeeklyReview YES` forces the card (for the week before the current one).
@@ -33,6 +34,7 @@ extension AppModel {
         // Keep the list short: reviews are only offered for a few days anyway.
         let list = (dismissedWeeklyReviews + [Self.weekKey(weekStart)]).suffix(20)
         defaults.set(Array(list), forKey: Keys.weeklyReviewDismissed)
+        weeklyReviewDismissRevision += 1
     }
 
     private var dismissedWeeklyReviews: [String] {

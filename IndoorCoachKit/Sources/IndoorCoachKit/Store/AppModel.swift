@@ -53,6 +53,8 @@ public final class AppModel {
     /// Rides came from MyWhoosh or FIT files (ends demo mode without Strava).
     public private(set) var hasImportedRides = false
     public private(set) var lastMyWhooshImport: Date?
+    /// Bumped on "Ausblenden": the dismissed list lives in UserDefaults (not observed), so Heute re-renders via this.
+    var weeklyReviewDismissRevision = 0
     public var banner: Banner?
     public var proposal: PlanProposal?
     /// Set by "Plan erstellen" outside the Plan tab; PlanView opens the planner and resets it.
@@ -310,6 +312,12 @@ public final class AppModel {
         try? context.delete(model: StoredRide.self)
         try? context.delete(model: StoredWorkout.self)
         try? context.save()
+        // Every UI test starts clean: also forget dismissed reviews, import state and sync dates from earlier runs
+        // (onboarding has its own override, see applyUITestOnboardingOverride).
+        for key in Keys.all where key != Keys.onboardingCompleted { defaults.removeObject(forKey: key) }
+        lastSync = nil
+        hasImportedRides = false
+        lastMyWhooshImport = nil
         profile = AthleteProfile()
         stravaClientID = ""
         // Debug-only: start without Claude key / Strava secret (Strava tokens are left untouched).

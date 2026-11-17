@@ -191,15 +191,8 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
         return (value < 0 ? "−" : "+") + rounded
     }
 
-    static func formWord(_ tsb: Double) -> String {
-        switch tsb {
-        case ..<(-30): "überlastet"
-        case ..<(-10): "produktiv"
-        case ..<5: "ausgewogen"
-        case ..<25: "frisch"
-        default: "sehr ausgeruht"
-        }
-    }
+    /// Same thresholds and words as the form chip on Heute (single source: `FitnessFreshness.formLabel`).
+    static func formWord(_ tsb: Double) -> String { FitnessFreshness.formLabel(tsb).lowercased() }
 
     static func durationLabel(_ seconds: Int) -> String {
         if seconds < 60 { return "\(seconds) s" }

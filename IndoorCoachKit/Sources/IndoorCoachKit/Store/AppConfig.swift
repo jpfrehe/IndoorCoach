@@ -16,6 +16,16 @@ public enum AppConfig {
         return components.url
     }
 
+    /// Public issue tracker – the feedback route while no pilot address is configured.
+    public static let issueTrackerURL = URL(string: "https://github.com/jpfrehe/IndoorCoach/issues/new")!
+
+    /// New-issue link with title and body prefilled (no diagnostics, no personal data: the issue is public).
+    public static func feedbackIssueURL(title: String, body: String) -> URL {
+        var components = URLComponents(url: issueTrackerURL, resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "title", value: title), URLQueryItem(name: "body", value: body)]
+        return components.url ?? issueTrackerURL
+    }
+
     /// "0.1 (1)" from the app bundle, "–" when unavailable (tests, previews).
     public static var versionString: String {
         let info = Bundle.main.infoDictionary

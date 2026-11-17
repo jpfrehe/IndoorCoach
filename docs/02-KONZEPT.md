@@ -25,7 +25,8 @@ Status: v1 · 16.11.2026 · ECC Phase 2 (Plan) · Grundlage: [01-PRD.md](01-PRD.
            ▼                           ▼
      www.strava.com            api.anthropic.com/v1/messages
                                        
-  Export: .zwo ──AirDrop──▶ MacBook ──Upload──▶ workout.mywhoosh.com ──▶ MyWhoosh „My Workouts“
+  MyWhoosh (seit B21/B22): Upload Custom Workout + Kalender, Fahrtenliste ──HTTPS──▶ *.mywhoosh.com
+  Rückfallweg: .zwo ──AirDrop──▶ MacBook ──Upload──▶ workout.mywhoosh.com ──▶ MyWhoosh „My Workouts“
 ```
 
 **Entscheidung: kein Backend.** Alles, was ein Server täte (Token-Refresh, Claude-Aufruf), kann die App selbst –
@@ -45,7 +46,7 @@ macOS → `swift test` ohne Simulator, schnelle TDD-Schleife, klare Grenzen. Die
 | 4 | Claude via REST (URLSession), Structured Output | Tool Use, Freitext parsen | kein offizielles Swift-SDK; `output_config.format` mit JSON Schema garantiert gültiges JSON |
 | 5 | Modell `claude-opus-5-5`, Effort `medium` | Sonnet 5.5 (günstiger) | beste Planungsqualität; Kosten pro Plan ≈ 0,10 $. Im Profil umstellbar |
 | 6 | Segmente in %FTP, nicht Watt | absolute Watt | identisch zu `.zwo`, bleibt gültig, wenn sich die FTP ändert |
-| 7 | MyWhoosh über `.zwo`-Export | inoffizielle API, intervals.icu-Umweg | einziger offiziell unterstützter Weg (siehe §6) |
+| 7 | MyWhoosh über `.zwo`-Export (MVP); **seit 17.11.2026 zusätzlich direkt über die community-dokumentierte API** | intervals.icu-Umweg | `.zwo` bleibt der offizielle Rückfallweg (siehe §6) |
 | 8 | Kalender über EventKit (Vollzugriff) | `.ics`-Export | Events lassen sich später aktualisieren/löschen; `.ics` als Fallback |
 | 9 | TSS-Schätzung lokal | Strava „Relative Effort“ | Strava liefert keinen TSS; NP≈`weighted_average_watts` reicht für den Trend |
 
@@ -92,7 +93,8 @@ Segment (Codable, = .zwo-Bausteine)
 | A. Offizielle MyWhoosh-API | existiert nicht (Stand 11/2026) | – | ✗ |
 | B. `.zwo`-Export → Upload im MyWhoosh Workout Builder (`workout.mywhoosh.com`) → „Export to MyWhoosh“ | offiziell unterstützt | 2 Klicks am Mac | **✓ MVP** |
 | C. intervals.icu als Drehscheibe (App legt Workouts per intervals.icu-API an; Drittanbieter wie mywhooshinfo.com oder TrainingPeaks-Kette schieben weiter) | möglich, Drittanbieter teils unzuverlässig | mittel, zusätzlicher Account | Phase 2 (optional) |
-| D. Reverse-Engineering der MyWhoosh-App-API | technisch evtl. möglich, verletzt vermutlich Nutzungsbedingungen, bricht bei Updates | hoch | ✗ |
+| D. Reverse-Engineering der MyWhoosh-App-API | technisch evtl. möglich, verletzt vermutlich Nutzungsbedingungen, bricht bei Updates | hoch | ✗ (selbst) |
+| D′. Community-dokumentierte API ([mywhoosh-community/mywhoosh-api](https://github.com/mywhoosh-community/mywhoosh-api), MIT) | auf dem iPhone bestätigt (Upload, Kalender, Fahrtenliste); inoffiziell, kann brechen | mittel | **✓ seit 17.11.2026** (B21/B22), `.zwo` bleibt Rückfall |
 | E. Kalender als „Fernbedienung“ (Event enthält Workout-Text) | trivial | – | ✓ ergänzend |
 
 Komfort-Idee für B: In Phase 2 eine kleine Mac-Menüleisten-App/Kurzbefehl, der per iCloud Drive abgelegte `.zwo`-Dateien

@@ -26,7 +26,7 @@ Für jedes Gerät notieren: Modell, iOS-Version, Schriftgröße, Hell/Dunkel. Al
 3. **Strava-API-App** (nach [Installation §2](03-INSTALLATION.md#2-strava-verbinden)): auf strava.com/settings/api eine App anlegen, Callback-Domain `localhost`, dann Client-ID und Client-Secret im Profil eintragen und **Mit Strava verbinden** tippen. Hinweis: Neue Standard-API-Apps setzen seit Juni 2026 ein Strava-Abo voraus.
 4. **Claude-Key** (nach [Installation §3](03-INSTALLATION.md#3-claude-verbinden)): In der Anthropic Console einen Key anlegen und Billing einrichten. Dann Profil → Coach · Claude → Key einfügen. Modell zunächst *Sonnet 5.5*, für den Vergleich in Woche 3 *Opus 5.5*.
 5. **Kalender**: Beim ersten „Übernehmen & in Kalender“ den Vollzugriff erlauben.
-6. **MyWhoosh**: am Mac unter workout.mywhoosh.com mit dem MyWhoosh-Account anmelden (für den `.zwo`-Import).
+6. **MyWhoosh**: im Profil mit dem MyWhoosh-Konto anmelden (Upload, Kalender, Fahrten-Import). Nur für den Rückfallweg `.zwo`: am Mac unter workout.mywhoosh.com anmelden.
 7. **Profil prüfen**: Ruhe- und Max-HF eintragen (für Relative Effort), Saisonstart des Winter Arc kontrollieren.
 
 ## 3. Test-Szenarien (die 5 Threads aus dem UX-Audit)
@@ -37,7 +37,7 @@ Jedes Szenario einmal in Woche 1 bewusst durchspielen, danach im Alltag. Abweich
 |---|---|---|---|
 | T1 | **Heute → Einheit** | App morgens öffnen → Karte „Heute“ → Einheit antippen | Heute zeigt die geplante Einheit mit Dauer, TSS und Leistungsprofil. Das Detail öffnet sich mit einem Tap, Wattangaben passen zur FTP. Ohne Plan steht ein klarer „Plan erstellen“-CTA da, der direkt den Planer öffnet (F02). |
 | T2 | **Woche planen** | Plan → **Planen** → 7 Tage → Wunsch tippen („Mittwoch nur 45 min“) → **Mit Claude planen** → Vorschlag prüfen → **Übernehmen & in Kalender** | Der Button bleibt bei offener Tastatur sichtbar (F01). Nach ≤ 60 s kommt ein Vorschlag mit Begründung je Einheit, der den Wunsch berücksichtigt und nur markierte Trainingstage nutzt. Nach der Übernahme stehen die Einheiten in Plan und Kalender „Indoor Training“, jeweils zur Startzeit aus dem Profil. |
-| T3 | **Einheit → MyWhoosh** | Einheit öffnen → **Für MyWhoosh exportieren (.zwo)** → AirDrop an den Mac → workout.mywhoosh.com → Upload → Export to MyWhoosh → in MyWhoosh fahren | Die `.zwo` lässt sich ohne Fehlermeldung importieren. Intervalle und Wattwerte stimmen mit der App überein, ERG-Modus funktioniert. Wenn B21 ausgeliefert ist, zusätzlich den Direktupload testen (siehe §6). |
+| T3 | **Einheit → MyWhoosh** | Einheit öffnen → **An MyWhoosh senden** (oder automatisch beim Übernehmen) → in MyWhoosh unter „Custom Workouts“/Kalender fahren | Die `.zwo` lässt sich ohne Fehlermeldung importieren. Intervalle und Wattwerte stimmen mit der App überein, ERG-Modus funktioniert. Wenn B21 ausgeliefert ist, zusätzlich den Direktupload testen (siehe §6). |
 | T4 | **Rückblick** | Nach der Fahrt: App öffnen (oder Pull-to-Refresh) → Verlauf → Fahrt öffnen → Metrik-Umschalter „Stunden \| TSS“ | Die Fahrt erscheint nach dem Strava-Upload innerhalb von 1 min nach dem Sync. Die geplante Einheit desselben Tags ist als erledigt markiert. Der Umschalter reagiert beim **ersten** Tap (F08, siehe §5). Der Wochenumfang stimmt mit Strava überein (± Rundung). |
 | T5 | **Profil einrichten / ändern** | FTP +5 W, Trainingstag ändern, Wochenbudget ändern → neu planen | Werte überleben einen App-Neustart. Der nächste Plan nutzt die neue FTP und die neuen Tage. Beim Wechsel aus dem Profil erscheint kein Dialog „Passwort sichern?“ (F15). |
 
@@ -93,12 +93,13 @@ Jedes Szenario einmal in Woche 1 bewusst durchspielen, danach im Alltag. Abweich
 - [ ] Wird eine Einheit in der App gelöscht, verschwindet auch der Kalendereintrag.
 - [ ] Der Kalender „Indoor Training“ erscheint per iCloud auch am Mac.
 
-## 7. MyWhoosh-Direktupload (B21) – Platzhalter
+## 7. MyWhoosh-Direktupload und Fahrten-Import (B21, B22)
 
-> Das Feature wird gerade separat gebaut. Dieser Abschnitt wird ergänzt, sobald B21 im Backlog beschrieben und im TestFlight-Build enthalten ist.
+Anmeldung: Profil → MyWhoosh. Upload: Einheit-Detail → „An MyWhoosh senden“ oder automatisch beim Übernehmen eines Plans.
 
-- [ ] Wo steht der Upload in der App (Einheit-Detail?), und welche Anmeldung braucht er?
-- [ ] Upload einer Einheit: Sie erscheint in MyWhoosh unter „My Workouts“ ohne Umweg über den Mac.
+- [ ] Upload einer Einheit: Sie erscheint in MyWhoosh unter „Custom Workouts“ und im MyWhoosh-Kalender, ohne Umweg über den Mac. *(am 17.11.2026 vom Entwickler bestätigt)*
+- [ ] Nach der Anmeldung erscheinen die MyWhoosh-Fahrten der letzten 210 Tage im Verlauf. *(am 17.11.2026 bestätigt)*
+- [ ] FIT-Import über die Dateien-App: volle Leistungskurve, keine doppelte Fahrt.
 - [ ] Erneuter Upload derselben Einheit: wird sie aktualisiert oder doppelt angelegt?
 - [ ] Fehlerfall (offline, abgelaufene Anmeldung) mit verständlicher Meldung. Fallback `.zwo`-Export funktioniert weiter.
 - [ ] Diagnose-Export enthält Status und Dauer des Uploads, aber keine Zugangsdaten.

@@ -1,7 +1,12 @@
 # IndoorCoach
 
-Persönliche iOS-App zur Planung von Indoor-Rennrad-Einheiten: Strava-Daten auswerten, mit Claude planen,
-in den Kalender eintragen und als `.zwo` nach MyWhoosh bringen. Läuft vollständig auf dem iPhone, ohne Backend.
+Persönliche iOS-App für Indoor-Rennrad-Training im Winter:
+- **Daten:** Fahrten aus Strava, MyWhoosh oder FIT-Dateien laden.
+- **Planen:** mit Claude planen, in den Kalender eintragen und direkt an MyWhoosh senden (`.zwo` als Rückfallweg).
+- **Fortschritt:** Leistungskurve, VO2max, Fitness & Freshness, Relative Effort, aerobe Effizienz.
+- **Motivation:** Winter Arc mit Leveln, Konstanz-Serie mit Joker, Wochenrückblick, Saison-Challenges und Trophäen.
+
+Läuft vollständig auf dem iPhone, ohne Backend.
 
 | Heute | Plan | Einheit | Planer | Verlauf | Profil |
 |-------|------|---------|--------|---------|--------|
@@ -19,6 +24,9 @@ in den Kalender eintragen und als `.zwo` nach MyWhoosh bringen. Läuft vollstän
 6. [Winter Arc: Relative Effort, Fitness & Freshness, Level](docs/05-FEATURES-WINTER-ARC.md)
 7. [Backlog bis zur Pilotphase](docs/06-BACKLOG-PILOT.md)
 8. [Pilot-Testplan](docs/07-PILOT-TESTPLAN.md) – Gerätematrix, Szenarien, Live-Checks, 4-Wochen-Ablauf, Feedback-Fragen
+9. [Leistung: Leistungskurve, Bestleistungen, VO2max](docs/08-FEATURES-LEISTUNG.md)
+10. [Brainstorming & Marktanalyse: Winter-Motivation](docs/09-BRAINSTORM-WINTER-MOTIVATION.md)
+11. [Konstanz-Paket: Serie mit Joker, Wochenrückblick, Challenges, Effizienz](docs/10-KONSTANZ-PAKET.md)
 
 ## Secrets
 
@@ -34,11 +42,14 @@ App/                    App-Hülle (@main, Assets)
 Config/Info.plist       URL-Schema für Strava-OAuth, .zwo-Typ
 IndoorCoachKit/         Swift Package mit der gesamten Logik und UI
   Sources/IndoorCoachKit/
-    Domain/             Workout, Segment, Zonen, TSS/CTL/ATL, .zwo-Export, Profil
-    Services/           StravaClient, ClaudeClient + PlanPrompt, Kalender, Keychain, Demo
+    Domain/             Workout, Zonen, TSS/CTL/ATL, .zwo-Export, Profil, Winter Arc, Leistungskurve,
+                        VO2max, Konstanz, Wochenrückblick, Challenges, Trophäen, Effizienz
+    Services/           StravaClient, ClaudeClient + PlanPrompt, MyWhooshClient, FIT-Parser, Kalender,
+                        Keychain, Log/Diagnose, Erinnerungen, Demo
     Store/              SwiftData-Modelle, AppModel
     UI/                 SwiftUI-Screens
   Tests/                Unit-Tests (swift test)
+IndoorCoachUITests/     UI-Walkthrough-Tests (Simulator)
   Sources/SnapshotTool/ rendert Screens als PNG (macOS)
 docs/                   Planung & Konzept
 ```

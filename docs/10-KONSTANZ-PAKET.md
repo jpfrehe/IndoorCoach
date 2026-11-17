@@ -142,3 +142,20 @@ Stand 17.11.2026 · Grundlage: `docs/09-BRAINSTORM-WINTER-MOTIVATION.md` · Grö
   - Commits auf dem eigenen Branch (konventionell, mit Co-Authored-By-Zeile);
   - Bericht mit Abweichungen.
 - **Danach die Hauptsession:** Review je Paket, Merge, Priorität im Highlight-Slot (höchstens eine Karte: K2 vor K3), UI-Tests im Simulator, Gerätetest, Commit.
+
+## 5. Umsetzung und Prüfung (17.11.2026)
+
+Vier Sonnet-Subagenten haben die Pakete parallel umgesetzt, jeweils in eigenem Worktree. Die Hauptsession hat jedes Paket selbst geprüft und in `main` zusammengeführt.
+
+| Paket | Ergebnis | Nacharbeit der Hauptsession |
+|---|---|---|
+| K1 Serie + Plan-Treue | ✅ | Worktree basierte auf dem letzten Push-Stand: Anker-Konflikt gelöst. test20 lag in der falschen Testklasse und lief nie; verschoben, jetzt grün. |
+| K2 Wochenrückblick | ✅ | Highlight-Slot: höchstens eine Karte, der Rückblick hat Vorrang vor der Challenge |
+| K3 Challenges + Trophäen | ✅ | Trophäen-Test an K1s neue `WinterArc.status(consistency:)`-Signatur angepasst; test22 blendet den Rückblick aus, bevor er die Challenge sucht |
+| K4 Effizienz + Entkopplung | ✅ | – |
+
+**Ergebnis:** 270 Unit-Tests grün; UI-Tests test01, 05, 14 und 20–23 im Simulator grün.
+
+**Offen für den nächsten UX-Audit:**
+- Trophäenschrank: Kontrast ausgegrauter Trophäen, „Alle anzeigen“ wird im Test nicht gefunden.
+- Abgeschnittene Texte („Text clipped“) im Wochenrückblick und in der Fahrt-Effizienz.

@@ -5,7 +5,6 @@ struct HelpFeedbackSection: View {
     @Environment(AppModel.self) private var model
     @State private var diagnosticsURL: URL?
     @State private var isExporting = false
-    @State private var showFeedbackInfo = false
 
     var body: some View {
         Section {
@@ -36,21 +35,19 @@ struct HelpFeedbackSection: View {
                 }
                 .accessibilityIdentifier("feedback.send")
             } else {
-                Button {
-                    showFeedbackInfo = true
-                } label: {
-                    Label("Feedback senden", systemImage: "envelope")
+                // No pilot address yet: the public issue tracker (opened in the browser, nothing is sent automatically).
+                Link(destination: AppConfig.feedbackIssueURL(
+                    title: "Feedback: ",
+                    body: "Was ist passiert / was wünschst du dir?\n\n—\nApp \(AppConfig.versionString) · \(AppConfig.osVersionString)")) {
+                    Label("Feedback auf GitHub (öffentlich)", systemImage: "bubble.left.and.text.bubble.right")
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
                 .accessibilityIdentifier("feedback.send")
-                .alert("Feedback-Adresse folgt", isPresented: $showFeedbackInfo) {
-                    Button("OK", role: .cancel) {}
-                } message: {
-                    Text("Die Adresse für Feedback wird vor dem Pilot eingetragen. Bis dahin: Diagnose exportieren und direkt an den Entwickler schicken.")
-                }
+                .accessibilityHint("Öffnet ein neues GitHub-Issue im Browser. Es ist öffentlich sichtbar.")
             }
         } header: { Text("Hilfe & Feedback") } footer: {
-            Text("Die Diagnose enthält die App-Protokolle der letzten 24 Stunden – ohne Schlüssel, Tokens, Fahrtnamen, Ziel oder Hinweise. Du entscheidest im Teilen-Menü, wohin sie geht.")
+            Text("Die Diagnose enthält die App-Protokolle der letzten 24 Stunden – ohne Schlüssel, Tokens, Fahrtnamen, Ziel oder Hinweise. Du entscheidest im Teilen-Menü, wohin sie geht."
+                 + (feedbackURL == nil ? " Feedback auf GitHub ist öffentlich – bitte keine persönlichen Daten und keine Diagnose anhängen." : ""))
         }
     }
 

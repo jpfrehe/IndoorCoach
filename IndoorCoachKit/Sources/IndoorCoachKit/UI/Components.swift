@@ -68,15 +68,7 @@ public enum Theme {
         }
     }
 
-    static func formLabel(_ tsb: Double) -> String {
-        switch tsb {
-        case ..<(-30): "Überlastet"
-        case ..<(-10): "Produktiv"
-        case ..<5: "Ausgewogen"
-        case ..<25: "Frisch"
-        default: "Formverlust"
-        }
-    }
+    static func formLabel(_ tsb: Double) -> String { FitnessFreshness.formLabel(tsb) }
 }
 
 extension PowerZone {

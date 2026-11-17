@@ -753,6 +753,25 @@ final class AuditWalkthroughTests: AuditCase {
 
     // ---
 
+    /// B05 acceptance (open since WP4): the diagnostics export opens the share sheet; feedback has a route.
+    func test24_DiagnosticsShareSheet() {
+        launch()
+        openTab("Profil")
+        let export = scrollUntilExists(app.buttons["diagnostics.export"], maxSwipes: 14)
+        check(export.exists, "„Diagnose exportieren“ im Profil")
+        tap(export, "Diagnose exportieren")
+        let share = app.buttons["diagnostics.share"]
+        check(share.waitForExistence(timeout: 8), "Export fertig: „Diagnose teilen“ erscheint")
+        tap(share, "Diagnose teilen")
+        let sheet = app.otherElements["ActivityListView"]
+        let opened = sheet.waitForExistence(timeout: 6) || app.navigationBars["UIActivityContentView"].exists
+        check(opened, "Teilen-Menü öffnet sich")
+        shot("share-sheet")
+        if opened { app.swipeDown(velocity: .fast) }
+        check(scrollUntilExists(app.descendants(matching: .any)["feedback.send"].firstMatch, maxSwipes: 4).exists,
+              "Feedback-Weg vorhanden (Mail oder GitHub-Issue)")
+    }
+
     // ANCHOR-UITEST-K4
 
     // MARK: K4 – Aerobe Effizienz und Entkopplung

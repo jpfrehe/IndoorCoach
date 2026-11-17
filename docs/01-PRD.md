@@ -1,5 +1,7 @@
 # PRD – IndoorCoach (Arbeitstitel)
 
+> **Stand nach dem MVP (17.11.2026):** Dieses PRD beschreibt den MVP. Erweiterungen seither: MyWhoosh-Direktupload und Fahrten-Import, Winter Arc, Leistung/VO2max, Konstanz-Paket – siehe [Status](04-STATUS.md).
+
 Status: Entwurf v1 · 16.11.2026 · Phase „Planung“ (ECC `orch-build-mvp`, Phase 0–2)
 
 ## 1. Problem
@@ -52,7 +54,7 @@ keine Verteilung über den App Store. Installation per Xcode auf das eigene iPho
 | US9 | Als Fahrer markiere ich Einheiten als erledigt/übersprungen; erledigte werden mit der Strava-Aktivität verknüpft. | Should |
 | US10 | Als Fahrer kann ich die App ohne Zugangsdaten im Demo-Modus ausprobieren. | Should |
 | US11 | Als Fahrer kann ich eine geplante Einheit von Claude anpassen lassen („kürzer“, „leichter“). | Could |
-| US12 | Workouts direkt in MyWhoosh anlegen (ohne manuellen Upload). | Won’t (MVP) – keine öffentliche API, siehe Konzept §6 |
+| US12 | Workouts direkt in MyWhoosh anlegen (ohne manuellen Upload). | Won’t (MVP) – keine öffentliche API, siehe Konzept §6. **Seit 17.11.2026 umgesetzt** über die inoffizielle Community-API (Backlog B21) |
 
 ## 5. Funktionale Anforderungen
 
@@ -72,7 +74,7 @@ keine Verteilung über den App Store. Installation per Xcode auf das eigene iPho
 ## 6. Nicht-funktionale Anforderungen
 
 - iOS 18+, SwiftUI, Apple Human Interface Guidelines (Tab-Bar, Large Titles, SF Symbols, Dark Mode, Dynamic Type).
-- Läuft ohne Backend. Netzwerk nur zu `strava.com` und `api.anthropic.com`.
+- Läuft ohne Backend. Netzwerk im MVP nur zu `strava.com` und `api.anthropic.com`; seit B21/B22 zusätzlich zu MyWhoosh (vom Nutzer verbunden).
 - Keine Secrets im Code oder Repo.
 - Kosten: ein Planungsaufruf ≈ 5–10k Input-/3–6k Output-Tokens → ca. 0,10 – 0,15 $ pro Plan (Opus 5.5: $4/$20 pro MTok).
 
