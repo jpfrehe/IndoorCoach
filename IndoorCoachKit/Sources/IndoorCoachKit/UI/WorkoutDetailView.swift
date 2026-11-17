@@ -135,26 +135,50 @@ struct WorkoutDetailContent: View {
             }
 
             Card(title: "Fahren", systemImage: "play.circle") {
+                if model.isMyWhooshConnected {
+                    Button { Task { await model.sendToMyWhoosh([workout]) } } label: {
+                        HStack {
+                            if model.isSendingToMyWhoosh { ProgressView().tint(Theme.ink) }
+                            else { Image(systemName: "paperplane.fill") }
+                            Text(workout.myWhooshSentAt == nil ? "An MyWhoosh senden" : "In MyWhoosh aktualisieren")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.jelly)
+                    .disabled(model.isSendingToMyWhoosh)
+                    if let sent = workout.myWhooshSentAt {
+                        Label("In MyWhoosh seit \(sent.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: "de_DE"))))"
+                              + (workout.myWhooshTaskID != nil ? " · im MyWhoosh-Kalender" : ""),
+                              systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(Theme.rowSecondary)
+                    }
+                }
                 Button(action: onCalendar) {
                     Label(workout.calendarEventID == nil ? "In Kalender eintragen" : "Kalender aktualisieren",
                           systemImage: "calendar.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.jelly)
-
-                if let zwoURL {
-                    ShareLink(item: zwoURL, preview: SharePreview(workout.title)) {
-                        Label("Für MyWhoosh exportieren (.zwo)", systemImage: "square.and.arrow.up")
-                            .frame(maxWidth: .infinity)
+                .buttonStyle(model.isMyWhooshConnected ? AnyButtonStyle(.soft) : AnyButtonStyle(.jelly))
+                if !model.isMyWhooshConnected {
+                    Text("Tipp: Verbinde MyWhoosh im Profil – dann landet die Einheit mit einem Tipp direkt in MyWhoosh.")
+                        .font(.caption).foregroundStyle(Theme.rowSecondary)
+                }
+                DisclosureGroup("Alternativ: .zwo-Datei") {
+                    if let zwoURL {
+                        ShareLink(item: zwoURL, preview: SharePreview(workout.title)) {
+                            Label("Für MyWhoosh exportieren (.zwo)", systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.soft)
                     }
-                    .buttonStyle(.soft)
+                    Link(destination: URL(string: "https://workout.mywhoosh.com")!) {
+                        Label("MyWhoosh Workout Builder öffnen", systemImage: "safari")
+                            .font(.subheadline)
+                    }
+                    Text("Die .zwo-Datei per AirDrop an den Mac schicken, im MyWhoosh Workout Builder hochladen und „Export to MyWhoosh“ wählen.")
+                        .font(.caption).foregroundStyle(Theme.rowSecondary)
                 }
-                Link(destination: URL(string: "https://workout.mywhoosh.com")!) {
-                    Label("MyWhoosh Workout Builder öffnen", systemImage: "safari")
-                        .font(.subheadline)
-                }
-                Text("Die .zwo-Datei per AirDrop an den Mac schicken, im MyWhoosh Workout Builder hochladen und „Export to MyWhoosh“ wählen. Das Workout erscheint dann unter „My Workouts“.")
-                    .font(.caption).foregroundStyle(.secondary)
+                .font(.subheadline)
             }
         }
     }

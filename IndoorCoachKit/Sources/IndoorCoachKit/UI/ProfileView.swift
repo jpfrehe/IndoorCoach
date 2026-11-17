@@ -18,6 +18,7 @@ struct ProfileView: View {
                 availabilitySection(model)
                 coachSection(model)
                 stravaSection(model)
+                myWhooshSection(model)
                 infoSection
             }
             .scrollContentBackground(.hidden)
@@ -232,6 +233,51 @@ struct ProfileView: View {
             if !model.isStravaConnected {
                 Text("Einmalig unter strava.com/settings/api eine eigene API-App anlegen. Als „Authorization Callback Domain“ localhost eintragen. Client-ID und Client-Secret hier einfügen.")
             }
+        }
+    }
+
+    @State private var whooshEmail = ""
+    @State private var whooshPassword = ""
+    @State private var whooshBusy = false
+
+    private func myWhooshSection(_ model: AppModel) -> some View {
+        @Bindable var model = model
+        return Section {
+            if let user = model.myWhooshUser {
+                LabeledContent("Verbunden", value: user)
+                Toggle("Neue Pläne automatisch senden", isOn: $model.profile.autoSendToMyWhoosh)
+                Button("Bei MyWhoosh abmelden", role: .destructive) { Task { await model.disconnectMyWhoosh() } }
+            } else {
+                LabeledContent("E-Mail") {
+                    TextField("E-Mail", text: $whooshEmail, prompt: Text("MyWhoosh-Konto"))
+                        .textContentType(.username)
+                        .plainTextInput()
+                        .multilineTextAlignment(.trailing)
+                        #if os(iOS)
+                        .keyboardType(.emailAddress)
+                        #endif
+                }
+                LabeledContent("Passwort") {
+                    SecureField("Passwort", text: $whooshPassword, prompt: Text("wird nicht gespeichert"))
+                        .textContentType(.password)
+                        .multilineTextAlignment(.trailing)
+                }
+                Button {
+                    whooshBusy = true
+                    Task {
+                        if await model.connectMyWhoosh(username: whooshEmail, password: whooshPassword) { whooshPassword = "" }
+                        whooshBusy = false
+                    }
+                } label: {
+                    HStack {
+                        Label("Bei MyWhoosh anmelden", systemImage: "figure.indoor.cycle")
+                        if whooshBusy { Spacer(); ProgressView() }
+                    }
+                }
+                .disabled(whooshBusy || whooshEmail.isEmpty || whooshPassword.isEmpty)
+            }
+        } header: { Text("MyWhoosh") } footer: {
+            Text("Einheiten landen direkt in MyWhoosh unter „Custom Workouts“ und im MyWhoosh-Kalender. Nutzt die inoffizielle MyWhoosh-Schnittstelle (Community-Dokumentation) – sie kann sich jederzeit ändern; dann bleibt die .zwo-Datei als Weg. Dein Passwort wird nur zur Anmeldung gesendet und nicht gespeichert.")
         }
     }
 

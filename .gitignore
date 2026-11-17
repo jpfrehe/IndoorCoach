@@ -8,3 +8,6 @@ IndoorCoachKit/.build/
 build/
 snapshots/*.png
 Config/Local.xcconfig
+
+# Subagent worktrees
+.claude/worktrees/

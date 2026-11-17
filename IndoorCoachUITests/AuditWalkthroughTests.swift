@@ -569,6 +569,48 @@ final class AuditWalkthroughTests: AuditCase {
         accessibilityAudit("Fahrt-RE")
     }
 
+    // MARK: MyWhoosh-Direktupload (B21) mit Stub-Konto
+
+    func test17_MyWhooshDirectUpload() {
+        launch(extra: ["-uiMyWhooshStub", "YES"])
+        openTab("Plan")
+        tap(row(0), "Erste Einheit")
+        route = "einheit"
+        let send = scrollUntilExists(button(containing: "An MyWhoosh senden"))
+        check(send.exists, "Primäraktion „An MyWhoosh senden“ bei verbundenem Konto")
+        shot("before-send")
+        tap(send, "An MyWhoosh senden")
+        check(waitForBanner(containing: "an MyWhoosh gesendet"), "Bestätigung nach dem Senden")
+        check(button(containing: "In MyWhoosh aktualisieren").waitForExistence(timeout: 3), "Button wechselt zu „In MyWhoosh aktualisieren“")
+        check(text(containing: "im MyWhoosh-Kalender").exists, "Status zeigt Eintrag im MyWhoosh-Kalender")
+        shot("after-send")
+        sleep(4) // let the confirmation banner fade out before auditing contrast
+        accessibilityAudit("Einheit-MyWhoosh")
+        let fallback = button(containing: "Alternativ: .zwo-Datei")
+        check(fallback.exists, ".zwo bleibt als eingeklappte Alternative")
+        openTab("Profil")
+        let connected = scrollUntilExists(text(containing: "test@example.com"))
+        check(connected.exists, "Profil zeigt verbundenes MyWhoosh-Konto")
+        check(app.switches["Neue Pläne automatisch senden"].exists, "Schalter für automatisches Senden")
+        shot("profile-connected")
+    }
+
+    func test18_MyWhooshNotConnected() {
+        launch()
+        openTab("Plan")
+        tap(row(0), "Erste Einheit")
+        route = "einheit"
+        _ = scrollUntilExists(button(containing: "Alternativ: .zwo-Datei"))
+        check(!button(containing: "An MyWhoosh senden").exists, "Ohne Konto kein Sende-Button")
+        check(text(containing: "Verbinde MyWhoosh im Profil").exists, "Hinweis auf die Verbindung im Profil")
+        shot("not-connected")
+        openTab("Profil")
+        let login = scrollUntilExists(button(containing: "Bei MyWhoosh anmelden"))
+        check(login.exists && !login.isEnabled, "Anmelden erst mit E-Mail und Passwort aktiv")
+        shot("profile-login")
+        accessibilityAudit("Profil-MyWhoosh")
+    }
+
     // MARK: Scenario – Kalender verweigert
 
     func test11_Scenario_CalendarDenied() {

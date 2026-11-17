@@ -13,6 +13,7 @@ public struct Keychain: Sendable {
         case claudeAPIKey = "claude.apiKey"
         case stravaClientSecret = "strava.clientSecret"
         case stravaTokens = "strava.tokens"
+        case myWhooshSession = "mywhoosh.session"
     }
 
     public func data(_ key: Key) -> Data? {

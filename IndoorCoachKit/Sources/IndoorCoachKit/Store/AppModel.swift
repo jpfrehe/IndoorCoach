@@ -60,6 +60,12 @@ public final class AppModel {
 
     public let context: ModelContext
     let secrets: SecretStore
+    let myWhooshStore: MyWhooshSessionStore
+    let myWhoosh: MyWhooshClient
+    /// Signed-in MyWhoosh account (e-mail) or nil.
+    public private(set) var myWhooshUser: String?
+    public private(set) var isSendingToMyWhoosh = false
+    public var isMyWhooshConnected: Bool { myWhooshUser != nil }
     let defaults: UserDefaults
     let calendarService: CalendarService
     let transport: HTTPTransport
@@ -71,11 +77,14 @@ public final class AppModel {
     }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
-                transport: HTTPTransport = URLSessionTransport()) {
+                transport: HTTPTransport = URLSessionTransport(),
+                myWhooshStore: MyWhooshSessionStore = KeychainMyWhooshSessionStore()) {
         self.context = context
         self.secrets = secrets
         self.defaults = defaults
         self.transport = transport
+        self.myWhooshStore = myWhooshStore
+        self.myWhoosh = MyWhooshClient(store: myWhooshStore, transport: transport)
         self.calendarService = CalendarService()
         if let data = defaults.data(forKey: Keys.profile), let p = try? JSONDecoder().decode(AthleteProfile.self, from: data) {
             profile = p
@@ -97,6 +106,65 @@ public final class AppModel {
         stravaAthleteName = tokens?.athleteName
         hasClaudeKey = !(secrets.secret(.claudeAPIKey) ?? "").isEmpty
         hasStravaSecret = !(secrets.secret(.stravaClientSecret) ?? "").isEmpty
+        myWhooshUser = myWhooshStore.loadSession()?.username
+    }
+
+    // MARK: - MyWhoosh (B21, unofficial API)
+
+    /// Signs in; only the session is kept (Keychain), never the password.
+    @discardableResult
+    public func connectMyWhoosh(username: String, password: String) async -> Bool {
+        do {
+            try await myWhoosh.login(username: username.trimmingCharacters(in: .whitespaces), password: password)
+            refreshCredentialState()
+            show("Mit MyWhoosh verbunden.", error: false)
+            return true
+        } catch {
+            show(error.localizedDescription, error: true)
+            return false
+        }
+    }
+
+    public func disconnectMyWhoosh() async {
+        await myWhoosh.logout()
+        refreshCredentialState()
+    }
+
+    /// Uploads (or replaces) the workouts as MyWhoosh custom workouts and puts each on its day in the MyWhoosh calendar.
+    public func sendToMyWhoosh(_ workouts: [StoredWorkout]) async {
+        let ids = workouts.map(\.persistentModelID)
+        guard !ids.isEmpty, !isSendingToMyWhoosh else { return }
+        isSendingToMyWhoosh = true
+        defer { isSendingToMyWhoosh = false; try? context.save() }
+        do {
+            var batch: [(id: PersistentIdentifier, payload: MyWhooshWorkout, start: Date, tss: Int, summary: String)] = []
+            for id in ids {
+                guard let w = context.model(for: id) as? StoredWorkout, !w.isDeleted else { continue }
+                // Replace an earlier upload instead of creating duplicates.
+                if let old = w.myWhooshWorkoutID { try? await myWhoosh.delete(workoutID: old) }
+                if let task = w.myWhooshTaskID { try? await myWhoosh.deleteTask(task) }
+                let payload = MyWhooshMapper.workout(for: w.definition, id: "ic-\(w.id.uuidString.lowercased())", ftp: profile.ftp)
+                batch.append((id, payload, startDate(for: w), payload.TSS, w.summary))
+            }
+            try await myWhoosh.upload(batch.map(\.payload))
+            var scheduled = 0
+            for item in batch {
+                let taskID = try? await myWhoosh.schedule(workoutID: item.payload.Id, name: item.payload.Name, description: item.summary,
+                                                         start: item.start, durationSeconds: item.payload.Time, tss: item.tss)
+                if let w = context.model(for: item.id) as? StoredWorkout, !w.isDeleted {
+                    w.myWhooshWorkoutID = item.payload.Id
+                    w.myWhooshTaskID = taskID
+                    w.myWhooshSentAt = .now
+                    if taskID != nil { scheduled += 1 }
+                }
+            }
+            let what = batch.count == 1 ? "Einheit" : "\(batch.count) Einheiten"
+            show(scheduled == batch.count ? "\(what) an MyWhoosh gesendet und im MyWhoosh-Kalender eingetragen."
+                                          : "\(what) an MyWhoosh gesendet (unter „Custom Workouts“).", error: false)
+        } catch {
+            refreshCredentialState()
+            show(error.localizedDescription, error: true)
+        }
     }
 
     public func setClaudeAPIKey(_ key: String) {
@@ -410,6 +478,9 @@ public final class AppModel {
         } else {
             show("\(created.count) Einheiten übernommen.", error: false)
         }
+        if isMyWhooshConnected && profile.autoSendToMyWhoosh {
+            await sendToMyWhoosh(created)
+        }
     }
 
     public func discardProposal() { proposal = nil }
@@ -466,9 +537,13 @@ public final class AppModel {
     /// Deletes synchronously first (no awaits while holding the model), then cleans up the calendar.
     public func delete(_ workout: StoredWorkout) async {
         let eventID = workout.calendarEventID
+        let whooshID = workout.myWhooshWorkoutID, whooshTask = workout.myWhooshTaskID
         context.delete(workout)
         try? context.save()
         if let eventID { try? await calendarService.remove(eventID: eventID) }
+        // Best effort: keep MyWhoosh in sync, but never block local deletion on the unofficial API.
+        if let whooshTask { try? await myWhoosh.deleteTask(whooshTask) }
+        if let whooshID { try? await myWhoosh.delete(workoutID: whooshID) }
     }
 
     public func setStatus(_ status: WorkoutStatus, for workout: StoredWorkout) {

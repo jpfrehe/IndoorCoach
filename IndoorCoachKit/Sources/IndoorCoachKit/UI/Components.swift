@@ -144,6 +144,13 @@ extension ButtonStyle where Self == JellyButtonStyle {
     static var jellySmall: JellyButtonStyle { JellyButtonStyle(large: false) }
 }
 
+/// Type-erased button style so a view can switch between `.jelly` and `.soft`.
+struct AnyButtonStyle: ButtonStyle {
+    private let make: (Configuration) -> AnyView
+    init<S: ButtonStyle>(_ style: S) { make = { AnyView(style.makeBody(configuration: $0)) } }
+    func makeBody(configuration: Configuration) -> some View { make(configuration) }
+}
+
 extension ButtonStyle where Self == SoftButtonStyle {
     static var soft: SoftButtonStyle { SoftButtonStyle() }
 }

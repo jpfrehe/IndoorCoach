@@ -93,6 +93,13 @@ struct PlanView: View {
                         Task { await model.addToCalendar(workouts.filter { $0.date >= today && $0.status == .planned }) }
                     } label: { Label("Alle in Kalender", systemImage: "calendar.badge.plus") }
                 }
+                if model.isMyWhooshConnected {
+                    ToolbarItem(placement: .secondaryAction) {
+                        Button {
+                            Task { await model.sendToMyWhoosh(workouts.filter { $0.date >= today && $0.status == .planned }) }
+                        } label: { Label("Alle an MyWhoosh senden", systemImage: "paperplane") }
+                    }
+                }
             }
             .sheet(isPresented: $showGenerator) {
                 PlanGeneratorSheet()

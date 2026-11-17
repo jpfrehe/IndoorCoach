@@ -106,6 +106,10 @@ public final class StoredWorkout {
     public var sourceRaw: String
     public var weekFocus: String?
     public var createdAt: Date
+    // MyWhoosh direct upload (B21) – optional for lightweight migration.
+    public var myWhooshWorkoutID: String?
+    public var myWhooshTaskID: String?
+    public var myWhooshSentAt: Date?
 
     public init(proposal: PlannedWorkoutProposal, source: WorkoutSource, weekFocus: String?) {
         id = UUID()

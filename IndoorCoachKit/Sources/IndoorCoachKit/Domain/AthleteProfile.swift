@@ -24,13 +24,15 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
     public var arcStart: Date? = nil
     /// Fitness (CTL) to reach by the goal date; nil → `WinterArc.defaultTarget`.
     public var targetCTL: Double? = nil
+    /// Send accepted plans straight to MyWhoosh when connected.
+    public var autoSendToMyWhoosh: Bool = true
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
         case name, ftp, weightKg, thresholdHeartRate, goal, goalDate, weeklyHours, trainingDays, longestSessionMinutes,
              preferredStartHour, preferredStartMinute, notes, planHorizonDays, model,
-             restingHeartRate, maxHeartRate, arcStart, targetCTL
+             restingHeartRate, maxHeartRate, arcStart, targetCTL, autoSendToMyWhoosh
     }
 
     /// Tolerant decoding: keys added in later versions fall back to their defaults instead of failing –
@@ -56,6 +58,7 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
         maxHeartRate = try c.decodeIfPresent(Int.self, forKey: .maxHeartRate)
         arcStart = try c.decodeIfPresent(Date.self, forKey: .arcStart)
         targetCTL = try c.decodeIfPresent(Double.self, forKey: .targetCTL)
+        autoSendToMyWhoosh = try c.decodeIfPresent(Bool.self, forKey: .autoSendToMyWhoosh) ?? d.autoSendToMyWhoosh
     }
 
     /// Heart-rate anchors for Relative Effort. Max HR falls back to LTHR / 0.9, then 190.

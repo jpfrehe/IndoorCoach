@@ -58,6 +58,17 @@ public struct RootView: View {
     }
 }
 
+#if DEBUG
+/// Answers every request with a plausible success body (UI tests only).
+struct StubTransport: HTTPTransport {
+    func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        try await Task.sleep(for: .milliseconds(300))
+        let body = request.url?.path.contains("task/create") == true ? #"{"status":true,"data":{"id":"stub-task"}}"# : #"{"message":"ok"}"#
+        return (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+    }
+}
+#endif
+
 /// Container + model factory used by the app, previews and the snapshot tool.
 @MainActor
 public enum AppEnvironment {
@@ -85,14 +96,25 @@ public enum AppEnvironment {
     }
 
     public static func makeModel(container: ModelContainer) -> AppModel {
-        AppModel(context: container.mainContext, secrets: KeychainSecretStore())
+        #if DEBUG
+        // UI-test hook: `-uiMyWhooshStub YES` simulates a signed-in MyWhoosh account with canned answers,
+        // so the connected flow can be checked without real servers or credentials.
+        if UserDefaults.standard.bool(forKey: "uiMyWhooshStub") {
+            let store = InMemoryMyWhooshSessionStore()
+            store.saveSession(MyWhooshSession(username: "test@example.com", whooshId: "stub", accessToken: "stub", refreshToken: ""))
+            return AppModel(context: container.mainContext, secrets: KeychainSecretStore(),
+                            transport: StubTransport(), myWhooshStore: store)
+        }
+        #endif
+        return AppModel(context: container.mainContext, secrets: KeychainSecretStore())
     }
 
     /// Fully in-memory demo model (no Keychain, no persistent defaults).
     public static func makePreviewModel() -> (ModelContainer, AppModel) {
         let container = try! makeContainer(inMemory: true)
         let defaults = UserDefaults(suiteName: "preview-\(UUID().uuidString)")!
-        let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), defaults: defaults)
+        let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), defaults: defaults,
+                             myWhooshStore: InMemoryMyWhooshSessionStore())
         model.bootstrap()
         return (container, model)
     }
