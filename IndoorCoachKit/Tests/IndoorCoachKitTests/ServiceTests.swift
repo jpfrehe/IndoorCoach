@@ -119,7 +119,7 @@ struct StravaTests {
     @Test func mapsRateLimit() async {
         let store = MemoryTokenStore(StravaTokens(accessToken: "tok", refreshToken: "r", expiresAt: .distantFuture))
         let client = StravaClient(config: config, store: store, transport: MockTransport([(429, "{}", [:])]))
-        await #expect(throws: StravaError.rateLimited) { _ = try await client.fetchRides(after: .distantPast) }
+        await #expect(throws: StravaError.rateLimited(retryAfter: nil)) { _ = try await client.fetchRides(after: .distantPast) }
     }
 }
 
