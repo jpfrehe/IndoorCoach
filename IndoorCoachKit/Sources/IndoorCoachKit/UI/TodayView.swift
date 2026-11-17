@@ -54,6 +54,9 @@ struct TodayDashboard: View {
             nextWorkoutCard(next)
             // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
             // ANCHOR-K2-HEUTE (Wochenrückblick)
+            if let reviewWeek = model.weeklyReviewCardWeek() {
+                WeeklyReviewCard(weekStart: reviewWeek, rides: rides, workouts: workouts)
+            }
 
             // ANCHOR-K3-HEUTE (Saison-Challenge)
 
