@@ -56,6 +56,7 @@ struct TodayDashboard: View {
             // ANCHOR-K2-HEUTE (Wochenrückblick)
 
             // ANCHOR-K3-HEUTE (Saison-Challenge)
+            ChallengeHighlightSlot(rides: rides)
 
             // ── Ende Highlight-Slot ──
             if let arc = model.winterArc(rides: rides) {

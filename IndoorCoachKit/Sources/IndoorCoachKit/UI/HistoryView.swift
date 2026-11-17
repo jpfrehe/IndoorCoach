@@ -206,6 +206,7 @@ struct RideDetailView: View {
                         .accessibilityIdentifier("ride.pr")
                 }
                 // ANCHOR-K3-FAHRT (Challenge-Fortschritt/Trophäe)
+                RideChallengeNote(ride: ride)
 
                 RelativeEffortCard(ride: ride)
 

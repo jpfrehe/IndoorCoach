@@ -96,6 +96,8 @@ struct WinterArcView: View {
                         }
                     }
                     // ANCHOR-K3-WINTERARC (Challenges & Trophäen)
+                    ChallengesCard(rides: rides)
+                    TrophiesCard(rides: rides, arc: status)
 
                     Card(title: "So funktioniert der Winter Arc", systemImage: "info.circle") {
                         Text("Der Arc misst, wie viel Fitness du vom Saisonstart bis zu deinem Ziel-Tag aufbaust. Jedes Zehntel des Wegs zur Ziel-Fitness ist ein Level. Ein Level bleibt dir auch nach einer Pause – nur der Kurs zeigt ehrlich, ob du gerade vorne oder hinten liegst.")
