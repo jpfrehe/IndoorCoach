@@ -21,6 +21,9 @@ public enum FITParser {
         public var maxWatts: Double? = nil
         /// Mean-maximal power per standard duration from the 1 Hz series; nil without power data.
         public var powerCurve: [Int: Double]? = nil
+        /// Pw:HR decoupling in percent (first vs second half, positive = pulse drifts up); nil without 1 Hz power and
+        /// heart rate or for rides under 20 min.
+        public var decoupling: Double? = nil
     }
 
     /// Power samples above this are sensor glitches and count as 0 W.
@@ -34,6 +37,9 @@ public enum FITParser {
         let series = powerSeries(records)
         let curve = series.map(PowerCurve.meanMaximal(watts:)).flatMap { $0.isEmpty ? nil : $0 }
         let maxWatts = series?.max()
+        let decoupling = series.flatMap { power in
+            AerobicEfficiency.decoupling(power: power, heartRate: heartRateSeries(records, count: power.count, origin: powerOrigin(records)))
+        }
 
         if let s = sessions.first, let start = s.uint(2).map(date) ?? fromRecords?.startDate {
             let timer = (s.uint(8) ?? s.uint(7)).map { Int(Double($0) / 1000) } ?? fromRecords?.movingTime ?? 0
@@ -46,17 +52,42 @@ public enum FITParser {
                            kilojoules: work ?? fromRecords?.kilojoules,
                            averageHeartrate: s.uint(16).map { Double($0) } ?? fromRecords?.averageHeartrate,
                            maxHeartrate: s.uint(17).map { Double($0) } ?? fromRecords?.maxHeartrate,
-                           maxWatts: maxWatts, powerCurve: curve)
+                           maxWatts: maxWatts, powerCurve: curve, decoupling: decoupling)
         }
         guard var fromRecords else { throw Error.noData }
         fromRecords.maxWatts = maxWatts
         fromRecords.powerCurve = curve
+        fromRecords.decoupling = decoupling
         return fromRecords
     }
 
     /// Per-second power of the whole file (index 0 = first record), for tests and callers that need the series.
     public static func powerSeries(from data: Data) -> [Double]? {
         powerSeries(((try? decode(data)) ?? []).filter { $0.global == 20 })
+    }
+
+    /// Per-second heart rate aligned with `powerSeries(from:)` (same origin and length); 0 = no sample in that second.
+    public static func heartRateSeries(from data: Data) -> [Double]? {
+        let records = ((try? decode(data)) ?? []).filter { $0.global == 20 }
+        guard let power = powerSeries(records) else { return nil }
+        return heartRateSeries(records, count: power.count, origin: powerOrigin(records))
+    }
+
+    /// Timestamp of the first record that carries power (index 0 of `powerSeries`).
+    static func powerOrigin(_ records: [Message]) -> UInt64? {
+        records.compactMap { r in r.uint(7) != nil ? r.uint(253) : nil }.min()
+    }
+
+    /// Resamples the `record` heart rate (field 3) to 1 Hz on the power time axis: later record in the same second wins,
+    /// seconds without a sample stay 0 (callers ignore them), 0 bpm readings stay 0.
+    static func heartRateSeries(_ records: [Message], count: Int, origin: UInt64?) -> [Double] {
+        var series = [Double](repeating: 0, count: count)
+        guard let origin else { return series }
+        for r in records {
+            guard let t = r.uint(253), let hr = r.uint(3), t >= origin, Int(t - origin) < count else { continue }
+            series[Int(t - origin)] = Double(hr)
+        }
+        return series
     }
 
     /// Resamples the `record` power values to 1 Hz by timestamp: gaps are filled with 0 W, values above
