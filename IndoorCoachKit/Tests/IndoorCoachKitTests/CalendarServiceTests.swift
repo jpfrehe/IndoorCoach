@@ -59,6 +59,12 @@ final class FakeCalendarBackend: CalendarBackend {
     func eventsInCalendar(titled title: String) -> [CalendarEventDraft] {
         events.values.filter { calendars[$0.calendarID]?.title == title }.map(\.draft)
     }
+
+    private(set) var removedAppData: [String] = []
+    func removeAppData(eventIDs: [String], calendarTitle: String) {
+        removedAppData = eventIDs
+        for id in eventIDs { events[id] = nil }
+    }
 }
 
 @Suite("Calendar robustness")

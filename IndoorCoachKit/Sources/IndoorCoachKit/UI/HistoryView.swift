@@ -58,8 +58,7 @@ struct HistoryView: View {
                 }
                 if !model.isDemoMode {
                     Section {
-                        Label("Daten von Strava", systemImage: "link")
-                            .font(.caption).foregroundStyle(.secondary)
+                        PoweredByStrava()
                     }
                 }
             }
@@ -189,6 +188,7 @@ struct RideDetailView: View {
                             .font(.headline)
                             .foregroundStyle(Theme.strava)
                     }
+                    PoweredByStrava()
                 }
             }
             .padding()

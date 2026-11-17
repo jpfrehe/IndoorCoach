@@ -35,6 +35,8 @@ protocol CalendarBackend: AnyObject {
     func writableCalendarID(titled title: String) -> String?
     func createCalendar(titled title: String) throws -> String
     var defaultCalendarID: String? { get }
+    /// "Alle Daten löschen": remove these events and the app's own calendar. No-op without full access.
+    func removeAppData(eventIDs: [String], calendarTitle: String)
 }
 
 /// Writes planned workouts into the iOS calendar (own calendar "Indoor Training" when possible).
@@ -42,6 +44,11 @@ protocol CalendarBackend: AnyObject {
 public final class CalendarService {
     public static let calendarTitle = "Indoor Training"
     private let backend: CalendarBackend
+
+    /// "Alle Daten löschen": removes the given events (they may live in the default calendar) and the own calendar.
+    public func removeAppData(eventIDs: [String]) {
+        backend.removeAppData(eventIDs: eventIDs, calendarTitle: Self.calendarTitle)
+    }
 
     public convenience init() {
         self.init(backend: EventKitCalendarBackend())
@@ -133,6 +140,18 @@ final class EventKitCalendarBackend: CalendarBackend {
     }
 
     var defaultCalendarID: String? { store.defaultCalendarForNewEvents?.calendarIdentifier }
+
+    func removeAppData(eventIDs: [String], calendarTitle: String) {
+        // Never asks for access: without full access nothing the app wrote is reachable.
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return }
+        for id in eventIDs {
+            if let event = store.event(withIdentifier: id) { try? store.remove(event, span: .thisEvent, commit: false) }
+        }
+        for calendar in store.calendars(for: .event) where calendar.title == calendarTitle && calendar.allowsContentModifications {
+            try? store.removeCalendar(calendar, commit: false)
+        }
+        try? store.commit()
+    }
 
     private func save(_ event: EKEvent, _ draft: CalendarEventDraft) throws {
         event.title = draft.title

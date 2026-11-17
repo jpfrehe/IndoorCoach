@@ -7,6 +7,7 @@ struct ProfileView: View {
     @State private var claudeKeyInput = ""
     @State private var stravaSecretInput = ""
     @State private var confirmDisconnect = false
+    @State private var confirmDeleteAll = false
 
     var body: some View {
         @Bindable var model = model
@@ -20,6 +21,7 @@ struct ProfileView: View {
                 stravaSection(model)
                 myWhooshSection(model)
                 infoSection
+                dataSection(model)
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
@@ -286,6 +288,19 @@ struct ProfileView: View {
             Link(destination: URL(string: "https://www.strava.com/settings/api")!) { Label("Strava API-Einstellungen", systemImage: "gearshape") }
             Link(destination: URL(string: "https://console.anthropic.com/settings/keys")!) { Label("Claude Console – API-Keys", systemImage: "key") }
             Link(destination: URL(string: "https://workout.mywhoosh.com")!) { Label("MyWhoosh Workout Builder", systemImage: "figure.indoor.cycle") }
+        }
+    }
+
+    private func dataSection(_ model: AppModel) -> some View {
+        Section {
+            Button("Alle Daten löschen", role: .destructive) { confirmDeleteAll = true }
+                .confirmationDialog("Alle Daten löschen?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
+                    Button("Alle Daten löschen", role: .destructive) { Task { await model.deleteAllData() } }
+                } message: {
+                    Text("Gelöscht werden alle Fahrten und geplanten Einheiten, die Kalendereinträge der App samt Kalender „Indoor Training“, Claude-API-Key, Strava-Zugang und -Client-Secret sowie Profil und Einstellungen. Deine Daten bei Strava bleiben erhalten. Das lässt sich nicht rückgängig machen.")
+                }
+        } header: { Text("Daten") } footer: {
+            Text("Entfernt alles, was IndoorCoach auf diesem iPhone gespeichert hat.")
         }
     }
 }

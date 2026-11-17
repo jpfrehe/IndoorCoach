@@ -74,6 +74,8 @@ public final class AppModel {
         static let profile = "profile.v1"
         static let stravaClientID = "strava.clientID"
         static let lastSync = "strava.lastSync"
+        /// Everything "Alle Daten löschen" removes – add every new persisted key here.
+        static let all = [profile, stravaClientID, lastSync]
     }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
@@ -572,6 +574,36 @@ public final class AppModel {
         let url = dir.appendingPathComponent(ZWOExporter.fileName(for: d, date: workout.date))
         try ZWOExporter.xml(for: d).write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+
+    // MARK: - Delete all data
+
+    /// "Alle Daten löschen" (Profil → Daten): rides, workouts, the app's calendar entries and calendar,
+    /// all Keychain items and the app's UserDefaults. Data on Strava and at Anthropic is not touched.
+    public func deleteAllData() async {
+        let eventIDs = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? []).compactMap(\.calendarEventID)
+        try? context.delete(model: StoredRide.self)
+        try? context.delete(model: StoredWorkout.self)
+        try? context.save()
+        calendarService.removeAppData(eventIDs: eventIDs)
+
+        secrets.setSecret(nil, for: .claudeAPIKey)
+        secrets.setSecret(nil, for: .stravaClientSecret)
+        secrets.tokenStore.saveTokens(nil)
+        myWhooshStore.saveSession(nil)
+        UserDefaults.standard.removeObject(forKey: "mywhoosh.deviceId")
+
+        // In-memory state first: the property observers would write the defaults back.
+        profile = AthleteProfile()
+        stravaClientID = ""
+        lastSync = nil
+        proposal = nil
+        plannerRequested = false
+        seriesCache = nil
+        for key in Keys.all { defaults.removeObject(forKey: key) }
+        try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent("zwo"))
+        refreshCredentialState()
+        show("Alle Daten gelöscht.", error: false)
     }
 
     // MARK: - Helpers
