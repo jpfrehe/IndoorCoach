@@ -52,6 +52,8 @@ public final class AppModel {
     public private(set) var lastSync: Date?
     public var banner: Banner?
     public var proposal: PlanProposal?
+    /// Set by "Plan erstellen" outside the Plan tab; PlanView opens the planner and resets it.
+    public var plannerRequested = false
     public private(set) var proposalSource: WorkoutSource = .demo
 
     public let context: ModelContext
@@ -120,10 +122,20 @@ public final class AppModel {
 
     /// Seeds demo rides (and a demo plan) when nothing is connected, so every screen has content.
     public func bootstrap() {
+        #if DEBUG
+        var rideDays = 84
+        switch applyUITestSeed() {
+        case "empty": return
+        case "heavy": rideDays = 730
+        default: break
+        }
+        #else
+        let rideDays = 84
+        #endif
         guard isDemoMode else { return }
         let count = (try? context.fetchCount(FetchDescriptor<StoredRide>())) ?? 0
         guard count == 0 else { return }
-        for ride in DemoData.rides(ftp: profile.ftp) {
+        for ride in DemoData.rides(days: rideDays, ftp: profile.ftp) {
             context.insert(StoredRide(ride, isDemo: true))
         }
         let ctx = planContext(wish: "", startToday: true)
@@ -133,6 +145,27 @@ public final class AppModel {
         }
         try? context.save()
     }
+
+    #if DEBUG
+    private var uiSeedApplied = false
+
+    /// UI-audit hook (Debug only): launch with `-uiSeed demo|empty|heavy` to wipe the store and profile
+    /// and start from a known state. Returns the applied seed, or nil.
+    private func applyUITestSeed() -> String? {
+        guard !uiSeedApplied, let seed = UserDefaults.standard.string(forKey: "uiSeed") else { return nil }
+        uiSeedApplied = true
+        try? context.delete(model: StoredRide.self)
+        try? context.delete(model: StoredWorkout.self)
+        try? context.save()
+        profile = AthleteProfile()
+        stravaClientID = ""
+        // Debug-only: start without Claude key / Strava secret (Strava tokens are left untouched).
+        secrets.setSecret(nil, for: .claudeAPIKey)
+        secrets.setSecret(nil, for: .stravaClientSecret)
+        refreshCredentialState()
+        return seed
+    }
+    #endif
 
     public func resetDemoData() {
         try? context.delete(model: StoredRide.self, where: #Predicate { $0.isDemo })

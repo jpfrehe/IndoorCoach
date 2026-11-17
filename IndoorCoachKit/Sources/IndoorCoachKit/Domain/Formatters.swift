@@ -3,6 +3,7 @@ import Foundation
 public enum Formatters {
     /// "1:05 h", "45 min", "30 s".
     public static func duration(_ seconds: Int) -> String {
+        if seconds == 0 { return "0 min" }
         if seconds < 60 { return "\(seconds) s" }
         let minutes = seconds / 60
         let rest = seconds % 60

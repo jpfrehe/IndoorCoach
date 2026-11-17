@@ -60,9 +60,14 @@ struct HistoryView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.canvas)
             .navigationTitle("Verlauf")
             .navigationDestination(for: RideSummary.self) { RideDetailView(ride: $0) }
-            .refreshable { await model.syncStrava() }
+            .refreshable {
+                if model.isStravaConnected { await model.syncStrava() }
+                else { model.show("Strava ist nicht verbunden – verbinde es im Profil.", error: false) }
+            }
         }
     }
 
@@ -95,27 +100,38 @@ struct HistoryChart: View {
             HStack {
                 Text("12 Wochen").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
+                // Segmented instead of a menu: one tap, and the menu stayed open after choosing (UX audit F06).
                 Picker("Metrik", selection: $metric) {
                     ForEach(Metric.allCases) { Text($0.rawValue).tag($0) }
                 }
-                .pickerStyle(.menu)
+                .pickerStyle(.segmented)
                 .labelsHidden()
+                .fixedSize()
             }
             Chart(weeks) { w in
                 BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
                         y: .value(metric.rawValue, metric == .hours ? Double(w.seconds) / 3600 : w.tss))
-                    .foregroundStyle(Theme.accent.gradient)
-                    .cornerRadius(4)
+                    // Hot jelly → berry: ≥ 4.5:1 against the card over the whole bar (audit measures marks like text).
+                    .foregroundStyle(LinearGradient(colors: [Theme.cap(.z6), Color(Palette.accentTextLight)],
+                                                    startPoint: .top, endPoint: .bottom))
+                    .cornerRadius(5)
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .weekOfYear, count: 3)) { _ in
                     AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale(identifier: "de_DE")))
+                        .foregroundStyle(Theme.axisLabel)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { _ in
+                    AxisGridLine()
+                    AxisValueLabel().foregroundStyle(Theme.axisLabel)
                 }
             }
             .frame(height: 140)
             let total = weeks.reduce(0) { $0 + $1.seconds }
             HStack {
-                StatTile(title: "Ø pro Woche", value: Formatters.duration(total / max(1, weeks.count)))
+                StatTile(title: "Ø pro Woche", value: Formatters.duration(total / max(1, weeks.count) / 60 * 60))
                 StatTile(title: "Fahrten", value: "\(weeks.reduce(0) { $0 + $1.rides })")
                 StatTile(title: "TSS gesamt", value: "\(Int(weeks.reduce(0) { $0 + $1.tss }.rounded()))")
             }
@@ -132,9 +148,9 @@ struct RideDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label(ride.isIndoor ? "Indoor" : "Outdoor", systemImage: ride.isIndoor ? "figure.indoor.cycle" : "figure.outdoor.cycle")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(ride.isIndoor ? Theme.indoor : Theme.outdoor)
+                    JellyChip(text: ride.isIndoor ? "Indoor" : "Outdoor",
+                              systemImage: ride.isIndoor ? "figure.indoor.cycle" : "figure.outdoor.cycle",
+                              fill: ride.isIndoor ? Theme.indoor : Theme.outdoor)
                     Text(ride.name).font(.largeTitle.weight(.bold))
                     Text(ride.startDate.formatted(.dateTime.weekday(.wide).day().month(.wide).year().hour().minute().locale(Locale(identifier: "de_DE"))))
                         .foregroundStyle(.secondary)
@@ -167,12 +183,13 @@ struct RideDetailView: View {
                     Link(destination: url) {
                         Label("Auf Strava ansehen", systemImage: "arrow.up.right.square")
                             .font(.headline)
-                            .foregroundStyle(Color(red: 0.99, green: 0.32, blue: 0.0))
+                            .foregroundStyle(Theme.strava)
                     }
                 }
             }
             .padding()
         }
+        .background(Theme.canvas)
         .navigationTitle(ride.name)
         .inlineNavigationTitle()
     }

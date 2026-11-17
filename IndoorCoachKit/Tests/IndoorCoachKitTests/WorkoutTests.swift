@@ -74,6 +74,7 @@ struct WorkoutTests {
     }
 
     @Test func durationFormatting() {
+        #expect(Formatters.duration(0) == "0 min")
         #expect(Formatters.duration(45) == "45 s")
         #expect(Formatters.duration(600) == "10 min")
         #expect(Formatters.duration(90) == "1:30 min")

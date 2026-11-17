@@ -1,0 +1,40 @@
+# UX-audit allowlist (ux-audit skill, native iOS adaptation).
+# Console = `log stream` of the IndoorCoach process, messageType error|fault, during the XCUITest walkthrough.
+# Every entry below is emitted by a system framework or by the XCUITest harness itself, not by app code.
+# Allowlisted lines stay in the raw counts of the report; they are only excluded from findings.
+
+console_allow:
+  # iOS Simulator: software keyboard + haptics are not fully available
+  - "may only be set for UIKBDynamicRenderFactory"     # UIKit keyboard renderer, simulator only
+  - "Error creating CHHapticPattern"                    # no haptics engine in the simulator
+  - "CHHapticPattern patternForKey"                     # same
+  - "Keyboard queue task timeout detected"              # simulator keyboard under XCUITest typing
+  - "UIKeyboardLayoutStar implements focusItemsInRect"  # keyboard focus engine log
+  - "com.apple.PointerUI.pointeruid"                    # no pointer service in the simulator
+  - "com.apple.linguisticdata"                          # MobileAsset sandbox in the simulator
+  - "Failed to grant sandbox extension"                 # same
+  # XCUITest harness (automation + accessibility snapshotting)
+  - "Automation type mismatch"                          # XCTest element-type mapping log
+  - "animationDidStop without a matching animationDidStart"  # XCTest idle monitor
+  - "Unknown client: IndoorCoach"                       # AX runtime while XCTest attaches
+  - "called on a predicate that has _evaluationBlocked set"  # NSPredicate copies made by XCUIElementQuery
+  - "cannot add handler to 0 from 0 - dropping"         # CoreAnimation, emitted during accessibility snapshots
+  - "System gesture gate timed out"                     # synthesized swipe events
+  # Framework-internal, triggered by system components (no app API involved)
+  - "updateVisibleMenuWithBlock:] while no context menu is visible"  # SwiftUI Picker(.menu) internals
+  - "/Decomposition of '(bounds|position)' was requested on layer/"  # UIActivityViewController dismissal animation
+  - "/^Conversion error! \\{\\{/"                        # TextInputUI keyboard-frame conversion inside sheets
+  - "requires a valid sessionID"                        # RemoteTextInput, synthesized typing
+  - "Failed to request default share mode for fileURL"  # ShareSheet: no file-provider domains in the simulator
+  - "Only support loading options for CKShare and SWY types"  # ShareSheet internals
+  - "error fetching file provider domain for URL"       # ShareSheet, simulator
+  - "error fetching item for URL"                       # ShareSheet, simulator
+  - "/^building pipeline .* took/"                      # renderbox Metal pipeline compile (system glass effects)
+  - "/^Snapshot request 0x[0-9a-f]+ complete with error/"  # FrontBoard app-switcher snapshot on Home press
+
+network_allow: []  # demo mode makes no network requests
+
+# Accessibility audit (performAccessibilityAudit) severity mapping, equivalent to axe-core impact:
+#   "Contrast failed", hitRegion / elementDetection / sufficientElementDescription on interactive elements → Serious (High)
+#   "Contrast nearly passed" (system secondary label colours, 3.0–4.5:1)                               → Moderate (Low)
+#   dynamicType on system-provided controls (Form rows, toolbar buttons)                               → verified manually at AX sizes

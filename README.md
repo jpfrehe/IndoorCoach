@@ -7,7 +7,7 @@ in den Kalender eintragen und als `.zwo` nach MyWhoosh bringen. Läuft vollstän
 |-------|------|---------|--------|---------|--------|
 | ![](snapshots/sim/01-heute.png) | ![](snapshots/sim/02-plan.png) | ![](snapshots/sim/03-workout.png) | ![](snapshots/sim/04-planer.png) | ![](snapshots/sim/05-verlauf.png) | ![](snapshots/sim/06-profil.png) |
 
-*(iOS-27-Simulator, iPhone 18 Pro, Demo-Daten. Dunkelmodus: `snapshots/sim/07-heute-dark.png`)*
+*(iOS-27-Simulator, iPhone 18 Pro, Demo-Daten, Farbsystem „Sunset Jelly“. Dunkelmodus: `snapshots/sim/07-heute-dark.png`, `08-workout-dark.png`)*
 
 ## Dokumente
 
@@ -15,6 +15,7 @@ in den Kalender eintragen und als `.zwo` nach MyWhoosh bringen. Läuft vollstän
 2. [Konzept & Architektur](docs/02-KONZEPT.md) – Entscheidungen, Datenmodell, Prompt-Design, MyWhoosh-Optionen, Risiken, Slices
 3. [Installation & Einrichtung](docs/03-INSTALLATION.md) – Xcode, Strava-API-App, Claude-Key, MyWhoosh-Import
 4. [Status & nächste Schritte](docs/04-STATUS.md)
+5. [UX-Audit 17.11.2026](docs/ux-audit-2026-11-17.md) – ux-audit-Skill, 15 Befunde behoben, Farbsystem
 
 ## Aufbau
 

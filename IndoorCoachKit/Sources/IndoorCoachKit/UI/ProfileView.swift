@@ -19,6 +19,8 @@ struct ProfileView: View {
                 stravaSection(model)
                 infoSection
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.canvas)
             .navigationTitle("Profil")
             .confirmationDialog("Strava trennen?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
                 Button("Trennen", role: .destructive) { Task { await model.disconnectStrava() } }
@@ -53,15 +55,21 @@ struct ProfileView: View {
     private func goalSection(_ model: AppModel) -> some View {
         @Bindable var model = model
         return Section {
-            TextField("Ziel", text: $model.profile.goal, axis: .vertical).lineLimit(2...4)
+            TextField("Ziel", text: $model.profile.goal, prompt: Text("z. B. FTP auf 280 W bis zum Frühjahr"), axis: .vertical)
+                .lineLimit(2...4)
+                .accessibilityLabel("Ziel")
             Toggle("Zieldatum", isOn: Binding(get: { model.profile.goalDate != nil },
                                              set: { model.profile.goalDate = $0 ? (model.profile.goalDate ?? Calendar.current.date(byAdding: .month, value: 3, to: .now)) : nil }))
             if let date = model.profile.goalDate {
                 DatePicker("Datum", selection: Binding(get: { date }, set: { model.profile.goalDate = $0 }),
                            in: Date.now..., displayedComponents: .date)
             }
-            TextField("Hinweise für den Coach (z. B. Knie schonen, keine Sprints)", text: $model.profile.notes, axis: .vertical)
-                .lineLimit(1...4)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Hinweise für den Coach").font(.caption).foregroundStyle(.secondary)
+                TextField("Hinweise für den Coach", text: $model.profile.notes,
+                          prompt: Text("z. B. Knie schonen, keine Sprints"), axis: .vertical)
+                    .lineLimit(1...4)
+            }
         } header: { Text("Ziel") } footer: {
             Text("Ziel und Hinweise werden beim Planen an Claude (Anthropic) gesendet – bitte keine sensiblen Gesundheitsdaten.")
         }
@@ -80,8 +88,8 @@ struct ProfileView: View {
                         Text(AthleteProfile.weekdayNames[day] ?? "")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity, minHeight: 36)
-                            .foregroundStyle(on ? .white : .primary)
-                            .background(on ? AnyShapeStyle(Theme.accent.gradient) : AnyShapeStyle(.quaternary),
+                            .foregroundStyle(on ? Theme.ink : .primary)
+                            .background(on ? AnyShapeStyle(Theme.sunset) : AnyShapeStyle(.quaternary),
                                         in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                     }
                     .buttonStyle(.plain)
@@ -111,11 +119,16 @@ struct ProfileView: View {
         return Section {
             if model.hasClaudeKey {
                 LabeledContent("API-Key") {
-                    Label("Gespeichert", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                    Label { Text("Gespeichert") } icon: { Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.done) }
                 }
                 Button("API-Key entfernen", role: .destructive) { model.setClaudeAPIKey("") }
             } else {
-                SecureField("sk-ant-…", text: $claudeKeyInput).plainTextInput()
+                LabeledContent("API-Key") {
+                    SecureField("Claude-API-Key", text: $claudeKeyInput, prompt: Text("sk-ant-…"))
+                        .plainTextInput()
+                        .credentialInput()
+                        .multilineTextAlignment(.trailing)
+                }
                 Button("API-Key speichern") {
                     model.setClaudeAPIKey(claudeKeyInput)
                     claudeKeyInput = ""
@@ -147,18 +160,27 @@ struct ProfileView: View {
                     }
                 }
                 .disabled(model.isSyncing)
-                Button("Alle Fahrten neu laden (120 Tage)") { Task { await model.syncStrava(full: true) } }
+                Button("Alle Fahrten neu laden (210 Tage)") { Task { await model.syncStrava(full: true) } }
                     .disabled(model.isSyncing)
                 Button("Strava trennen", role: .destructive) { confirmDisconnect = true }
             } else {
-                TextField("Client-ID", text: $model.stravaClientID).numericKeyboard().plainTextInput()
+                LabeledContent("Client-ID") {
+                    TextField("Client-ID", text: $model.stravaClientID, prompt: Text("z. B. 123456"))
+                        .numericKeyboard().plainTextInput()
+                        .multilineTextAlignment(.trailing)
+                }
                 if model.hasStravaSecret {
                     LabeledContent("Client-Secret") {
-                        Label("Gespeichert", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                        Label { Text("Gespeichert") } icon: { Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.done) }
                     }
                 } else {
-                    SecureField("Client-Secret", text: $stravaSecretInput).plainTextInput()
-                        .onSubmit { model.setStravaClientSecret(stravaSecretInput); stravaSecretInput = "" }
+                    LabeledContent("Client-Secret") {
+                        SecureField("Client-Secret", text: $stravaSecretInput, prompt: Text("aus strava.com/settings/api"))
+                            .plainTextInput()
+                            .credentialInput()
+                            .multilineTextAlignment(.trailing)
+                            .onSubmit { model.setStravaClientSecret(stravaSecretInput); stravaSecretInput = "" }
+                    }
                 }
                 Button {
                     if !stravaSecretInput.isEmpty {
@@ -174,7 +196,7 @@ struct ProfileView: View {
                 } label: {
                     Label("Mit Strava verbinden", systemImage: "link")
                         .font(.headline)
-                        .foregroundStyle(Color(red: 0.99, green: 0.32, blue: 0.0))
+                        .foregroundStyle(Theme.strava)
                 }
                 .disabled(model.stravaClientID.isEmpty || (!model.hasStravaSecret && stravaSecretInput.isEmpty))
             }

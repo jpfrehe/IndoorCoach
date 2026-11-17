@@ -33,7 +33,9 @@ public struct DemoCoach: Coach {
             day = calendar.date(byAdding: .day, value: 1, to: day)!
         }
         return PlanProposal(weekFocus: tsb < -20 ? "Erholen und Grundlage stabilisieren" : "Sweet Spot + VO₂max-Reiz, Rest Grundlage",
-                            notes: "Dies ist ein Demo-Plan ohne KI. Hinterlege im Profil einen Claude-API-Key für echte Planung.",
+                            notes: "Dies ist ein Demo-Plan ohne KI. Hinterlege im Profil einen Claude-API-Key für echte Planung."
+                                + (ctx.wish.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? ""
+                                   : " Dein Wunsch („\(ctx.wish.trimmingCharacters(in: .whitespacesAndNewlines))“) wird erst mit Claude berücksichtigt."),
                             workouts: workouts, rejected: [])
     }
 }
@@ -63,13 +65,13 @@ public enum DemoData {
                                           .intervals(5, on: 240, at: 1.15, off: 240, at: 0.5, cadence: 100), .cooldown(8, from: 0.6, to: 0.4)])
     )
 
-    /// ~12 weeks of plausible rides ending yesterday (mostly indoor, some outdoor weekend rides).
-    public static func rides(endingAt end: Date = .now, ftp: Int = 250, calendar: Calendar = .current) -> [RideSummary] {
+    /// ~12 weeks (or `days`) of plausible rides ending yesterday (mostly indoor, some outdoor weekend rides).
+    public static func rides(endingAt end: Date = .now, days: Int = 84, ftp: Int = 250, calendar: Calendar = .current) -> [RideSummary] {
         var rng = SeededGenerator(seed: 42)
         var result: [RideSummary] = []
         let today = calendar.startOfDay(for: end)
         var id = 9_000_000
-        for offset in stride(from: 84, through: 1, by: -1) {
+        for offset in stride(from: days, through: 1, by: -1) {
             let day = calendar.date(byAdding: .day, value: -offset, to: today)!
             let weekday = AthleteProfile.isoWeekday(of: day, calendar: calendar)
             let week = offset / 7

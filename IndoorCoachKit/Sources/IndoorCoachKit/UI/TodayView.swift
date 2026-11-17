@@ -15,9 +15,13 @@ struct TodayView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 24)
             }
+            .background(Theme.canvas)
             .navigationTitle("Heute")
             .navigationDestination(for: StoredWorkout.self) { WorkoutDetailView(workout: $0) }
-            .refreshable { await model.syncStrava() }
+            .refreshable {
+                if model.isStravaConnected { await model.syncStrava() }
+                else { model.show("Strava ist nicht verbunden – verbinde es im Profil.", error: false) }
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     if model.isSyncing { ProgressView() }
@@ -49,7 +53,8 @@ struct TodayDashboard: View {
 
             if model.isDemoMode { demoHint }
             nextWorkoutCard(next)
-            if let current = series.last { formCard(series: series, current: current) }
+            // Without rides the 0/0/0 "Ausgewogen" card would look like a real assessment.
+            if !rides.isEmpty, let current = series.last { formCard(series: series, current: current) }
             if let week = weeks.last { weekCard(week) }
             volumeCard(weeks)
         }
@@ -58,13 +63,15 @@ struct TodayDashboard: View {
     private var demoHint: some View {
         Card {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "sparkles").font(.title2).foregroundStyle(Theme.accent)
+                Image(systemName: "sparkles").font(.title2).foregroundStyle(Theme.sunset)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Demo-Modus").font(.headline)
                     Text("Du siehst Beispieldaten. Verbinde Strava und hinterlege deinen Claude-API-Key im Profil, um mit deinen echten Fahrten zu planen.")
                         .font(.subheadline).foregroundStyle(.secondary)
-                    Button("Zum Profil") { tab = .profile }
-                        .font(.subheadline.weight(.semibold))
+                    Button { tab = .profile } label: {
+                        Text("Zum Profil").frame(minHeight: 44).contentShape(Rectangle())
+                    }
+                    .font(.subheadline.weight(.semibold))
                 }
             }
         }
@@ -99,10 +106,13 @@ struct TodayDashboard: View {
             Card(title: "Nächste Einheit", systemImage: "bicycle") {
                 EmptyStateView(title: "Nichts geplant", systemImage: "calendar.badge.plus",
                                message: "Lass deinen Coach die nächsten Tage planen.")
-                Button { tab = .plan } label: {
+                Button {
+                    model.plannerRequested = true // PlanView opens the planner sheet on arrival
+                    tab = .plan
+                } label: {
                     Label("Plan erstellen", systemImage: "sparkles").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.jelly)
             }
         }
     }
@@ -110,38 +120,42 @@ struct TodayDashboard: View {
     private func formCard(series: [TrainingLoad.DayLoad], current: TrainingLoad.DayLoad) -> some View {
         Card(title: "Form · letzte 90 Tage", systemImage: "waveform.path.ecg") {
             HStack {
-                StatTile(title: "Fitness", value: Formatters.decimal(current.ctl), tint: Theme.fitness)
-                StatTile(title: "Ermüdung", value: Formatters.decimal(current.atl), tint: Theme.fatigue)
+                StatTile(title: "Fitness", value: Formatters.decimal(current.ctl), dot: Theme.fitness)
+                StatTile(title: "Ermüdung", value: Formatters.decimal(current.atl), dot: Theme.fatigue)
                 StatTile(title: "Form", value: (current.tsb > 0 ? "+" : "") + Formatters.decimal(current.tsb),
-                         tint: Theme.formColor(current.tsb))
+                         dot: Theme.formColor(current.tsb))
             }
-            Text(Theme.formLabel(current.tsb))
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Theme.formColor(current.tsb).opacity(0.15), in: Capsule())
-                .foregroundStyle(Theme.formColor(current.tsb))
+            JellyChip(text: Theme.formLabel(current.tsb), fill: Theme.formColor(current.tsb))
             Chart(series) { day in
+                // Soft jelly area under fitness, crisp lines in the deeper tones (≥ 3:1 on the card).
+                AreaMark(x: .value("Tag", day.date), y: .value("Wert", day.ctl))
+                    .foregroundStyle(LinearGradient(colors: [Theme.fitness.opacity(0.35), Theme.fitness.opacity(0)],
+                                                    startPoint: .top, endPoint: .bottom))
+                    .interpolationMethod(.monotone)
                 LineMark(x: .value("Tag", day.date), y: .value("Wert", day.ctl), series: .value("Kurve", "Fitness"))
-                    .foregroundStyle(Theme.fitness)
+                    .foregroundStyle(Theme.fitnessLine)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .interpolationMethod(.monotone)
                 LineMark(x: .value("Tag", day.date), y: .value("Wert", day.atl), series: .value("Kurve", "Ermüdung"))
-                    .foregroundStyle(Theme.fatigue.opacity(0.8))
+                    .foregroundStyle(Theme.fatigueLine)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
                     .interpolationMethod(.monotone)
                 BarMark(x: .value("Tag", day.date, unit: .day), y: .value("TSS", day.tss / 3))
-                    .foregroundStyle(.gray.opacity(0.25))
+                    .foregroundStyle(Color(Palette.mangoPop).opacity(0.45))
             }
             .chartLegend(.hidden)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month)) { _ in
                     AxisGridLine()
                     AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale(identifier: "de_DE")))
+                        .foregroundStyle(Theme.axisLabel)
                 }
             }
             .frame(height: 140)
             HStack(spacing: 14) {
-                legendDot(Theme.fitness, "Fitness (CTL)")
-                legendDot(Theme.fatigue, "Ermüdung (ATL)")
-                legendDot(.gray.opacity(0.5), "Tages-TSS")
+                legendDot(Theme.fitnessLine, "Fitness (CTL)")
+                legendDot(Theme.fatigueLine, "Ermüdung (ATL)")
+                legendDot(Color(Palette.mangoPop), "Tages-TSS")
             }
         }
     }
@@ -159,9 +173,9 @@ struct TodayDashboard: View {
         return Card(title: "Diese Woche", systemImage: "chart.pie") {
             HStack(spacing: 18) {
                 ZStack {
-                    Circle().stroke(Theme.accent.opacity(0.18), lineWidth: 10)
+                    Circle().stroke(Theme.softFill, lineWidth: 11)
                     Circle().trim(from: 0, to: progress)
-                        .stroke(Theme.accent.gradient, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .stroke(Theme.sunsetAngular, style: StrokeStyle(lineWidth: 11, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     Text("\(Int(progress * 100)) %").font(.callout.weight(.bold)).monospacedDigit()
                 }
@@ -186,15 +200,19 @@ struct TodayDashboard: View {
                 BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
                         y: .value("Stunden", Double(w.indoorSeconds) / 3600))
                     .foregroundStyle(by: .value("Art", "Indoor"))
+                    .cornerRadius(5)
                 BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
                         y: .value("Stunden", Double(w.seconds - w.indoorSeconds) / 3600))
                     .foregroundStyle(by: .value("Art", "Outdoor"))
+                    .cornerRadius(5)
             }
-            .chartForegroundStyleScale(["Indoor": Theme.indoor, "Outdoor": Theme.outdoor])
+            // Deeper tones so the bars keep ≥ 3:1 against the white card.
+            .chartForegroundStyleScale(["Indoor": Theme.indoorMark, "Outdoor": Theme.outdoorMark])
             .chartYAxisLabel("h")
             .chartXAxis {
                 AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { _ in
                     AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale(identifier: "de_DE")))
+                        .foregroundStyle(Theme.axisLabel)
                 }
             }
             .frame(height: 150)

@@ -23,6 +23,7 @@ struct WorkoutDetailView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 24)
         }
+        .background(Theme.canvas)
         .navigationTitle(workout.title)
         .inlineNavigationTitle()
         .toolbar {
@@ -77,7 +78,7 @@ struct WorkoutDetailContent: View {
                     if workout.status != .planned {
                         Label(workout.status.label, systemImage: workout.status.symbol)
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(workout.status == .done ? .green : .secondary)
+                            .foregroundStyle(workout.status == .done ? Theme.done : .secondary)
                     }
                     Spacer()
                     if workout.source == .claude {
@@ -115,7 +116,7 @@ struct WorkoutDetailContent: View {
                 ForEach(Array(d.segments.enumerated()), id: \.offset) { _, segment in
                     HStack(alignment: .top, spacing: 10) {
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(Theme.color(for: PowerZone(fractionOfFTP: segment.onPower ?? segment.power ?? segment.powerHigh ?? 0.5)))
+                            .fill(Theme.cap(PowerZone(fractionOfFTP: segment.onPower ?? segment.power ?? segment.powerHigh ?? 0.5)))
                             .frame(width: 4)
                         Text(segment.describe(ftp: ftp)).font(.subheadline)
                         Spacer(minLength: 0)
@@ -139,16 +140,14 @@ struct WorkoutDetailContent: View {
                           systemImage: "calendar.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.jelly)
 
                 if let zwoURL {
                     ShareLink(item: zwoURL, preview: SharePreview(workout.title)) {
                         Label("Für MyWhoosh exportieren (.zwo)", systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .buttonStyle(.soft)
                 }
                 Link(destination: URL(string: "https://workout.mywhoosh.com")!) {
                     Label("MyWhoosh Workout Builder öffnen", systemImage: "safari")

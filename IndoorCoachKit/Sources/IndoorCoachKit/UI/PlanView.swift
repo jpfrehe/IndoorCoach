@@ -7,6 +7,7 @@ struct PlanView: View {
     @State private var showGenerator = PlanView.debugFlag("uiPlanner")
     @State private var showPast = false
     @State private var path: [StoredWorkout] = []
+    @State private var pendingDelete: StoredWorkout?
 
     static func debugFlag(_ key: String) -> Bool {
         #if DEBUG
@@ -25,7 +26,12 @@ struct PlanView: View {
                 if upcoming.isEmpty {
                     Section {
                         EmptyStateView(title: "Noch kein Plan", systemImage: "sparkles",
-                                       message: "Tippe auf „Planen“, damit dein Coach die nächsten Tage auf Basis deiner Form und Ziele plant.")
+                                       message: "Dein Coach plant die nächsten Tage auf Basis deiner Form und Ziele.")
+                        Button { showGenerator = true } label: {
+                            Label("Plan erstellen", systemImage: "sparkles").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.jelly)
+                        .listRowBackground(Color.clear)
                     }
                 }
                 ForEach(weekGroups(upcoming), id: \.start) { group in
@@ -36,10 +42,10 @@ struct PlanView: View {
                                     Button { Task { await model.addToCalendar([workout]) } } label: {
                                         Label("Kalender", systemImage: "calendar.badge.plus")
                                     }
-                                    .tint(.blue)
+                                    .tint(Theme.calendarAction)
                                 }
                                 .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) { Task { await model.delete(workout) } } label: {
+                                    Button(role: .destructive) { pendingDelete = workout } label: {
                                         Label("Löschen", systemImage: "trash")
                                     }
                                 }
@@ -65,11 +71,22 @@ struct PlanView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.canvas)
             .navigationTitle("Plan")
             .navigationDestination(for: StoredWorkout.self) { WorkoutDetailView(workout: $0) }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button { showGenerator = true } label: { Label("Planen", systemImage: "sparkles") }
+                    // Text + icon as one HStack: iOS 26+ toolbars render a plain Label icon-only,
+                    // and the empty state tells the user to tap "Planen".
+                    Button { showGenerator = true } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                            Text("Planen")
+                        }
+                    }
+                    .buttonStyle(.jellySmall)
+                    .accessibilityLabel("Planen")
                 }
                 ToolbarItem(placement: .secondaryAction) {
                     Button {
@@ -79,6 +96,16 @@ struct PlanView: View {
             }
             .sheet(isPresented: $showGenerator) {
                 PlanGeneratorSheet()
+            }
+            .onChange(of: model.plannerRequested, initial: true) { _, requested in
+                if requested { showGenerator = true; model.plannerRequested = false }
+            }
+            .confirmationDialog("Einheit löschen?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                                titleVisibility: .visible, presenting: pendingDelete) { workout in
+                Button("Löschen", role: .destructive) { Task { await model.delete(workout) } }
+            } message: { workout in
+                Text(workout.calendarEventID == nil ? "„\(workout.title)“ wird aus dem Plan entfernt."
+                     : "„\(workout.title)“ wird aus dem Plan und aus dem Kalender entfernt.")
             }
             .task {
                 // Debug launch argument `-uiDetail YES` opens the first upcoming workout.
@@ -185,7 +212,7 @@ struct PlanGeneratorSheet: View {
             } header: { Text("Wünsche an den Coach (optional)") }
 
             Section {
-                if let load = ctx.load {
+                if let load = ctx.load, load.ctl > 0 || load.atl > 0 {
                     LabeledContent("Form (TSB)", value: Formatters.decimal(load.tsb))
                     LabeledContent("Fitness (CTL)", value: Formatters.decimal(load.ctl))
                 }
@@ -200,28 +227,34 @@ struct PlanGeneratorSheet: View {
                      : "Kein Claude-API-Key hinterlegt – es wird ein einfacher Demo-Plan ohne KI erstellt.")
             }
 
-            Section {
+        }
+        .scrollContentBackground(.hidden)
+        .background(Theme.canvas)
+        .scrollDismissesKeyboard(.interactively)
+        // Primary action stays visible above the keyboard instead of sitting below the fold.
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 6) {
                 Button {
                     Task { await model.generatePlan(wish: wish, startToday: startToday) }
                 } label: {
                     HStack {
-                        Spacer()
                         if model.isPlanning {
-                            ProgressView().padding(.trailing, 6)
+                            ProgressView().tint(Theme.ink).padding(.trailing, 6)
                             Text(model.hasClaudeKey ? "Claude plant …" : "Plane …")
                         } else {
                             Label(model.hasClaudeKey ? "Mit Claude planen" : "Demo-Plan erstellen", systemImage: "sparkles")
                         }
-                        Spacer()
                     }
-                    .font(.headline)
+                    .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.jelly)
                 .disabled(model.isPlanning)
-            } footer: {
                 if model.isPlanning && model.hasClaudeKey {
-                    Text("Das dauert meist 30–90 Sekunden.")
+                    Text("Das dauert meist 30–90 Sekunden.").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            .padding()
+            .background(.bar)
         }
     }
 }
@@ -272,6 +305,7 @@ struct ProposalReview: View {
             }
             .padding()
         }
+        .background(Theme.canvas)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 8) {
                 Button {
@@ -279,8 +313,7 @@ struct ProposalReview: View {
                 } label: {
                     Label("Übernehmen & in Kalender", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.jelly)
                 HStack {
                     Button("Nur übernehmen") { Task { await model.acceptProposal(addToCalendar: false); onDone() } }
                     Spacer()

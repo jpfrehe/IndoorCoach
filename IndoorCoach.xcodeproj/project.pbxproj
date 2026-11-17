@@ -10,17 +10,33 @@
 		AC0000000000000000000301 /* IndoorCoachKit in Frameworks */ = {isa = PBXBuildFile; productRef = AC0000000000000000000501 /* IndoorCoachKit */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		AC0000000000000000000C01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AC0000000000000000000801 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC0000000000000000000701;
+			remoteInfo = IndoorCoach;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		AC0000000000000000000101 /* IndoorCoach.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IndoorCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC0000000000000000000102 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AC0000000000000000000103 /* IndoorCoachKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = IndoorCoachKit; sourceTree = "<group>"; };
 		AC0000000000000000000104 /* docs */ = {isa = PBXFileReference; lastKnownFileType = folder; path = docs; sourceTree = "<group>"; };
+		AC0000000000000000000105 /* IndoorCoachUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IndoorCoachUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AC0000000000000000000201 /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = App;
+			sourceTree = "<group>";
+		};
+		AC0000000000000000000202 /* IndoorCoachUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = IndoorCoachUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +50,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AC0000000000000000000411 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -41,6 +64,7 @@
 			isa = PBXGroup;
 			children = (
 				AC0000000000000000000201 /* App */,
+				AC0000000000000000000202 /* IndoorCoachUITests */,
 				AC0000000000000000000103 /* IndoorCoachKit */,
 				AC0000000000000000000602 /* Config */,
 				AC0000000000000000000104 /* docs */,
@@ -60,6 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				AC0000000000000000000101 /* IndoorCoach.app */,
+				AC0000000000000000000105 /* IndoorCoachUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -90,6 +115,27 @@
 			productReference = AC0000000000000000000101 /* IndoorCoach.app */;
 			productType = "com.apple.product-type.application";
 		};
+		AC0000000000000000000702 /* IndoorCoachUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC0000000000000000000903 /* Build configuration list for PBXNativeTarget "IndoorCoachUITests" */;
+			buildPhases = (
+				AC0000000000000000000412 /* Sources */,
+				AC0000000000000000000411 /* Frameworks */,
+				AC0000000000000000000413 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AC0000000000000000000D01 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AC0000000000000000000202 /* IndoorCoachUITests */,
+			);
+			name = IndoorCoachUITests;
+			productName = IndoorCoachUITests;
+			productReference = AC0000000000000000000105 /* IndoorCoachUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -102,6 +148,10 @@
 				TargetAttributes = {
 					AC0000000000000000000701 = {
 						CreatedOnToolsVersion = 27.2;
+					};
+					AC0000000000000000000702 = {
+						CreatedOnToolsVersion = 27.2;
+						TestTargetID = AC0000000000000000000701;
 					};
 				};
 			};
@@ -123,12 +173,20 @@
 			projectRoot = "";
 			targets = (
 				AC0000000000000000000701 /* IndoorCoach */,
+				AC0000000000000000000702 /* IndoorCoachUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		AC0000000000000000000403 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC0000000000000000000413 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -145,7 +203,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AC0000000000000000000412 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AC0000000000000000000D01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC0000000000000000000701 /* IndoorCoach */;
+			targetProxy = AC0000000000000000000C01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AC0000000000000000000A01 /* Debug */ = {
@@ -262,6 +335,42 @@
 			};
 			name = Release;
 		};
+		AC0000000000000000000A05 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = app.indoorcoach.personal.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = IndoorCoach;
+			};
+			name = Debug;
+		};
+		AC0000000000000000000A06 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = app.indoorcoach.personal.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = IndoorCoach;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -279,6 +388,15 @@
 			buildConfigurations = (
 				AC0000000000000000000A03 /* Debug */,
 				AC0000000000000000000A04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AC0000000000000000000903 /* Build configuration list for PBXNativeTarget "IndoorCoachUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000A05 /* Debug */,
+				AC0000000000000000000A06 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

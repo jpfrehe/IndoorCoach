@@ -63,19 +63,18 @@ public enum SnapshotScenes {
     /// App icon: indoor cyclist on the accent gradient with a rising power profile.
     public static var appIcon: some View {
         ZStack {
-            LinearGradient(colors: [Color(red: 1.0, green: 0.50, blue: 0.20), Color(red: 0.90, green: 0.20, blue: 0.10)],
+            // Sunset Jelly: peach → coral → jelly pink, ink glyph (same rules as the in-app primary buttons).
+            LinearGradient(colors: [Color(Palette.peachFizz), Color(Palette.warmCoral), Color(Palette.jellyPink)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
             HStack(alignment: .bottom, spacing: 28) {
                 ForEach([0.30, 0.45, 0.38, 0.62, 0.50, 0.78], id: \.self) { h in
-                    RoundedRectangle(cornerRadius: 18).fill(.white.opacity(0.22)).frame(width: 92, height: 1024 * h * 0.62)
+                    RoundedRectangle(cornerRadius: 30).fill(Color(Palette.mangoPop).opacity(0.35)).frame(width: 92, height: 1024 * h * 0.62)
                 }
             }
             .frame(maxHeight: .infinity, alignment: .bottom)
-            .padding(.bottom, 0)
             Image(systemName: "figure.indoor.cycle")
                 .font(.system(size: 520, weight: .semibold))
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.18), radius: 20, y: 10)
+                .foregroundStyle(Color(Palette.ink))
                 .offset(y: -40)
         }
         .frame(width: 1024, height: 1024)
