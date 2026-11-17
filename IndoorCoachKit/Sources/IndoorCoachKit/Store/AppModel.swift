@@ -290,7 +290,10 @@ public final class AppModel {
         guard isDemoMode else { return }
         let count = (try? context.fetchCount(FetchDescriptor<StoredRide>())) ?? 0
         guard count == 0 else { return }
-        for ride in DemoData.rides(days: rideDays, ftp: profile.ftp) {
+        var demoRides = DemoData.rides(days: rideDays, ftp: profile.ftp)
+        // G6: a demo "last winter" for the Vorjahres-Schatten (the 730-day seed already has a previous year).
+        if rideDays <= 365 { demoRides += DemoData.previousYearRides(ftp: profile.ftp) }
+        for ride in demoRides {
             context.insert(StoredRide(ride, isDemo: true))
         }
         let ctx = planContext(wish: "", startToday: true)
