@@ -96,3 +96,26 @@ Leitplanken, Einstiege und Regeln für parallele Arbeit wie im [Konstanz-Paket](
 | P4 | `ReminderSection.swift`, `WeeklyReviewReminder.swift` (gemeinsames Reminder-Protokoll erweitern), `AppModel` nur am Anker sowie `delete`/`deleteAllData` je eine Zeile |
 
 UI-Tests je Paket nur am eigenen `ANCHOR-UITEST-P…`.
+
+## Umsetzung und Prüfung (17.11.2026)
+
+Vier Sonnet-Subagenten, parallel in eigenen Worktrees. Jeder Worktree wurde zuerst auf den lokalen `main` vorgespult. Die Hauptsession hat jedes Paket geprüft und zusammengeführt.
+
+| Paket | Ergebnis | Nacharbeit der Hauptsession |
+|---|---|---|
+| P1 Prognose, Verteilung, eFTP-Verlauf | ✅ | Die Prognose rechnete ihre Last pro Stunde mit der einfachen TSS-Schätzung, setzt aber die Fitness-Kurve fort, die mit `FitnessFreshness.load` (inkl. Relative-Effort-Faktor) entsteht. Jetzt nutzen beide dieselbe Last. |
+| P2 Fähigkeitslevel, Ermüdungsresistenz | ✅ | – (Demo-Fahrten haben keine Sekundendaten, daher dort ehrlich „keine Daten“) |
+| P3 Vorjahres-Schatten, Saisonrückblick | ✅ | – (eigener Vorjahres-Demo-Block; die bestehenden Demo-Fahrten bleiben unverändert) |
+| P4 Winter-Reise, Erinnerung vor Einheiten | ✅ | – |
+
+**Ergebnis:**
+- 322 Unit-Tests grün.
+- UI-Tests test25–28 und die Regressionen test01, 04, 14, 19, 20, 22, 23 im Simulator grün.
+- Konsole: 0 meldepflichtige Einträge.
+- Vom Ablauf abweichend bleibt nur der bekannte Wackel-Check „Metrik zeigt TSS nach einem Tap“.
+- Sichtprüfung im Simulator: Winter-Reise, Vorjahres-Linie (Winter Arc und Fitness & Form), Prognose mit Rechenweg und Saisonrückblick-Button sind lesbar und vollständig.
+
+**Offen:**
+- Widget (braucht ein App-Extension-Target und Signierung).
+- Accountability-Gruppe (braucht ein Backend).
+- Die Rechenweg-Zeile der Prognose zeigt die gerundete TSS/h („5 h × 54 TSS/h = 272 TSS“) – kosmetisch.

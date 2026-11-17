@@ -64,6 +64,8 @@ Datenlage: ✅ = schon vorhanden · ◐ = nur mit Herzfrequenz oder FIT · ❌ =
 
 ## 4. Bewertung und Empfehlung
 
+> **Stand 17.11.2026:** A1–A8 und G1–G7 (ohne Widget) sind umgesetzt – Konstanz-Paket ([docs/10](10-KONSTANZ-PAKET.md)) und Winter-Paket 2 ([docs/11](11-WINTER-PAKET-2.md)). Offen: Widget (G7) und Accountability-Gruppe (G8).
+
 Kriterien: Wirkung auf Konstanz im Winter × Datenlage × Aufwand × Risiko „Engagement statt Fortschritt“.
 
 **Empfohlenes nächstes Paket „Konstanz“** (gut für einen Durchlauf, alle Daten vorhanden):

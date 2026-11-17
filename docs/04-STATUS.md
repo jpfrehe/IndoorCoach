@@ -14,11 +14,12 @@ Stand: v0.1 (Pilot-Vorbereitung) · 17.11.2026 · öffentlich auf [GitHub](https
 | B22 Fahrten ohne Strava: MyWhoosh-Fahrtenliste, FIT-Import | ✅ **auf dem iPhone getestet** | Import aus MyWhoosh mit echtem Konto bestätigt (3 Fahrten der letzten 210 Tage) |
 | Leistung: Leistungskurve, Bestleistungen, eFTP, VO2max | ✅ | [Feature-Dokument](08-FEATURES-LEISTUNG.md) |
 | Konstanz-Paket: Serie mit Joker, Plan-Treue, Wochenrückblick + Erinnerung, Saison-Challenges, Trophäen, aerobe Effizienz | ✅ | [Feature-Dokument](10-KONSTANZ-PAKET.md) |
+| Winter-Paket 2: Ziel-Prognose mit Was-wäre-wenn, Trainingsverteilung, eFTP-Verlauf, Fähigkeitslevel, Ermüdungsresistenz, Vorjahres-Schatten, Saisonrückblick zum Teilen, Winter-Reise, Erinnerung vor Einheiten | ✅ | [Feature-Dokument](11-WINTER-PAKET-2.md) |
 | UX-Audit 2 der erweiterten Version | ✅ 6 Befunde behoben | [Bericht](ux-audit-2026-11-17-b.md); formal offen: automatisch gemeldete Kontrast-Knoten (Gerät, B13) |
 
 **Tests:**
-- 270 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
-- 26 UI-Tests (Walkthrough, Größenmatrix, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
+- 322 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
+- 31 UI-Tests (Walkthrough, Größenmatrix inkl. neuer Oberflächen, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
 
 ## Live auf dem iPhone geprüft
 
@@ -47,7 +48,7 @@ Stand: v0.1 (Pilot-Vorbereitung) · 17.11.2026 · öffentlich auf [GitHub](https
 | Schritt | Wer |
 |---|---|
 | Ersetzen einer Einheit in MyWhoosh live prüfen | Nutzer + Hauptsession (Log direkt vom iPhone) |
-| Offene Ideen aus dem [Brainstorming](09-BRAINSTORM-WINTER-MOTIVATION.md): Ziel-Prognose, Vorjahres-Schatten, Erinnerungen/Widget | Hauptsession |
+| Widget „Heute“ (App-Extension-Target, App Group, Signierung) | Hauptsession + Nutzer (Signierung) |
 | Apple Developer Program + TestFlight für den Pilot (B07) | Nutzer |
 | Kontrast-Knoten auf 375 pt und VoiceOver-Durchlauf auf dem Gerät (B13, B14) | Nutzer |
 
