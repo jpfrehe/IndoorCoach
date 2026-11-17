@@ -653,10 +653,65 @@ final class AuditWalkthroughTests: AuditCase {
     }
 
     // ANCHOR-UITEST-K1
+    func test20_ConsistencyStreak() {
+        launch()
+        route = "heute"
+        let arcCard = button(containing: "Winter Arc")
+        check(scrollUntilExists(arcCard, maxSwipes: 3).exists, "Winter-Arc-Karte auf Heute")
+        tap(arcCard, "Winter-Arc-Karte")
+        route = "winterarc"
+        check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
+        let card = app.descendants(matching: .any)["consistency.card"].firstMatch
+        check(scrollUntilExists(card).exists || card.exists, "Karte „Konstanz“ im Winter-Arc-Detail")
+        check(text(containing: "Konstanz").exists, "Titel „Konstanz“ sichtbar")
+        check(text(containing: "Joker").exists, "Joker-Erklärung/Legende sichtbar")
+        shot("konstanz-karte")
+        accessibilityAudit("Konstanz")
+        back()
+
+        openTab("Plan")
+        route = "plan"
+        let adherence = app.descendants(matching: .any)["plan.adherence"].firstMatch
+        check(scrollUntilExists(adherence, maxSwipes: 4).exists, "Plan-Kopf zeigt Plan-Treue („x von y Einheiten · z % TSS“)")
+        shot("plan-treue")
+    }
+
 
     // ---
 
     // ANCHOR-UITEST-K2
+
+    // MARK: K2 – Wochenrückblick (Karte auf Heute, Detail, Erinnerung im Profil)
+
+    func test21_WeeklyReview() {
+        launch(extra: ["-uiWeeklyReview", "YES"])
+        route = "heute"
+        let card = app.descendants(matching: .any)["weeklyReview.card"].firstMatch
+        check(waitFast(card), "Wochenrückblick-Karte sichtbar (Debug-Override)")
+        check(app.buttons["weeklyReview.dismiss"].exists, "„Ausblenden“ angeboten")
+        shot("karte")
+        accessibilityAudit("Heute-Wochenrückblick")
+
+        tap(card, "Wochenrückblick-Karte")
+        route = "wochenrueckblick"
+        check(waitFast(app.navigationBars["Wochenrückblick"]), "Wochenrückblick öffnet")
+        check(text(containing: "Frühere Wochen").exists || scrollUntilExists(text(containing: "Frühere Wochen")).exists,
+              "Frühere Wochen aufgelistet")
+        shot("detail")
+        accessibilityAudit("Wochenrückblick")
+        back()
+
+        route = "heute"
+        tap(app.buttons["weeklyReview.dismiss"], "Ausblenden")
+        check(!app.descendants(matching: .any)["weeklyReview.card"].firstMatch.waitForExistence(timeout: 2),
+              "Karte nach „Ausblenden“ verschwunden")
+
+        openTab("Profil")
+        route = "profil"
+        let toggle = app.descendants(matching: .any)["reminder.toggle"].firstMatch
+        check(scrollUntilExists(toggle).exists, "Schalter „Wochenrückblick am Sonntag“ im Profil")
+        shot("erinnerung")
+    }
 
     // ---
 
@@ -667,6 +722,13 @@ final class AuditWalkthroughTests: AuditCase {
     func test22_ChallengesAndTrophies() {
         launch()                                     // demo in November: Monats-Konstanz November läuft
         route = "heute"
+        // Highlight slot shows one card; Sun 16:00 – Tue the weekly review has priority – hide it first.
+        let review = app.descendants(matching: .any)["weeklyReview.dismiss"].firstMatch
+        if review.waitForExistence(timeout: 2) {
+            tap(review, "Wochenrückblick ausblenden")
+            check(!app.descendants(matching: .any)["weeklyReview.card"].firstMatch.waitForExistence(timeout: 1),
+                  "Ausgeblendeter Rückblick macht Platz für die Challenge")
+        }
         let highlight = app.descendants(matching: .any)["challenge.highlight"].firstMatch
         check(scrollUntilExists(highlight, maxSwipes: 3).exists, "Challenge-Highlight auf Heute")
         shot("challenge-highlight")
@@ -842,29 +904,6 @@ final class AuditMatrixTests: AuditCase {
     }
 
     // MARK: Konstanz-Serie mit Joker + Plan-Treue (K1)
-
-    func test20_ConsistencyStreak() {
-        launch()
-        route = "heute"
-        let arcCard = button(containing: "Winter Arc")
-        check(scrollUntilExists(arcCard, maxSwipes: 3).exists, "Winter-Arc-Karte auf Heute")
-        tap(arcCard, "Winter-Arc-Karte")
-        route = "winterarc"
-        check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
-        let card = app.descendants(matching: .any)["consistency.card"].firstMatch
-        check(scrollUntilExists(card).exists || card.exists, "Karte „Konstanz“ im Winter-Arc-Detail")
-        check(text(containing: "Konstanz").exists, "Titel „Konstanz“ sichtbar")
-        check(text(containing: "Joker").exists, "Joker-Erklärung/Legende sichtbar")
-        shot("konstanz-karte")
-        accessibilityAudit("Konstanz")
-        back()
-
-        openTab("Plan")
-        route = "plan"
-        let adherence = app.descendants(matching: .any)["plan.adherence"].firstMatch
-        check(scrollUntilExists(adherence, maxSwipes: 4).exists, "Plan-Kopf zeigt Plan-Treue („x von y Einheiten · z % TSS“)")
-        shot("plan-treue")
-    }
 
 
     // ---

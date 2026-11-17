@@ -76,6 +76,8 @@ public final class AppModel {
     let defaults: UserDefaults
     let calendarService: CalendarService
     let transport: HTTPTransport
+    /// Local notifications (Wochenrückblick-Erinnerung); replaced by a fake in tests.
+    @ObservationIgnored var reminderCenter: any ReminderCenter = SystemReminderCenter()
 
     enum Keys {
         static let profile = "profile.v1"
@@ -84,8 +86,11 @@ public final class AppModel {
         static let onboardingCompleted = "onboarding.completed.v1"
         static let ridesImported = "rides.imported.v1"
         static let myWhooshLastImport = "mywhoosh.lastImport"
+        /// Weeks (Monday as yyyy-MM-dd) whose Wochenrückblick card was dismissed on Heute.
+        static let weeklyReviewDismissed = "weeklyReview.dismissed.v1"
         /// Everything "Alle Daten löschen" removes – add every new persisted key here.
-        static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport]
+        static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport,
+                          weeklyReviewDismissed]
     }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
@@ -811,6 +816,7 @@ public final class AppModel {
         try? context.delete(model: StoredWorkout.self)
         try? context.save()
         calendarService.removeAppData(eventIDs: eventIDs)
+        reminderCenter.cancel(id: WeeklyReviewReminder.identifier)
         LogFile.shared?.clear()
 
         secrets.setSecret(nil, for: .claudeAPIKey)

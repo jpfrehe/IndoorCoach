@@ -53,10 +53,14 @@ struct TodayDashboard: View {
             if model.isDemoMode { demoHint }
             nextWorkoutCard(next)
             // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
+            // At most one highlight (docs/10, U1): the weekly review (Sun 16:00 – Tue) wins over the challenge.
             // ANCHOR-K2-HEUTE (Wochenrückblick)
-
-            // ANCHOR-K3-HEUTE (Saison-Challenge)
-            ChallengeHighlightSlot(rides: rides)
+            if let reviewWeek = model.weeklyReviewCardWeek() {
+                WeeklyReviewCard(weekStart: reviewWeek, rides: rides, workouts: workouts)
+            } else {
+                // ANCHOR-K3-HEUTE (Saison-Challenge)
+                ChallengeHighlightSlot(rides: rides)
+            }
 
             // ── Ende Highlight-Slot ──
             if let arc = model.winterArc(rides: rides) {
