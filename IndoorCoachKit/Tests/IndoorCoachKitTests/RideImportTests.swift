@@ -134,17 +134,34 @@ struct MyWhooshHistoryTests {
         #expect(second.date == ISO8601DateFormatter().date(from: "2026-11-03T18:00:00Z"))
     }
 
-    @Test func triesTheNextBodyAndSendsTheToken() async throws {
+    @Test func sendsPageAndSortDateAndPagesUntilEmpty() async throws {
         let transport = RoutingTransport { request in
-            let body = String(decoding: request.httpBody ?? Data(), as: UTF8.self)
-            return body == "{}" ? (500, Data()) : (200, Data(#"{"activities":[{"id":"x"}]}"#.utf8))
+            let body = (try? JSONSerialization.jsonObject(with: request.httpBody ?? Data())) as? [String: Any] ?? [:]
+            let page = body["page"] as? Int ?? 0
+            return (200, Data(#"{"data":{"activities":[\#(page <= 2 ? #"{"id":"p\#(page)"}"# : "")]}}"#.utf8))
         }
         let client = MyWhooshClient(store: signedIn(), transport: transport)
         let list = try await client.activities()
-        #expect(list.activities.map(\.id) == ["x"])
-        #expect(transport.requests.count == 2)
+        #expect(list.activities.map(\.id) == ["p1", "p2"])
+        #expect(transport.requests.count == 3)
+        let first = try #require(try JSONSerialization.jsonObject(with: transport.requests[0].httpBody!) as? [String: Any])
+        #expect(first["page"] as? Int == 1 && first["sortDate"] as? String == "DESC" && first["limit"] != nil)
+        #expect(first["offset"] == nil)                                  // answered with 403 by MyWhoosh
         #expect(transport.requests[0].url == MyWhooshClient.activitiesURL && transport.requests[0].httpMethod == "POST")
         #expect(transport.requests[0].value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
+    }
+
+    @Test func retriesWithoutLimitAndStopsAtNotBefore() async throws {
+        let old = Int(Date(timeIntervalSince1970: 1_700_000_000).timeIntervalSince1970)
+        let transport = RoutingTransport { request in
+            let body = (try? JSONSerialization.jsonObject(with: request.httpBody ?? Data())) as? [String: Any] ?? [:]
+            if body["limit"] != nil { return (400, Data(#"{"message":["limit should not exist"]}"#.utf8)) }
+            return (200, Data(#"{"activities":[{"id":"a\#(body["page"]!)","startTime":\#(old)}]}"#.utf8))
+        }
+        let list = try await MyWhooshClient(store: signedIn(), transport: transport)
+            .activities(notBefore: Date(timeIntervalSince1970: 1_750_000_000))
+        #expect(list.activities.map(\.id) == ["a1"])                    // page 1 already reaches back far enough
+        #expect(transport.requests.count == 2)                          // with limit (400), then without
     }
 
     @Test func unreadableHistoryPointsToTheFITImport() async {
@@ -155,13 +172,11 @@ struct MyWhooshHistoryTests {
 
     /// Regression: a 401/403 from the undocumented history endpoint signed the user out right after login.
     @Test func historyRefusalKeepsTheSession() async {
-        let transport = RoutingTransport { _ in (403, Data(#"{"message":"Forbidden"}"#.utf8)) }
+        let transport = RoutingTransport { _ in (403, Data("<html>403 Forbidden</html>".utf8)) }
         let store = signedIn()
         let client = MyWhooshClient(store: store, transport: transport)
         await #expect(throws: MyWhooshError.historyUnavailable) { try await client.activities() }
-        #expect(transport.requests.count == 5 && store.session != nil)
-        let bodies = transport.requests.map { String(decoding: $0.httpBody ?? Data(), as: UTF8.self) }
-        #expect(bodies.contains { $0.contains(#""WhooshId":"w-1""#) })
+        #expect(transport.requests.count == 1 && store.session != nil)
     }
 
     @Test func loginAcceptsNumericWhooshIdAndKeepsDocumentedRefusal() async throws {
@@ -264,7 +279,7 @@ struct RideImportTests {
 
         let before = transport.requests.count
         await model.importMyWhooshRides()
-        #expect(transport.requests.count == before + 1)                 // list only, no second FIT download
+        #expect(transport.requests.count == before + 2)                 // list pages only, no second FIT download
         #expect(try rides(model).count == 1)
     }
 

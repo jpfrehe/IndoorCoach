@@ -435,7 +435,7 @@ public final class AppModel {
         let since = (!full ? lastMyWhooshImport?.addingTimeInterval(-7 * 86_400) : nil)
             ?? Calendar.current.date(byAdding: .day, value: -210, to: .now)!
         do {
-            let list = try await myWhoosh.activities()
+            let list = try await myWhoosh.activities(notBefore: since)
             // Field names only (no values) – lets a diagnostics export show how MyWhoosh answers.
             Log.notice(.sync, "MyWhoosh-Fahrtenliste: \(list.activities.count) Einträge, Antwort-Felder \(list.responseKeys), Eintrags-Felder \(list.itemKeys)")
             let known = Set(((try? context.fetch(FetchDescriptor<StoredRide>())) ?? []).map(\.stravaID))

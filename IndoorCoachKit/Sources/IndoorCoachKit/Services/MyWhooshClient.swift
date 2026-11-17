@@ -348,31 +348,50 @@ public actor MyWhooshClient {
     }
 
     /// Lists the rider's past activities. Tries the request bodies community tools use, in order.
-    public func activities(limit: Int = 200) async throws -> ActivityList {
+    public func activities(limit: Int = 50, notBefore: Date? = nil, maxPages: Int = 10) async throws -> ActivityList {
         let session = try validSession()
-        // Variants seen in community tools, plus ones naming the rider (a 400 without them suggests a missing id).
-        let id = session.whooshId
-        let bodies: [[String: Any]] = [[:], ["WhooshId": id], ["userId": id, "page": 1, "limit": limit],
-                                       ["limit": limit, "offset": 0], ["page": 1, "limit": limit]]
-        // A refusal here does not mean the login expired (uploads may still work): keep the session.
-        var attempts: [String] = []
-        for body in bodies {
+        // The endpoint validates its body (device logs, Nov 2026): `page` ≥ 1 and `sortDate` ASC/DESC are required;
+        // an unknown `offset` field is answered with 403. Newest first, page by page until `notBefore`.
+        var collected: [MyWhooshActivity] = []
+        var responseKeys: [String] = []
+        var itemKeys: [String] = []
+        var seen = Set<String>()
+        var withLimit = true                                  // falls back to page + sortDate only
+        var page = 1
+        while page <= maxPages {
+            var body: [String: Any] = ["page": page, "sortDate": "DESC"]
+            if withLimit { body["limit"] = limit }
             var request = authorized(URLRequest(url: Self.activitiesURL), session)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let data: Data
             do {
-                let data = try await send(request, label: "Fahrtenliste", endsSessionOnAuthError: false)
-                if let list = MyWhooshActivity.list(from: data) { return list }
-                attempts.append("200, unbekanntes Format")
-            } catch MyWhooshError.sessionExpired {
-                throw MyWhooshError.sessionExpired
+                data = try await send(request, label: "Fahrtenliste S. \(page)", endsSessionOnAuthError: false)
+            } catch MyWhooshError.http(let code) where page == 1 && withLimit && code == 400 {
+                withLimit = false                             // maybe `limit` is not accepted – retry without it
+                continue
+            } catch MyWhooshError.http(let code) where page > 1 {
+                Log.error(.sync, "MyWhoosh-Fahrtenliste: Seite \(page) mit HTTP \(code) abgebrochen, \(collected.count) Einträge behalten")
+                break
             } catch MyWhooshError.http(let code) {
-                attempts.append("HTTP \(code)")
+                Log.error(.sync, "MyWhoosh-Fahrtenliste nicht lesbar: HTTP \(code)")
+                throw MyWhooshError.historyUnavailable
             }
+            guard let list = MyWhooshActivity.list(from: data) else {
+                Log.error(.sync, "MyWhoosh-Fahrtenliste S. \(page): unbekanntes Format, Antwort=\(Self.bodyExcerpt(data))")
+                if page == 1 { throw MyWhooshError.historyUnavailable }
+                break
+            }
+            if page == 1 { responseKeys = list.responseKeys; itemKeys = list.itemKeys }
+            let new = list.activities.filter { seen.insert($0.id).inserted }
+            collected += new
+            // Stop on an empty/repeated page or once the page reaches back past `notBefore`.
+            if new.isEmpty { break }
+            if let notBefore, let oldest = new.compactMap(\.date).min(), oldest < notBefore { break }
+            page += 1
         }
-        Log.error(.sync, "MyWhoosh-Fahrtenliste nicht lesbar: \(attempts.joined(separator: ", "))")
-        throw MyWhooshError.historyUnavailable
+        return ActivityList(activities: collected, responseKeys: responseKeys, itemKeys: itemKeys)
     }
 
     /// Downloads an activity's FIT file. Only https URLs are followed; the token goes only to MyWhoosh hosts
