@@ -54,6 +54,10 @@ public final class AppModel {
     public var proposal: PlanProposal?
     /// Set by "Plan erstellen" outside the Plan tab; PlanView opens the planner and resets it.
     public var plannerRequested = false
+    /// First-launch onboarding (B01). Decided once in `init`; existing installs never see it.
+    public private(set) var needsOnboarding = false
+    /// Set when onboarding ends with "Mit Strava verbinden"; ProfileView scrolls to the Strava section and resets it.
+    public var stravaSetupRequested = false
     /// Not observed: filled lazily from view bodies, must not trigger re-renders.
     @ObservationIgnored private var seriesCache: (key: Int, series: FitnessFreshness.Series)?
     public private(set) var proposalSource: WorkoutSource = .demo
@@ -74,8 +78,9 @@ public final class AppModel {
         static let profile = "profile.v1"
         static let stravaClientID = "strava.clientID"
         static let lastSync = "strava.lastSync"
+        static let onboardingCompleted = "onboarding.completed.v1"
         /// Everything "Alle Daten löschen" removes – add every new persisted key here.
-        static let all = [profile, stravaClientID, lastSync]
+        static let all = [profile, stravaClientID, lastSync, onboardingCompleted]
     }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
@@ -96,10 +101,67 @@ public final class AppModel {
         stravaClientID = defaults.string(forKey: Keys.stravaClientID) ?? ""
         lastSync = defaults.object(forKey: Keys.lastSync) as? Date
         refreshCredentialState()
+        needsOnboarding = Self.resolveOnboarding(defaults: defaults, isExistingInstall: isExistingInstall)
+        #if DEBUG
+        applyUITestOnboardingOverride()
+        #endif
         // Exported .zwo files and diagnostics are only needed while the share sheet is open.
         try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent("zwo"))
         try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent(Self.diagnosticsDirectory))
     }
+
+    // MARK: - Onboarding
+
+    /// Pure decision: an explicit flag wins; without one, only a fresh install needs onboarding.
+    static func needsOnboarding(completedFlag: Bool?, isExistingInstall: Bool) -> Bool {
+        if let completedFlag { return !completedFlag }
+        return !isExistingInstall
+    }
+
+    /// Reads the flag; on the first launch with this version it stores the decision, so an update never shows
+    /// onboarding and an onboarding interrupted by a kill (profile already written) is shown again.
+    static func resolveOnboarding(defaults: UserDefaults, isExistingInstall: Bool) -> Bool {
+        let flag = defaults.object(forKey: Keys.onboardingCompleted) as? Bool
+        let needs = needsOnboarding(completedFlag: flag, isExistingInstall: isExistingInstall)
+        if flag == nil { defaults.set(!needs, forKey: Keys.onboardingCompleted) }
+        return needs
+    }
+
+    /// Anything a previous version left behind: saved profile, Strava setup/tokens, last sync or stored data.
+    private var isExistingInstall: Bool {
+        if defaults.data(forKey: Keys.profile) != nil || !stravaClientID.isEmpty || lastSync != nil || isStravaConnected {
+            return true
+        }
+        let rides = (try? context.fetchCount(FetchDescriptor<StoredRide>())) ?? 0
+        let workouts = (try? context.fetchCount(FetchDescriptor<StoredWorkout>())) ?? 0
+        return rides + workouts > 0
+    }
+
+    /// Ends onboarding for good. Demo data was seeded before the athlete chose an FTP, so it is regenerated
+    /// (demo only – nothing else is touched).
+    public func completeOnboarding() {
+        needsOnboarding = false
+        defaults.set(true, forKey: Keys.onboardingCompleted)
+        if isDemoMode {
+            resetDemoData()
+            bootstrap()
+        }
+    }
+
+    #if DEBUG
+    /// UI tests: `-uiSeed …` skips onboarding; `-uiOnboarding YES` forces it (`NO` skips it).
+    private func applyUITestOnboardingOverride() {
+        let args = UserDefaults.standard
+        if args.object(forKey: "uiOnboarding") != nil {
+            needsOnboarding = args.bool(forKey: "uiOnboarding")
+        } else if args.string(forKey: "uiSeed") != nil {
+            needsOnboarding = false
+        } else {
+            return
+        }
+        defaults.set(!needsOnboarding, forKey: Keys.onboardingCompleted)
+    }
+    #endif
 
     // MARK: - Credentials
 

@@ -18,7 +18,7 @@ struct ProfileView: View {
                 winterArcSection(model)
                 availabilitySection(model)
                 coachSection(model)
-                stravaSection(model)
+                stravaSection(model).id(ProfileView.stravaSectionID)
                 myWhooshSection(model)
                 helpSection()
                 infoSection
@@ -26,6 +26,7 @@ struct ProfileView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
+            .scrollsToStravaSectionOnRequest()
             .navigationTitle("Profil")
             .confirmationDialog("Strava trennen?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
                 Button("Trennen", role: .destructive) { Task { await model.disconnectStrava() } }

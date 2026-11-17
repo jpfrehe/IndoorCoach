@@ -611,6 +611,74 @@ final class AuditWalkthroughTests: AuditCase {
         accessibilityAudit("Profil-MyWhoosh")
     }
 
+    // MARK: B01 – Onboarding beim ersten Start
+
+    func test15_Onboarding() {
+        launch(seed: "empty", extra: ["-uiOnboarding", "YES"])
+        route = "onboarding"
+        let indicator = app.otherElements["onboarding.pageIndicator"]
+        check(waitFast(text(containing: "Willkommen bei IndoorCoach"), timeout: 8), "Schritt 1 „Willkommen“ beim ersten Start")
+        check(indicator.label == "Schritt 1 von 3", "Seitenanzeige „Schritt 1 von 3“")
+        check(app.buttons["onboarding.skip"].exists, "„Überspringen“ angeboten")
+        shot("1-willkommen")
+        accessibilityAudit("Onboarding-Willkommen")
+
+        tap(app.buttons["onboarding.next"], "Los geht’s")
+        check(waitFast(text(containing: "Dein Profil")), "Schritt 2 „Dein Profil“")
+        check(indicator.label == "Schritt 2 von 3", "Seitenanzeige „Schritt 2 von 3“")
+        check(text(containing: "250 W").exists, "FTP-Standard 250 W")
+        let ftp = app.steppers["onboarding.ftp"]
+        tap(ftp.buttons.element(boundBy: 1), "FTP +5")
+        tap(ftp.buttons.element(boundBy: 1), "FTP +5")
+        check(text(containing: "260 W").exists, "FTP steigt auf 260 W")
+        tap(app.buttons["Montag"], "Trainingstag Montag")
+        check(app.buttons["Montag"].isSelected, "Montag ist als gewählt markiert")
+        shot("2-profil")
+        accessibilityAudit("Onboarding-Profil")
+
+        tap(app.buttons["onboarding.next"], "Weiter")
+        check(waitFast(text(containing: "Deine Fahrten")), "Schritt 3 „Daten“")
+        check(indicator.label == "Schritt 3 von 3", "Seitenanzeige „Schritt 3 von 3“")
+        check(app.buttons["onboarding.strava"].exists, "Wahl „Mit Strava verbinden“")
+        shot("3-daten")
+        accessibilityAudit("Onboarding-Daten")
+
+        tap(app.buttons["onboarding.demo"], "Erst mit Demo-Daten ansehen")
+        route = "heute"
+        check(waitFast(app.navigationBars["Heute"], timeout: 6), "Onboarding endet auf Heute")
+        check(!text(containing: "Willkommen bei IndoorCoach").exists, "Onboarding geschlossen")
+        check(app.tabBars.buttons["Heute"].isSelected, "Tab „Heute“ aktiv")
+        check(waitFast(text(containing: "Nächste Einheit")) && !text(containing: "Nichts geplant").exists,
+              "Demo-Daten geladen: Heute zeigt eine Einheit")
+        shot("nach-onboarding")
+        openTab("Profil")
+        check(text(containing: "260 W").exists, "FTP aus dem Onboarding im Profil")
+
+        // Zweiter Start: kein Onboarding mehr.
+        app.terminate()
+        log("Terminated app")
+        launch(seed: nil)
+        route = "heute"
+        check(app.navigationBars["Heute"].waitForExistence(timeout: 5), "Zweiter Start landet direkt auf Heute")
+        check(!text(containing: "Willkommen bei IndoorCoach").exists, "Kein Onboarding beim zweiten Start")
+        shot("zweiter-start")
+    }
+
+    func test16_OnboardingStravaChoice() {
+        launch(seed: "empty", extra: ["-uiOnboarding", "YES"])
+        route = "onboarding"
+        tap(app.buttons["onboarding.next"], "Los geht’s")
+        tap(app.buttons["onboarding.next"], "Weiter")
+        tap(app.buttons["onboarding.strava"], "Mit Strava verbinden")
+        route = "profil"
+        check(waitFast(app.navigationBars["Profil"], timeout: 6), "„Mit Strava verbinden“ öffnet den Profil-Tab")
+        let clientID = input(placeholder: "Client-ID")
+        let end = Date().addingTimeInterval(4)
+        while !clientID.isHittable && Date() < end { usleep(200_000) }
+        check(clientID.isHittable, "Profil ist zur Strava-Einrichtung gescrollt")
+        shot("strava-abschnitt")
+    }
+
     // MARK: Scenario – Kalender verweigert
 
     func test11_Scenario_CalendarDenied() {
