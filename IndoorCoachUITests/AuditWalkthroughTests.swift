@@ -658,6 +658,38 @@ final class AuditWalkthroughTests: AuditCase {
 
     // ANCHOR-UITEST-K2
 
+    // MARK: K2 – Wochenrückblick (Karte auf Heute, Detail, Erinnerung im Profil)
+
+    func test21_WeeklyReview() {
+        launch(extra: ["-uiWeeklyReview", "YES"])
+        route = "heute"
+        let card = app.descendants(matching: .any)["weeklyReview.card"].firstMatch
+        check(waitFast(card), "Wochenrückblick-Karte sichtbar (Debug-Override)")
+        check(app.buttons["weeklyReview.dismiss"].exists, "„Ausblenden“ angeboten")
+        shot("karte")
+        accessibilityAudit("Heute-Wochenrückblick")
+
+        tap(card, "Wochenrückblick-Karte")
+        route = "wochenrueckblick"
+        check(waitFast(app.navigationBars["Wochenrückblick"]), "Wochenrückblick öffnet")
+        check(text(containing: "Frühere Wochen").exists || scrollUntilExists(text(containing: "Frühere Wochen")).exists,
+              "Frühere Wochen aufgelistet")
+        shot("detail")
+        accessibilityAudit("Wochenrückblick")
+        back()
+
+        route = "heute"
+        tap(app.buttons["weeklyReview.dismiss"], "Ausblenden")
+        check(!app.descendants(matching: .any)["weeklyReview.card"].firstMatch.waitForExistence(timeout: 2),
+              "Karte nach „Ausblenden“ verschwunden")
+
+        openTab("Profil")
+        route = "profil"
+        let toggle = app.descendants(matching: .any)["reminder.toggle"].firstMatch
+        check(scrollUntilExists(toggle).exists, "Schalter „Wochenrückblick am Sonntag“ im Profil")
+        shot("erinnerung")
+    }
+
     // ---
 
     // ANCHOR-UITEST-K3
