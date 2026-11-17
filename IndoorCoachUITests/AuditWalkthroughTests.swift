@@ -666,6 +666,34 @@ final class AuditWalkthroughTests: AuditCase {
 
     // ANCHOR-UITEST-K4
 
+    // MARK: K4 – Aerobe Effizienz und Entkopplung
+
+    func test23_AerobicEfficiency() {
+        launch()                                     // demo seed: rides carry average heart rate and decoupling
+        openTab("Verlauf")
+        let open = app.descendants(matching: .any)["performance.open"].firstMatch
+        check(waitFast(open), "Zeile „Leistung“ oben im Verlauf")
+        tap(open, "Leistung öffnen")
+        route = "leistung"
+        check(waitFast(app.navigationBars["Leistung"]), "Leistung-Screen öffnet")
+        let card = app.descendants(matching: .any)["efficiency.card"].firstMatch
+        check(scrollUntilExists(card).exists, "Karte „Aerobe Effizienz“ in Leistung")
+        check(text(containing: "Fahrten mit Leistung und Puls").exists, "Abdeckung „x von y Fahrten mit Leistung und Puls“")
+        check(app.descendants(matching: .any)["efficiency.chart"].firstMatch.exists, "Effizienz-Verlauf (Chart) sichtbar")
+        shot("effizienz")
+        accessibilityAudit("Leistung-Effizienz")
+        back()
+
+        route = "verlauf"
+        tap(scrollUntilExists(row(0)), "Erste Fahrt")
+        route = "fahrt"
+        let tile = app.descendants(matching: .any)["ride.efficiency"].firstMatch
+        check(scrollUntilExists(tile).exists, "Effizienz im Fahrt-Detail")
+        check(text(containing: "Entkopplung").exists, "Entkopplung im Fahrt-Detail (Demo-Fahrten haben FIT-Werte)")
+        shot("fahrt-effizienz")
+        accessibilityAudit("Fahrt-Effizienz")
+    }
+
     // MARK: B01 – Onboarding beim ersten Start
 
     func test15_Onboarding() {
