@@ -13,6 +13,9 @@ struct FitnessFreshnessView: View {
         let series = model.fitnessSeries(rides: storedRides.map(\.summary))
         let points = series.points(in: range)
         let selected = selectedPoint(in: points)
+        let shadow = points.first.flatMap { first in
+            points.last.flatMap { SeasonShadow.points(from: series.points, window: first.date...$0.date) }
+        }
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Picker("Zeitraum", selection: $range) {
@@ -23,8 +26,8 @@ struct FitnessFreshnessView: View {
                 if let shown = selected ?? points.last {
                     header(shown, isToday: selected == nil, delta: series.fitnessDelta7)
                     Card(title: "Fitness & Ermüdung", systemImage: "waveform.path.ecg") {
-                        loadChart(points, selected: selected)
-                        legend
+                        loadChart(points, selected: selected, shadow: shadow, shown: shown)
+                        legend(showsShadow: shadow != nil)
                     }
                     Card(title: "Form (Fitness − Ermüdung)", systemImage: "gauge.with.dots.needle.33percent") {
                         formChart(points)
@@ -77,7 +80,8 @@ struct FitnessFreshnessView: View {
         .accessibilityElement(children: .contain)
     }
 
-    private func loadChart(_ points: [FitnessFreshness.Point], selected: FitnessFreshness.Point?) -> some View {
+    private func loadChart(_ points: [FitnessFreshness.Point], selected: FitnessFreshness.Point?,
+                           shadow: [SeasonShadow.Point]?, shown: FitnessFreshness.Point) -> some View {
         Chart {
             ForEach(points) { p in
                 AreaMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness))
@@ -91,6 +95,13 @@ struct FitnessFreshnessView: View {
                 LineMark(x: .value("Tag", p.date), y: .value("Wert", p.fatigue), series: .value("Kurve", "Ermüdung"))
                     .foregroundStyle(Theme.fatigueLine)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .interpolationMethod(.monotone)
+            }
+            // G6: last year's fitness over the same days (dashed, muted).
+            ForEach(shadow ?? []) { p in
+                LineMark(x: .value("Tag", p.date), y: .value("Wert", p.fitness), series: .value("Kurve", "Vorjahr"))
+                    .foregroundStyle(Theme.shadowLine)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 4]))
                     .interpolationMethod(.monotone)
             }
             if let selected {
@@ -112,6 +123,8 @@ struct FitnessFreshnessView: View {
         .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel().foregroundStyle(Theme.axisLabel) } }
         .frame(height: 200)
         .accessibilityLabel("Verlauf von Fitness und Ermüdung")
+        .accessibilityValue(SeasonShadow.comparisonText(
+            today: shown.fitness, previous: shadow.flatMap { SeasonShadow.fitness(on: shown.date, in: $0) }))
     }
 
     private func formChart(_ points: [FitnessFreshness.Point]) -> some View {
@@ -128,13 +141,21 @@ struct FitnessFreshnessView: View {
         .accessibilityLabel("Form pro Tag")
     }
 
-    private var legend: some View {
-        HStack(spacing: 14) {
-            Label { Text("Fitness (42 Tage)") } icon: { Circle().fill(Theme.fitnessLine).frame(width: 8, height: 8) }
-            Label { Text("Ermüdung (7 Tage)") } icon: { Circle().fill(Theme.fatigueLine).frame(width: 8, height: 8) }
+    private func legend(showsShadow: Bool) -> some View {
+        // Side by side when they fit, otherwise stacked (Dynamic Type).
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 14) { legendItems(showsShadow: showsShadow) }
+            VStack(alignment: .leading, spacing: 6) { legendItems(showsShadow: showsShadow) }
         }
         .font(.caption)
         .foregroundStyle(Theme.rowSecondary)
+    }
+
+    @ViewBuilder
+    private func legendItems(showsShadow: Bool) -> some View {
+        Label { Text("Fitness (42 Tage)") } icon: { Circle().fill(Theme.fitnessLine).frame(width: 8, height: 8) }
+        Label { Text("Ermüdung (7 Tage)") } icon: { Circle().fill(Theme.fatigueLine).frame(width: 8, height: 8) }
+        if showsShadow { ShadowLegendItem() }
     }
 
     private func explanation(_ series: FitnessFreshness.Series) -> some View {
@@ -159,4 +180,46 @@ struct FormZoneLegend: View {
             }
         }
     }
+}
+
+/// Legend entry for the Vorjahres-Schatten: a dashed muted swatch and "Vorjahr".
+struct ShadowLegendItem: View {
+    var body: some View {
+        Label {
+            Text("Vorjahr")
+        } icon: {
+            Capsule().stroke(Theme.shadowLine, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 3]))
+                .frame(width: 18, height: 2)
+        }
+        .accessibilityIdentifier("shadow.legend")
+    }
+}
+
+/// Legend under the Winter-Arc course chart.
+struct ShadowLegend: View {
+    var showsShadow: Bool
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 14) { items }
+            VStack(alignment: .leading, spacing: 6) { items }
+        }
+        .font(.caption)
+        .foregroundStyle(Theme.rowSecondary)
+    }
+
+    @ViewBuilder
+    private var items: some View {
+        Label { Text("Fitness") } icon: { Circle().fill(Theme.fitnessLine).frame(width: 8, height: 8) }
+        Label { Text("Kurs") } icon: {
+            Capsule().stroke(Theme.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [4, 3]))
+                .frame(width: 18, height: 2)
+        }
+        if showsShadow { ShadowLegendItem() }
+    }
+}
+
+extension Theme {
+    /// Vorjahres-Schatten (G6): a muted line that stays >= 3:1 against the card, never competing with the fitness curve.
+    static let shadowLine = Color.primary.opacity(0.55)
 }

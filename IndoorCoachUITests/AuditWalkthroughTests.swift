@@ -845,6 +845,46 @@ final class AuditWalkthroughTests: AuditCase {
     // ---
 
     // ANCHOR-UITEST-P3
+    /// G6 + G5: the demo seed carries a previous year → "Vorjahr" legend in both charts; "Saisonrückblick teilen" opens the share sheet.
+    func test27_SeasonShadowAndShare() {
+        launch()                                      // demo seed: recent rides + a deterministic "last winter" block
+        route = "heute"
+        let arcCard = button(containing: "Winter Arc")
+        check(scrollUntilExists(arcCard, maxSwipes: 3).exists, "Winter-Arc-Karte auf Heute")
+        tap(arcCard, "Winter-Arc-Karte")
+        route = "winterarc"
+        check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
+        let legend = app.descendants(matching: .any)["shadow.legend"].firstMatch
+        check(scrollUntilExists(legend).exists, "Legende „Vorjahr“ unter dem Kurs-Chart")
+        check(text(containing: "Vorjahr").exists, "Text „Vorjahr“ sichtbar")
+        shot("vorjahr-kurs")
+
+        let share = app.descendants(matching: .any)["season.share"].firstMatch
+        check(scrollUntilExists(share).exists, "„Saisonrückblick teilen“ im Winter-Arc-Detail")
+        settle()
+        // The image is rendered after the screen appears; the button is enabled once the PNG exists.
+        let ready = NSPredicate(format: "isEnabled == true")
+        let enabled = XCTNSPredicateExpectation(predicate: ready, object: share)
+        check(XCTWaiter.wait(for: [enabled], timeout: 8) == .completed, "Bild fertig, Teilen-Knopf aktiv")
+        accessibilityAudit("Saisonrueckblick")
+        tap(share, "Saisonrückblick teilen")
+        let sheet = app.otherElements["ActivityListView"]
+        let opened = sheet.waitForExistence(timeout: 8) || app.navigationBars["UIActivityContentView"].exists
+        check(opened, "Teilen-Menü öffnet sich")
+        shot("share-sheet")
+        if opened { app.swipeDown(velocity: .fast) }
+        back()
+
+        route = "heute"
+        let formCard = button(containing: "Fitness & Form")
+        _ = scrollUntilExists(formCard, maxSwipes: 4)
+        tap(formCard, "Karte Fitness & Form")
+        route = "fitness"
+        check(waitFast(app.navigationBars["Fitness & Form"]), "Fitness-&-Form-Screen öffnet")
+        check(app.buttons["90 T"].isSelected, "90 Tage ist vorgewählt (Vorjahr liegt in der Demo im Zeitraum)")
+        check(app.descendants(matching: .any)["shadow.legend"].firstMatch.waitForExistence(timeout: 5), "Legende „Vorjahr“ im Fitness-Chart")
+        shot("vorjahr-fitness")
+    }
 
     // ---
 

@@ -111,6 +111,48 @@ public enum DemoData {
         return result
     }
 
+    /// Demo "last winter" for the Vorjahres-Schatten (G6): lighter rides from `daysBefore` days before to `daysAfter`
+    /// days after the day exactly one year before `end`, so the shadow lines up with the current season window
+    /// (1 Nov – 21 Mar) from late summer to spring. A separate block with its own generator
+    /// and ids (8_xxx_xxx), so `rides(days:)` – and every test built on it – stays untouched. `-uiSeed heavy`
+    /// (730 days) already contains a previous year and does not add this block.
+    public static func previousYearRides(endingAt end: Date = .now, daysBefore: Int = 140, daysAfter: Int = 125,
+                                         ftp: Int = 250, calendar: Calendar = .current) -> [RideSummary] {
+        var rng = SeededGenerator(seed: 2025)
+        var result: [RideSummary] = []
+        let today = calendar.startOfDay(for: end)
+        guard let lastYear = calendar.date(byAdding: .year, value: -1, to: today) else { return [] }
+        var id = 8_000_000
+        for offset in (-daysAfter...daysBefore).reversed() {
+            let day = calendar.date(byAdding: .day, value: -offset, to: lastYear)!
+            let plan: (minutes: Int, intensity: Double, name: String)?
+            switch AthleteProfile.isoWeekday(of: day, calendar: calendar) {
+            case 2: plan = (50, offset / 7 % 4 == 0 ? 0.6 : 0.74, "Sweet Spot light")
+            case 5: plan = (45, 0.66, "Grundlage")
+            case 7: plan = (80, 0.68, "Lange Grundlage")
+            default: plan = nil
+            }
+            guard let p = plan else { continue }
+            if Double.random(in: 0...1, using: &rng) < 0.2 { continue }
+            let minutes = p.minutes + Int.random(in: -6...6, using: &rng)
+            let np = Double(ftp) * (p.intensity + Double.random(in: -0.03...0.03, using: &rng))
+            let avg = np * 0.96
+            id += 1
+            var ride = RideSummary(id: id, name: p.name, sportType: "VirtualRide",
+                                   startDate: calendar.date(bySettingHour: 18, minute: 30, second: 0, of: day)!,
+                                   movingTime: minutes * 60, distance: Double(minutes) * 520,
+                                   averageWatts: avg, weightedAverageWatts: np,
+                                   kilojoules: avg * Double(minutes) * 60 / 1000,
+                                   averageHeartrate: 118 + 50 * (p.intensity - 0.55), maxHeartrate: 150 + 40 * (p.intensity - 0.55),
+                                   trainer: true)
+            ride.powerCurve = syntheticCurve(rideID: id, durationSeconds: minutes * 60, averageWatts: avg,
+                                             intensity: p.intensity, ftp: ftp)
+            ride.maxWatts = ride.powerCurve?[1]
+            result.append(ride)
+        }
+        return result
+    }
+
     /// Plausible Pw:HR decoupling in percent: grows with intensity and duration, shrinks as the (demo) athlete gets fitter.
     /// Uses its own generator so the ride sequence above stays unchanged.
     static func syntheticDecoupling(rideID: Int, minutes: Int, intensity: Double, progress: Double) -> Double {
