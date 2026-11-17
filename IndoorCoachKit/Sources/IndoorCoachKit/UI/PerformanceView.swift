@@ -61,6 +61,8 @@ struct PerformanceView: View {
                 // ANCHOR-P1-LEISTUNG (Trainingsverteilung, eFTP-Verlauf)
 
                 // ANCHOR-P2-LEISTUNG (Fähigkeitslevel, Ermüdungsresistenz)
+                AbilityLevelsCard(rides: rides, weightKg: model.profile.weightKg)
+                DurabilityCard(rides: rides)
 
 
                 explanation

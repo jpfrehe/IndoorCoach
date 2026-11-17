@@ -26,6 +26,8 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
     public var powerCurve: [Int: Double]? = nil
     /// Pw:HR decoupling in percent (see `AerobicEfficiency.decoupling`); only rides imported from a FIT file.
     public var decoupling: Double? = nil
+    /// Fatigue resistance in percent (see `Durability`); only rides imported from a FIT file of at least 60 minutes.
+    public var durability: Double? = nil
 
     public init(id: Int, name: String, sportType: String, startDate: Date, movingTime: Int, distance: Double,
                 averageWatts: Double? = nil, weightedAverageWatts: Double? = nil, kilojoules: Double? = nil,
@@ -58,6 +60,7 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
         maxWatts = fit.maxWatts
         powerCurve = fit.powerCurve
         decoupling = fit.decoupling
+        durability = fit.durability
     }
 }
 

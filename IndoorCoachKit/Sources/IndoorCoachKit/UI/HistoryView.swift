@@ -214,6 +214,8 @@ struct RideDetailView: View {
                 RideEfficiencyCard(ride: ride, ftp: model.profile.ftp)
 
                 // ANCHOR-P2-FAHRT (Ermüdungsresistenz)
+                RideDurabilityRow(ride: ride)
+
                 if est.source != .power {
                     Label(est.source == .heartRate ? "TSS aus Herzfrequenz geschätzt." : "TSS aus der Dauer geschätzt (keine Leistungsdaten).",
                           systemImage: "info.circle")
