@@ -25,6 +25,19 @@ struct HistoryView: View {
         NavigationStack {
             List {
                 Section {
+                    NavigationLink { PerformanceView() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "bolt.fill").font(.title3).foregroundStyle(Theme.accent).frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Leistung").font(.headline)
+                                Text("Leistungskurve, Bestleistungen, VO₂max").font(.caption).foregroundStyle(Theme.rowSecondary)
+                            }
+                        }
+                        .frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("performance.open")
+                }
+                Section {
                     Picker("Filter", selection: $filter) {
                         ForEach(RideFilter.allCases) { Text($0.rawValue).tag($0) }
                     }
@@ -144,6 +157,12 @@ struct RideDetailView: View {
     var ride: RideSummary
     @Environment(AppModel.self) private var model
 
+    /// Longest headline duration at which this ride holds the best measured value of the last 90 days.
+    private var prRecord: PowerCurve.Point? {
+        guard ride.powerCurve != nil else { return nil }
+        return PowerCurve.records(for: ride, among: model.allRides()).last
+    }
+
     var body: some View {
         let est = TrainingLoad.estimateTSS(for: ride, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate)
         ScrollView {
@@ -174,6 +193,17 @@ struct RideDetailView: View {
                             StatTile(title: "Arbeit", value: ride.kilojoules.map { "\(Int($0))" } ?? "–", unit: "kJ")
                         }
                     }
+                }
+                if let record = prRecord {
+                    Label("Neue Bestleistung: \(PerformanceFormat.duration(record.duration)) · \(PerformanceFormat.watts(record.watts))",
+                          systemImage: "trophy.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.sunset, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("ride.pr")
                 }
                 RelativeEffortCard(ride: ride)
                 if est.source != .power {
