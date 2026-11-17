@@ -1,6 +1,6 @@
 # Feature-Paket „Leistung“: Bestleistungen & VO2max (ECC: orch-add-feature)
 
-Stand 17.11.2026 · Größe: **mittel–groß** (2 Features + neuer Datenpfad für Sekundenwerte) · Status: **Gate 1 – Plan zur Freigabe**
+Stand 17.11.2026 · Größe: **mittel–groß** (2 Features + neuer Datenpfad für Sekundenwerte) · Status: **umgesetzt (Branch worktree-agent-a5f3a79dfec343a6a), Gerätetest und Review offen**
 
 ## 1. Brainstorming (Orientierung an Strava-Premium)
 
@@ -39,11 +39,19 @@ Stand 17.11.2026 · Größe: **mittel–groß** (2 Features + neuer Datenpfad f�
 
 | # | Slice | Test-first |
 |---|---|---|
-| T1 | `PowerCurve` (Domain): Bestleistung je Dauer aus 1-Hz-Werten (gleitende Summe), Zusammenführen mehrerer Fahrten, Mindestwerte aus Ø-Leistung, Quelle je Punkt, eFTP (95 % der 20-min) | Unit-Tests mit konstruierten Reihen |
-| T2 | FIT-Parser liefert Sekundenleistung (inkl. Lücken/Pausen), Kurve wird beim FIT-Import berechnet; `StoredRide.powerCurve` (optional, leichte Migration); Strava `max_watts` lesen | Parser- und Migrationstests |
-| T3 | `VO2max` (Domain): ACSM aus 5-min-Leistung, Uth aus HF, Trend je 6 Wochen, Quelle | Unit-Tests mit Literaturbeispielen |
-| T4 | UI „Leistung“ im Verlauf: Kurve (Zeitraum 6 Wochen / 90 Tage / Jahr, Vergleich Vorperiode), Bestleistungsliste mit Datum/Fahrt, Datenabdeckung + FIT-Hinweis, eFTP-Vorschlag „Ins Profil übernehmen“ | UI-Test: Seite öffnet, Werte sichtbar |
-| T5 | VO2max-Karte (Heute + Leistung) mit Trend; PR-Abzeichen im Fahrt-Detail („Neue 5-min-Bestleistung“) | UI-Test |
-| T6 | Review (Swift-Reviewer), Kontrast/A11y der Kurve, Gerätetest, Backlog-/Statusdoku | – |
+| T1 ✅ | `PowerCurve` (Domain): Bestleistung je Dauer aus 1-Hz-Werten (gleitende Summe), Zusammenführen mehrerer Fahrten, Mindestwerte aus Ø-Leistung, Quelle je Punkt, eFTP (95 % der 20-min) | Unit-Tests mit konstruierten Reihen |
+| T2 ✅ | FIT-Parser liefert Sekundenleistung (inkl. Lücken/Pausen), Kurve wird beim FIT-Import berechnet; `StoredRide.powerCurve` (optional, leichte Migration); Strava `max_watts` lesen | Parser- und Migrationstests |
+| T3 ✅ | `VO2max` (Domain): ACSM aus 5-min-Leistung, Uth aus HF, Trend je 6 Wochen, Quelle | Unit-Tests mit Literaturbeispielen |
+| T4 ✅ | UI „Leistung“ im Verlauf: Kurve (Zeitraum 6 Wochen / 90 Tage / Jahr, Vergleich Vorperiode), Bestleistungsliste mit Datum/Fahrt, Datenabdeckung + FIT-Hinweis, eFTP-Vorschlag „Ins Profil übernehmen“ | UI-Test: Seite öffnet, Werte sichtbar |
+| T5 ✅ | VO2max-Karte (Heute + Leistung) mit Trend; PR-Abzeichen im Fahrt-Detail („Neue 5-min-Bestleistung“) | UI-Test |
+| T6 ⏳ | Review (Swift-Reviewer), Kontrast/A11y der Kurve, Gerätetest, Backlog-/Statusdoku | – |
 
 **Nicht im Umfang:** Leistungszonen je Fahrt, Strava-Streams-Abruf, Alters-/Geschlechtsnormen für die VO2max-Einordnung (bräuchte zusätzliche Profilangaben).
+
+## 5. Umsetzungsstand
+
+- **T1–T3:** 164 Unit-Tests grün (vorher 139). Kurve je Fahrt aus 1-Hz-Werten (gleitende Summe), Mindestwerte aus Ø-Leistung/`max_watts`, Quelle je Punkt, eFTP = 0,95 × 20-min-Wert; VO2max nach ACSM (5 min) bzw. Uth-Sørensen (nur mit Max-HF im Profil).
+- **T2:** Die Kurve wird einmal beim FIT-Import (Dateien-App und MyWhoosh-FIT-Pfad) berechnet und als JSON am `StoredRide` gespeichert (`maxWatts`, `powerCurveData`, beide optional). Ein Strava-Resync überschreibt eine vorhandene Kurve nicht. Demo-Fahrten haben deterministische synthetische Kurven.
+- **T4/T5:** „Leistung“ im Verlauf, VO2max-Karte auf Heute und in Leistung, PR-Abzeichen im Fahrt-Detail, UI-Test `test19_PerformanceAndVO2max` (kompiliert, nicht im Simulator gelaufen).
+- **Abweichungen:** „Ins Profil übernehmen“ erscheint nur, wenn der 20-min-Wert gemessen ist (ein Mindestwert aus einer lockeren Langfahrt würde sonst eine zu niedrige FTP vorschlagen). Kein Max-HF-Schätzwert aus Fahrten: HF-Methode nur mit Max-HF im Profil (`maxHRIsEstimated` ist vorbereitet).
+- **Offen:** Gerätetest, Swift-Review, Kontrastprüfung der Kurve im Accessibility Inspector, Backlog B16/B23.
