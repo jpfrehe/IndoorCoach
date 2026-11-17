@@ -157,9 +157,15 @@ struct WinterArcTests {
     let goal = day(2027, 3, 21)
 
     func arc(today: Date, ctl: [Double], targetCTL: Double? = nil, weeklyHours: [Double] = [], budget: Double = 5) -> WinterArc.Status {
-        WinterArc.status(start: start, goal: goal, today: today, startCTL: 40, currentCTL: ctl.last ?? 40,
-                         bestCTLSinceStart: ctl.max() ?? 40, targetCTL: targetCTL, weeklyHours: weeklyHours,
-                         weeklyBudgetHours: budget, calendar: cal)
+        // Weekly hours (oldest first) → one ride per completed week since the Monday after the season start.
+        let monday = day(2026, 11, 2)
+        let rides = weeklyHours.enumerated().map { n, h in
+            Consistency.Ride(date: cal.date(byAdding: .day, value: 7 * n + 2, to: monday)!, seconds: h * 3600, tss: h * 50)
+        }
+        let consistency = Consistency.evaluate(weeklyBudgetSeconds: budget * 3600, rides: rides, planned: [], seasonStart: start,
+                                               now: today, calendar: cal)
+        return WinterArc.status(start: start, goal: goal, today: today, startCTL: 40, currentCTL: ctl.last ?? 40,
+                         bestCTLSinceStart: ctl.max() ?? 40, targetCTL: targetCTL, consistency: consistency, calendar: cal)
     }
 
     @Test func defaultTargetIsAmbitiousButReachable() {
@@ -188,11 +194,12 @@ struct WinterArcTests {
     }
 
     @Test func progressDaysAndStreak() {
-        let s = arc(today: day(2026, 12, 1), ctl: [40, 47], weeklyHours: [5, 4.5, 2, 4.2, 5.5])
+        let s = arc(today: day(2026, 12, 1), ctl: [40, 47], weeklyHours: [5, 2, 4.5, 4.2, 5.5])
         #expect(s.daysTotal == 140)
         #expect(s.daysLeft == 110)
         #expect(abs(s.seasonFraction - 30.0 / 140) < 0.01)
-        #expect(s.streakWeeks == 2) // last two weeks ≥ 80 % of 5 h; the 2 h week broke the streak
+        #expect(s.streakWeeks == 2) // last two complete weeks ≥ 80 % of 5 h; the 2 h week broke it; the running week (5.5 h) is not counted
+        #expect(s.jokers == 0)
         #expect((0...1).contains(s.levelProgress))
     }
 
