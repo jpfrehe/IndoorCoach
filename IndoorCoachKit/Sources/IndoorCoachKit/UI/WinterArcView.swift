@@ -112,6 +112,7 @@ struct WinterArcView: View {
                         }
                     }
                     // ANCHOR-P1-WINTERARC (Ziel-Prognose & Was-wäre-wenn)
+                    GoalForecastCard(rides: rides, status: status, weeklyHours: model.profile.weeklyHours)
 
                     // ANCHOR-P3-WINTERARC (Saisonrückblick teilen)
 
