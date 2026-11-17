@@ -20,6 +20,10 @@ public final class StoredRide {
     public var perceivedExertion: Int?
     public var preferPerceivedExertion: Bool = false
     public var stravaRelativeEffort: Double?
+    // Added with the power-curve feature – optional so SwiftData migrates lightweight.
+    public var maxWatts: Double?
+    /// Measured mean-maximal curve as JSON (see `PowerCurve.encode`); nil for rides without 1 Hz data.
+    public var powerCurveData: Data?
 
     public init(_ r: RideSummary, isDemo: Bool = false) {
         stravaID = r.id
@@ -38,6 +42,8 @@ public final class StoredRide {
         perceivedExertion = r.perceivedExertion
         preferPerceivedExertion = r.preferPerceivedExertion
         stravaRelativeEffort = r.stravaRelativeEffort
+        maxWatts = r.maxWatts
+        powerCurveData = r.powerCurve.flatMap(PowerCurve.encode)
     }
 
     public func update(from r: RideSummary) {
@@ -54,7 +60,12 @@ public final class StoredRide {
         trainer = r.trainer
         // Strava's value is refreshed; the athlete's own PE is local and survives every sync.
         stravaRelativeEffort = r.stravaRelativeEffort
+        // A summary-only sync (Strava) must not wipe a curve measured from a FIT file, nor a known max.
+        if let max = r.maxWatts { maxWatts = max }
+        if let curve = r.powerCurve, let data = PowerCurve.encode(curve) { powerCurveData = data }
     }
+
+    public var powerCurve: [Int: Double]? { PowerCurve.decode(powerCurveData) }
 
     public var summary: RideSummary {
         var r = RideSummary(id: stravaID, name: name, sportType: sportType, startDate: startDate, movingTime: movingTime,
@@ -63,6 +74,8 @@ public final class StoredRide {
         r.perceivedExertion = perceivedExertion
         r.preferPerceivedExertion = preferPerceivedExertion
         r.stravaRelativeEffort = stravaRelativeEffort
+        r.maxWatts = maxWatts
+        r.powerCurve = powerCurve
         return r
     }
 }

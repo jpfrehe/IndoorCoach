@@ -91,16 +91,37 @@ public enum DemoData {
             let avg = np * (p.indoor ? 0.96 : 0.88)
             let start = calendar.date(bySettingHour: p.indoor ? 18 : 9, minute: 30, second: 0, of: day)!
             id += 1
-            result.append(RideSummary(id: id, name: p.name,
+            var ride = RideSummary(id: id, name: p.name,
                                       sportType: p.indoor ? "VirtualRide" : "Ride", startDate: start,
                                       movingTime: minutes * 60,
                                       distance: Double(minutes) * (p.indoor ? 520 : 470),
                                       averageWatts: avg, weightedAverageWatts: np,
                                       kilojoules: avg * Double(minutes) * 60 / 1000,
                                       averageHeartrate: 118 + 50 * (p.intensity - 0.55), maxHeartrate: 150 + 40 * (p.intensity - 0.55),
-                                      trainer: p.indoor))
+                                      trainer: p.indoor)
+            ride.powerCurve = syntheticCurve(rideID: id, durationSeconds: minutes * 60, averageWatts: avg,
+                                             intensity: p.intensity, ftp: ftp)
+            ride.maxWatts = ride.powerCurve?[1]
+            result.append(ride)
         }
         return result
+    }
+
+    /// Plausible, deterministic mean-maximal curve for a demo ride (critical-power model with a sprint cap),
+    /// scaled by how hard the ride was. Synthetic like the rides themselves.
+    static func syntheticCurve(rideID: Int, durationSeconds: Int, averageWatts: Double, intensity: Double, ftp: Int) -> [Int: Double] {
+        var rng = SeededGenerator(seed: UInt64(truncatingIfNeeded: rideID))
+        let jitter = Double.random(in: 0.97...1.03, using: &rng)
+        let effort = (0.8 + 0.2 * min(1, max(0, (intensity - 0.6) / 0.3))) * jitter
+        let cp = Double(ftp) * 0.93
+        var curve: [Int: Double] = [:]
+        for d in PowerCurve.standardDurations where d <= durationSeconds {
+            let t = Double(d)
+            let model = cp + 15_000 / (t + 8)
+            let sprint = Double(ftp) * 4 * (1 - 0.06 * log(t))
+            curve[d] = max(min(model, sprint) * effort, averageWatts).rounded()
+        }
+        return curve
     }
 }
 

@@ -17,13 +17,23 @@ public enum FITParser {
         public var kilojoules: Double?
         public var averageHeartrate: Double?
         public var maxHeartrate: Double?
+        /// Highest 1 Hz power sample (after capping absurd values).
+        public var maxWatts: Double? = nil
+        /// Mean-maximal power per standard duration from the 1 Hz series; nil without power data.
+        public var powerCurve: [Int: Double]? = nil
     }
+
+    /// Power samples above this are sensor glitches and count as 0 W.
+    static let maxPlausibleWatts: UInt64 = 2500
 
     public static func summary(from data: Data) throws -> Summary {
         let messages = try decode(data)
         let sessions = messages.filter { $0.global == 18 }
         let records = messages.filter { $0.global == 20 }
         let fromRecords = recordSummary(records)
+        let series = powerSeries(records)
+        let curve = series.map(PowerCurve.meanMaximal(watts:)).flatMap { $0.isEmpty ? nil : $0 }
+        let maxWatts = series?.max()
 
         if let s = sessions.first, let start = s.uint(2).map(date) ?? fromRecords?.startDate {
             let timer = (s.uint(8) ?? s.uint(7)).map { Int(Double($0) / 1000) } ?? fromRecords?.movingTime ?? 0
@@ -35,10 +45,31 @@ public enum FITParser {
                            normalizedPower: s.uint(34).map { Double($0) } ?? fromRecords?.normalizedPower,
                            kilojoules: work ?? fromRecords?.kilojoules,
                            averageHeartrate: s.uint(16).map { Double($0) } ?? fromRecords?.averageHeartrate,
-                           maxHeartrate: s.uint(17).map { Double($0) } ?? fromRecords?.maxHeartrate)
+                           maxHeartrate: s.uint(17).map { Double($0) } ?? fromRecords?.maxHeartrate,
+                           maxWatts: maxWatts, powerCurve: curve)
         }
-        guard let fromRecords else { throw Error.noData }
+        guard var fromRecords else { throw Error.noData }
+        fromRecords.maxWatts = maxWatts
+        fromRecords.powerCurve = curve
         return fromRecords
+    }
+
+    /// Per-second power of the whole file (index 0 = first record), for tests and callers that need the series.
+    public static func powerSeries(from data: Data) -> [Double]? {
+        powerSeries(((try? decode(data)) ?? []).filter { $0.global == 20 })
+    }
+
+    /// Resamples the `record` power values to 1 Hz by timestamp: gaps are filled with 0 W, values above
+    /// `maxPlausibleWatts` become 0 W, a later record in the same second wins. nil when no record carries power.
+    static func powerSeries(_ records: [Message]) -> [Double]? {
+        let samples = records.compactMap { r -> (t: UInt64, p: UInt64)? in
+            guard let t = r.uint(253), let p = r.uint(7) else { return nil }
+            return (t, p)
+        }
+        guard let first = samples.map(\.t).min(), let last = samples.map(\.t).max() else { return nil }
+        var series = [Double](repeating: 0, count: Int(last - first) + 1)
+        for s in samples { series[Int(s.t - first)] = s.p > maxPlausibleWatts ? 0 : Double(s.p) }
+        return series
     }
 
     // MARK: Records fallback
