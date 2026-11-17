@@ -34,6 +34,8 @@ struct HistoryView: View {
 
                     HistoryChart(rides: rides, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate)
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                    EffortWeekCard(weeks: model.effortWeeks(rides: storedRides.map(\.summary)))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                 }
                 if rides.isEmpty {
                     EmptyStateView(title: "Keine Fahrten", systemImage: "bicycle",
@@ -42,7 +44,8 @@ struct HistoryView: View {
                 ForEach(groups(rides), id: \.start) { group in
                     Section {
                         ForEach(group.rides) { ride in
-                            NavigationLink(value: ride) { RideRow(ride: ride, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate) }
+                            NavigationLink(value: ride) { RideRow(ride: ride, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate,
+                                                                    heartRate: model.profile.heartRateProfile) }
                         }
                     } header: {
                         HStack {
@@ -174,6 +177,7 @@ struct RideDetailView: View {
                         }
                     }
                 }
+                RelativeEffortCard(ride: ride)
                 if est.source != .power {
                     Label(est.source == .heartRate ? "TSS aus Herzfrequenz geschätzt." : "TSS aus der Dauer geschätzt (keine Leistungsdaten).",
                           systemImage: "info.circle")

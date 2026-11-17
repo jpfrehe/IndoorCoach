@@ -13,8 +13,10 @@ Stand: Prototyp v0.1 · 17.11.2026
 | S4 Coach (Prompt, Structured Output, Validierung, Demo-Coach) | ✅ Code, ⚠️ nicht live getestet | Unit-Tests mit Mock-HTTP |
 | S5 Kalender (eigener Kalender „Indoor Training“, Update/Löschen) | ✅ Code, ⚠️ nur auf Gerät prüfbar | – |
 | S6 Review & Härtung | ✅ | ECC `swift-reviewer` + `security-reviewer`, alle CRITICAL/HIGH behoben |
+| UX-Audit + Farbsystem „Sunset Jelly“ | ✅ | [Bericht](ux-audit-2026-11-17.md), 15 Befunde behoben, Kontrast-Unit-Tests |
+| S7–S12 Winter Arc (Relative Effort, Fitness & Freshness, Level) | ✅ | [Konzept](05-FEATURES-WINTER-ARC.md), 18 Unit-Tests, UI-Test `test14`, `swift-reviewer` ohne CRITICAL/HIGH, 6 MEDIUM behoben |
 
-40 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
+65 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
 
 ## Was du morgen tun musst (≈ 20 min)
 

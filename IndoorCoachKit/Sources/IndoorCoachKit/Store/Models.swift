@@ -16,6 +16,10 @@ public final class StoredRide {
     public var maxHeartrate: Double?
     public var trainer: Bool
     public var isDemo: Bool
+    // Added with the Winter Arc features – optional/defaulted so SwiftData migrates lightweight.
+    public var perceivedExertion: Int?
+    public var preferPerceivedExertion: Bool = false
+    public var stravaRelativeEffort: Double?
 
     public init(_ r: RideSummary, isDemo: Bool = false) {
         stravaID = r.id
@@ -31,6 +35,9 @@ public final class StoredRide {
         maxHeartrate = r.maxHeartrate
         trainer = r.trainer
         self.isDemo = isDemo
+        perceivedExertion = r.perceivedExertion
+        preferPerceivedExertion = r.preferPerceivedExertion
+        stravaRelativeEffort = r.stravaRelativeEffort
     }
 
     public func update(from r: RideSummary) {
@@ -45,12 +52,18 @@ public final class StoredRide {
         averageHeartrate = r.averageHeartrate
         maxHeartrate = r.maxHeartrate
         trainer = r.trainer
+        // Strava's value is refreshed; the athlete's own PE is local and survives every sync.
+        stravaRelativeEffort = r.stravaRelativeEffort
     }
 
     public var summary: RideSummary {
-        RideSummary(id: stravaID, name: name, sportType: sportType, startDate: startDate, movingTime: movingTime,
-                    distance: distance, averageWatts: averageWatts, weightedAverageWatts: weightedAverageWatts,
-                    kilojoules: kilojoules, averageHeartrate: averageHeartrate, maxHeartrate: maxHeartrate, trainer: trainer)
+        var r = RideSummary(id: stravaID, name: name, sportType: sportType, startDate: startDate, movingTime: movingTime,
+                            distance: distance, averageWatts: averageWatts, weightedAverageWatts: weightedAverageWatts,
+                            kilojoules: kilojoules, averageHeartrate: averageHeartrate, maxHeartrate: maxHeartrate, trainer: trainer)
+        r.perceivedExertion = perceivedExertion
+        r.preferPerceivedExertion = preferPerceivedExertion
+        r.stravaRelativeEffort = stravaRelativeEffort
+        return r
     }
 }
 

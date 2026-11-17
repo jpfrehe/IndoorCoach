@@ -395,6 +395,7 @@ struct RideRow: View {
     var ride: RideSummary
     var ftp: Int
     var thresholdHeartRate: Int? = nil
+    var heartRate: RelativeEffort.HeartRateProfile
 
     var body: some View {
         let est = TrainingLoad.estimateTSS(for: ride, ftp: ftp, thresholdHeartRate: thresholdHeartRate)
@@ -418,6 +419,9 @@ struct RideRow: View {
                 HStack(spacing: 6) {
                     if let np = ride.weightedAverageWatts ?? ride.averageWatts { Text("\(Int(np)) W") }
                     Text("TSS \(Int(est.tss.rounded()))")
+                    if let effort = RelativeEffort.estimate(for: ride, heartRate: heartRate).value {
+                        Text("RE \(Int(effort.rounded()))")
+                    }
                 }
                 .font(.caption).foregroundStyle(Theme.rowSecondary).monospacedDigit()
             }

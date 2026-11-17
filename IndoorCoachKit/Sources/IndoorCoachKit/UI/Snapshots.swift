@@ -52,7 +52,8 @@ public enum SnapshotScenes {
             Card { HistoryChart(rides: rides, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate) }
             Card(title: "Letzte Fahrten", systemImage: "bicycle") {
                 ForEach(rides.suffix(6).reversed()) { r in
-                    RideRow(ride: r, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate)
+                    RideRow(ride: r, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate,
+                            heartRate: model.profile.heartRateProfile)
                     Divider()
                 }
             }

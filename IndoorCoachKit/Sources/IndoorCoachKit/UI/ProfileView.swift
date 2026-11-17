@@ -14,6 +14,7 @@ struct ProfileView: View {
             Form {
                 athleteSection(model)
                 goalSection(model)
+                winterArcSection(model)
                 availabilitySection(model)
                 coachSection(model)
                 stravaSection(model)
@@ -47,8 +48,16 @@ struct ProfileView: View {
                     in: 0...210, step: 1) {
                 LabeledContent("Schwellen-HF", value: model.profile.thresholdHeartRate.map { "\($0) bpm" } ?? "–")
             }
+            Stepper(value: $model.profile.restingHeartRate, in: 30...100, step: 1) {
+                LabeledContent("Ruhe-HF", value: "\(model.profile.restingHeartRate) bpm")
+            }
+            Stepper(value: Binding(get: { min(230, max(120, model.profile.heartRateProfile.max)) },
+                                   set: { model.profile.maxHeartRate = $0 }),
+                    in: 120...230, step: 1) {
+                LabeledContent("Max-HF", value: "\(model.profile.heartRateProfile.max) bpm" + (model.profile.maxHeartRate == nil ? " (geschätzt)" : ""))
+            }
         } header: { Text("Athlet") } footer: {
-            Text("Die FTP bestimmt alle Wattangaben. Leistungen im Plan werden als % FTP gespeichert und passen sich automatisch an.")
+            Text("Die FTP bestimmt alle Wattangaben. Ruhe- und Max-HF braucht der Relative Effort für Fahrten mit Herzfrequenz.")
         }
     }
 
@@ -72,6 +81,25 @@ struct ProfileView: View {
             }
         } header: { Text("Ziel") } footer: {
             Text("Ziel und Hinweise werden beim Planen an Claude (Anthropic) gesendet – bitte keine sensiblen Gesundheitsdaten.")
+        }
+    }
+
+    private func winterArcSection(_ model: AppModel) -> some View {
+        @Bindable var model = model
+        let season = WinterArc.defaultSeason(containing: .now)
+        return Section {
+            DatePicker("Saisonstart", selection: Binding(get: { model.profile.arcStart ?? season.start },
+                                                          set: { model.profile.arcStart = $0 }),
+                       displayedComponents: .date)
+            LabeledContent("Ziel-Tag", value: (model.winterArc(rides: model.allRides())?.goal ?? season.goal)
+                .formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "de_DE"))))
+            Stepper(value: Binding(get: { Int(model.profile.targetCTL ?? 0) },
+                                   set: { model.profile.targetCTL = $0 == 0 ? nil : Double($0) }),
+                    in: 0...150, step: 1) {
+                LabeledContent("Ziel-Fitness", value: model.profile.targetCTL.map { Formatters.decimal($0) } ?? "automatisch")
+            }
+        } header: { Text("Winter Arc") } footer: {
+            Text("Vom Saisonstart bis zum Ziel-Tag baust du Fitness auf. Ziel-Tag ist dein Zieldatum, wenn es höchstens 8 Monate nach dem Start liegt, sonst der 21. März. „Automatisch“ setzt das Ziel auf +35 % der Start-Fitness, mindestens +15.")
         }
     }
 

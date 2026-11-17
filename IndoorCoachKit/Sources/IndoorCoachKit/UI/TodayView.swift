@@ -53,8 +53,15 @@ struct TodayDashboard: View {
 
             if model.isDemoMode { demoHint }
             nextWorkoutCard(next)
+            if let arc = model.winterArc(rides: rides) {
+                NavigationLink { WinterArcView() } label: { WinterArcCard(status: arc) }
+                    .buttonStyle(.plain)
+            }
             // Without rides the 0/0/0 "Ausgewogen" card would look like a real assessment.
-            if !rides.isEmpty, let current = series.last { formCard(series: series, current: current) }
+            if !rides.isEmpty, let current = series.last {
+                NavigationLink { FitnessFreshnessView() } label: { formCard(series: series, current: current) }
+                    .buttonStyle(.plain)
+            }
             if let week = weeks.last { weekCard(week) }
             volumeCard(weeks)
         }
@@ -118,7 +125,7 @@ struct TodayDashboard: View {
     }
 
     private func formCard(series: [TrainingLoad.DayLoad], current: TrainingLoad.DayLoad) -> some View {
-        Card(title: "Form · letzte 90 Tage", systemImage: "waveform.path.ecg") {
+        Card(title: "Fitness & Form · 90 Tage", systemImage: "waveform.path.ecg") {
             HStack {
                 StatTile(title: "Fitness", value: Formatters.decimal(current.ctl), dot: Theme.fitness)
                 StatTile(title: "Ermüdung", value: Formatters.decimal(current.atl), dot: Theme.fatigue)

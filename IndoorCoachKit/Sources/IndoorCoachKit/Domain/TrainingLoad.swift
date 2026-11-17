@@ -14,6 +14,12 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
     public var averageHeartrate: Double?
     public var maxHeartrate: Double?
     public var trainer: Bool
+    /// Perceived Exertion 1–10 entered by the athlete (local only, never overwritten by a sync).
+    public var perceivedExertion: Int? = nil
+    /// Use the PE instead of heart rate for Relative Effort (e.g. faulty HR strap).
+    public var preferPerceivedExertion = false
+    /// Strava's own Relative Effort (`suffer_score`) when the API provides it.
+    public var stravaRelativeEffort: Double? = nil
 
     public init(id: Int, name: String, sportType: String, startDate: Date, movingTime: Int, distance: Double,
                 averageWatts: Double? = nil, weightedAverageWatts: Double? = nil, kilojoules: Double? = nil,

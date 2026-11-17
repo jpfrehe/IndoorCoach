@@ -511,6 +511,64 @@ final class AuditWalkthroughTests: AuditCase {
         check(waitFast(app.navigationBars["Neuer Plan"], timeout: 4), "Planer öffnet nach Profil-Eingaben")
     }
 
+    // MARK: Winter-Arc-Features (S10–S12)
+
+    func test14_WinterArcFeatures() {
+        launch()
+        route = "heute"
+        let arcCard = button(containing: "Winter Arc")
+        check(scrollUntilExists(arcCard, maxSwipes: 3).exists, "Winter-Arc-Karte auf Heute")
+        shot("arc-card")
+        tap(arcCard, "Winter-Arc-Karte")
+        route = "winterarc"
+        check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
+        check(text(containing: "Level-Pfad").exists || scrollUntilExists(text(containing: "Level-Pfad")).exists, "Level-Pfad sichtbar")
+        shot("detail")
+        accessibilityAudit("WinterArc")
+        app.swipeUp()
+        shot("detail-scrolled")
+        back()
+
+        route = "heute"
+        let formCard = button(containing: "Fitness & Form")
+        _ = scrollUntilExists(formCard, maxSwipes: 4)
+        tap(formCard, "Karte Fitness & Form")
+        route = "fitness"
+        check(waitFast(app.navigationBars["Fitness & Form"]), "Fitness-&-Form-Screen öffnet")
+        tap(app.buttons["30 T"], "Zeitraum 30 Tage")
+        check(app.buttons["30 T"].isSelected, "30 Tage gewählt")
+        shot("range-30")
+        let chart = app.otherElements["Verlauf von Fitness und Ermüdung"].firstMatch
+        if chart.exists {
+            chart.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
+            log("Tapped chart day", selector(chart))
+            check(!text(containing: "Fitness in 7 Tagen").exists, "Tap auf einen Tag zeigt dessen Werte statt „Heute“")
+        }
+        shot("day-selected")
+        accessibilityAudit("FitnessFreshness")
+        back()
+
+        openTab("Verlauf")
+        check(text(containing: "Relative Effort · diese Woche").waitForExistence(timeout: 3), "Relative-Effort-Wochenkarte im Verlauf")
+        shot("effort-week")
+        tap(row(0), "Erste Fahrt")
+        route = "fahrt"
+        let reTitle = scrollUntilExists(text(containing: "Relative Effort"))
+        check(reTitle.exists, "Relative-Effort-Karte im Fahrt-Detail")
+        let peToggle = scrollUntilExists(app.switches["Gefühlte Anstrengung angeben"])
+        peToggle.switches.firstMatch.exists ? peToggle.switches.firstMatch.tap() : peToggle.tap()
+        log("Toggled PE", selector(peToggle))
+        let slider = app.sliders.firstMatch
+        if slider.waitForExistence(timeout: 2) {
+            slider.adjust(toNormalizedSliderPosition: 0.85)
+            log("Adjusted PE slider", selector(slider))
+        }
+        check(text(containing: "Sehr hart").exists || text(containing: "Extrem hart").exists || text(containing: "Hart").exists,
+              "PE-Beschriftung folgt dem Slider")
+        shot("pe-set")
+        accessibilityAudit("Fahrt-RE")
+    }
+
     // MARK: Scenario – Kalender verweigert
 
     func test11_Scenario_CalendarDenied() {

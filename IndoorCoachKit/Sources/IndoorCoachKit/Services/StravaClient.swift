@@ -100,6 +100,8 @@ public struct StravaActivityDTO: Decodable, Sendable {
     public let max_heartrate: Double?
     public let trainer: Bool?
     public let device_watts: Bool?
+    /// Strava Relative Effort (only present for some athletes/activities).
+    public let suffer_score: Double?
 
     public static let rideTypes: Set<String> = ["Ride", "VirtualRide", "GravelRide", "MountainBikeRide", "EBikeRide", "EMountainBikeRide"]
 
@@ -107,10 +109,12 @@ public struct StravaActivityDTO: Decodable, Sendable {
     public var isRide: Bool { Self.rideTypes.contains(effectiveSportType) }
 
     public var summary: RideSummary {
-        RideSummary(id: id, name: name, sportType: effectiveSportType, startDate: start_date, movingTime: moving_time,
-                    distance: distance, averageWatts: average_watts, weightedAverageWatts: weighted_average_watts,
-                    kilojoules: kilojoules, averageHeartrate: average_heartrate, maxHeartrate: max_heartrate,
-                    trainer: trainer ?? false)
+        var r = RideSummary(id: id, name: name, sportType: effectiveSportType, startDate: start_date, movingTime: moving_time,
+                            distance: distance, averageWatts: average_watts, weightedAverageWatts: weighted_average_watts,
+                            kilojoules: kilojoules, averageHeartrate: average_heartrate, maxHeartrate: max_heartrate,
+                            trainer: trainer ?? false)
+        r.stravaRelativeEffort = suffer_score.flatMap { $0 > 0 ? $0 : nil }
+        return r
     }
 
     public static func decodeList(_ data: Data) throws -> [StravaActivityDTO] {

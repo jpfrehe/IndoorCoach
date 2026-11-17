@@ -16,6 +16,8 @@ in den Kalender eintragen und als `.zwo` nach MyWhoosh bringen. Läuft vollstän
 3. [Installation & Einrichtung](docs/03-INSTALLATION.md) – Xcode, Strava-API-App, Claude-Key, MyWhoosh-Import
 4. [Status & nächste Schritte](docs/04-STATUS.md)
 5. [UX-Audit 17.11.2026](docs/ux-audit-2026-11-17.md) – ux-audit-Skill, 15 Befunde behoben, Farbsystem
+6. [Winter Arc: Relative Effort, Fitness & Freshness, Level](docs/05-FEATURES-WINTER-ARC.md)
+7. [Backlog bis zur Pilotphase](docs/06-BACKLOG-PILOT.md)
 
 ## Aufbau
 

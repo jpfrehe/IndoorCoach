@@ -32,6 +32,8 @@ public struct PlanContext: Sendable {
     public var recentRides: [RideSummary]
     public var alreadyPlanned: [PlannedWorkoutProposal]
     public var wish: String
+    /// Season progress towards the spring goal (optional, gives the coach the long-term frame).
+    public var winterArc: WinterArc.Status? = nil
 
     public init(profile: AthleteProfile, today: Date, horizonStart: Date, horizonEnd: Date,
                 load: TrainingLoad.DayLoad?, weeks: [TrainingLoad.WeekSummary], recentRides: [RideSummary],
@@ -137,6 +139,10 @@ public enum PlanPrompt {
 
         lines.append("")
         lines.append("## Aktueller Zustand (\(day.string(from: ctx.today)))")
+        if let arc = ctx.winterArc {
+            let goal = arc.goal.formatted(.dateTime.day().month(.twoDigits).year().locale(Locale(identifier: "de_DE")))
+            lines.append("- Winter Arc: Level \(arc.level.number)/10 („\(arc.level.name)“), Fitness \(Formatters.decimal(arc.currentCTL)) → Ziel \(Formatters.decimal(arc.targetCTL)) bis \(goal), \(arc.daysLeft) Tage übrig, Status: \(arc.pace.label), Kurslinie heute \(Formatters.decimal(arc.paceCTL))")
+        }
         if let load = ctx.load {
             lines.append("- Fitness (CTL): \(Formatters.decimal(load.ctl)), Ermüdung (ATL): \(Formatters.decimal(load.atl)), Form (TSB): \(Formatters.decimal(load.tsb))")
         } else {

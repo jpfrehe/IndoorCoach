@@ -54,6 +54,8 @@ public final class AppModel {
     public var proposal: PlanProposal?
     /// Set by "Plan erstellen" outside the Plan tab; PlanView opens the planner and resets it.
     public var plannerRequested = false
+    /// Not observed: filled lazily from view bodies, must not trigger re-renders.
+    @ObservationIgnored private var seriesCache: (key: Int, series: FitnessFreshness.Series)?
     public private(set) var proposalSource: WorkoutSource = .demo
 
     public let context: ModelContext
@@ -262,14 +264,93 @@ public final class AppModel {
         return ((try? context.fetch(descriptor)) ?? []).map(\.summary)
     }
 
-    public func loadSeries(rides: [RideSummary], days: Int = 90, now: Date = .now) -> [TrainingLoad.DayLoad] {
+    /// Full Fitness & Freshness series (warmed up over all rides) – one model for Heute, the F&F screen,
+    /// the Winter Arc and the coach.
+    public func fitnessSeries(rides: [RideSummary], now: Date = .now) -> FitnessFreshness.Series {
         let calendar = Calendar.current
         let end = calendar.startOfDay(for: now)
-        // Warm up the EWMA with everything we have, then show the last `days`.
+        // Several views ask for the same series per render (and per scrub step) – cache on all inputs.
+        var hasher = Hasher()
+        hasher.combine(rides)
+        hasher.combine(end)
+        hasher.combine(profile.ftp)
+        hasher.combine(profile.thresholdHeartRate)
+        hasher.combine(profile.restingHeartRate)
+        hasher.combine(profile.maxHeartRate)
+        let key = hasher.finalize()
+        if let cached = seriesCache, cached.key == key { return cached.series }
         let first = rides.map(\.startDate).min() ?? end
-        let daily = TrainingLoad.dailyTSS(rides: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate)
-        let full = TrainingLoad.series(dailyTSS: daily, from: min(first, end), to: end)
-        return Array(full.suffix(days))
+        let series = FitnessFreshness.series(rides: rides, ftp: profile.ftp, heartRate: profile.heartRateProfile,
+                                             thresholdHeartRate: profile.thresholdHeartRate, from: min(first, end), to: end,
+                                             calendar: calendar)
+        seriesCache = (key, series)
+        return series
+    }
+
+    public func loadSeries(rides: [RideSummary], days: Int = 90, now: Date = .now) -> [TrainingLoad.DayLoad] {
+        fitnessSeries(rides: rides, now: now).points.suffix(days)
+            .map { TrainingLoad.DayLoad(date: $0.date, tss: $0.load, ctl: $0.fitness, atl: $0.fatigue, tsb: $0.form) }
+    }
+
+    // MARK: - Relative Effort & Winter Arc
+
+    public func relativeEffort(for ride: RideSummary) -> RelativeEffort.Estimate {
+        RelativeEffort.estimate(for: ride, heartRate: profile.heartRateProfile)
+    }
+
+    public struct EffortWeek: Hashable, Sendable, Identifiable {
+        public var weekStart: Date
+        public var total: Double
+        public var id: Date { weekStart }
+    }
+
+    /// Relative Effort per ISO week, oldest first, including the current week.
+    public func effortWeeks(rides: [RideSummary], count: Int = 8, now: Date = .now) -> [EffortWeek] {
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2
+        guard let current = calendar.dateInterval(of: .weekOfYear, for: now)?.start else { return [] }
+        let starts = (0..<count).reversed().compactMap { calendar.date(byAdding: .weekOfYear, value: -$0, to: current) }
+        var totals = Dictionary(uniqueKeysWithValues: starts.map { ($0, 0.0) })
+        for ride in rides {
+            guard let week = calendar.dateInterval(of: .weekOfYear, for: ride.startDate)?.start, totals[week] != nil else { continue }
+            totals[week]! += relativeEffort(for: ride).value ?? 0
+        }
+        return starts.map { EffortWeek(weekStart: $0, total: totals[$0] ?? 0) }
+    }
+
+    public func winterArc(rides: [RideSummary], now: Date = .now) -> WinterArc.Status? {
+        let calendar = Calendar.current
+        let season = WinterArc.defaultSeason(containing: now, calendar: calendar)
+        let start = calendar.startOfDay(for: profile.arcStart ?? season.start)
+        // The general goal date only counts when it is a plausible spring target for this arc (≤ 8 months);
+        // a past or far-away race date would otherwise hide or stretch the arc.
+        let latest = calendar.date(byAdding: .month, value: 8, to: start) ?? season.goal
+        let goal = calendar.startOfDay(for: profile.goalDate.flatMap { $0 > start && $0 <= latest ? $0 : nil } ?? season.goal)
+        guard goal > start else { return nil }
+        let points = fitnessSeries(rides: rides, now: now).points
+        let startCTL = points.last(where: { $0.date <= start })?.fitness ?? points.first?.fitness ?? 0
+        let current = points.last?.fitness ?? 0
+        let best = points.filter { $0.date >= start }.map(\.fitness).max() ?? current
+        // Completed full weeks since the start: drop the running week and a partial first week.
+        var weeks = TrainingLoad.weeks(rides: rides.filter { $0.startDate >= start }, ftp: profile.ftp,
+                                       from: start, to: now, calendar: calendar)
+        if !weeks.isEmpty { weeks.removeLast() }
+        if let first = weeks.first, first.weekStart < start { weeks.removeFirst() }
+        return WinterArc.status(start: start, goal: goal, today: now, startCTL: startCTL, currentCTL: current,
+                                bestCTLSinceStart: best, targetCTL: profile.targetCTL,
+                                weeklyHours: weeks.map { Double($0.seconds) / 3600 }, weeklyBudgetHours: profile.weeklyHours,
+                                calendar: calendar)
+    }
+
+    /// Saves the athlete's Perceived Exertion for a ride (local only; a Strava sync never overwrites it).
+    public func setPerceivedExertion(_ value: Int?, prefer: Bool, rideID: Int) {
+        let descriptor = FetchDescriptor<StoredRide>(predicate: #Predicate { $0.stravaID == rideID })
+        guard let ride = try? context.fetch(descriptor).first else { return }
+        let preferValue = value != nil && prefer
+        guard ride.perceivedExertion != value || ride.preferPerceivedExertion != preferValue else { return }
+        ride.perceivedExertion = value
+        ride.preferPerceivedExertion = value != nil && prefer
+        try? context.save()
     }
 
     // MARK: - Planning
@@ -287,8 +368,10 @@ public final class AppModel {
         let planned = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? [])
             .filter { $0.status == .planned && $0.date >= start && $0.date <= end }
             .map(\.proposal)
-        return PlanContext(profile: profile, today: today, horizonStart: start, horizonEnd: end,
-                           load: series.last, weeks: weeks, recentRides: recent, alreadyPlanned: planned, wish: wish)
+        var result = PlanContext(profile: profile, today: today, horizonStart: start, horizonEnd: end,
+                                 load: series.last, weeks: weeks, recentRides: recent, alreadyPlanned: planned, wish: wish)
+        result.winterArc = winterArc(rides: rides, now: now)
+        return result
     }
 
     public func generatePlan(wish: String, startToday: Bool) async {
