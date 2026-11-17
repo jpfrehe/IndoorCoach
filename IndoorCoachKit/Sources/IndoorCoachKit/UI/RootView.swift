@@ -51,6 +51,16 @@ public struct RootView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: model.banner)
+        .onboardingCover(isPresented: model.needsOnboarding) { choice in
+            model.completeOnboarding()
+            switch choice {
+            case .strava:
+                tab = .profile
+                model.stravaSetupRequested = true
+            case .demo, .skipped:
+                tab = .today
+            }
+        }
         .task {
             model.bootstrap()
             await model.syncStrava()
@@ -92,6 +102,7 @@ public enum AppEnvironment {
     public static func makePreviewModel() -> (ModelContainer, AppModel) {
         let container = try! makeContainer(inMemory: true)
         let defaults = UserDefaults(suiteName: "preview-\(UUID().uuidString)")!
+        defaults.set(true, forKey: AppModel.Keys.onboardingCompleted) // previews/snapshots show the app itself
         let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), defaults: defaults)
         model.bootstrap()
         return (container, model)
