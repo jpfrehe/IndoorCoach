@@ -85,8 +85,9 @@ public final class AppModel {
         stravaClientID = defaults.string(forKey: Keys.stravaClientID) ?? ""
         lastSync = defaults.object(forKey: Keys.lastSync) as? Date
         refreshCredentialState()
-        // Exported .zwo files are only needed while the share sheet is open.
+        // Exported .zwo files and diagnostics are only needed while the share sheet is open.
         try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent("zwo"))
+        try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent(Self.diagnosticsDirectory))
     }
 
     // MARK: - Credentials
@@ -184,20 +185,24 @@ public final class AppModel {
             show(StravaError.notConfigured.localizedDescription, error: true); return
         }
         let state = UUID().uuidString
+        Log.notice(.strava, "Verbinden gestartet")
         do {
             let callback = try await authenticate(config.authorizeURL(state: state))
             let tokens = try await stravaClient.completeAuthorization(callbackURL: callback, expectedState: state)
+            Log.notice(.strava, "Verbunden")
             refreshCredentialState()
             show("Mit Strava verbunden\(tokens.athleteName.map { " als \($0)" } ?? "").", error: false)
             resetDemoData()
             await syncStrava(full: true)
         } catch {
+            Log.error(.strava, "Verbinden fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
             show(error.localizedDescription, error: true)
         }
     }
 
     public func disconnectStrava() async {
         await stravaClient.disconnect()
+        Log.notice(.strava, "Getrennt")
         try? context.delete(model: StoredRide.self)
         try? context.save()
         defaults.removeObject(forKey: Keys.lastSync)
@@ -219,24 +224,31 @@ public final class AppModel {
             // 210 days so the 42-day fitness average is warmed up before the visible 90-day window.
             since = Calendar.current.date(byAdding: .day, value: -210, to: .now)!
         }
+        let started = ContinuousClock.now
+        let windowDays = Int((Date.now.timeIntervalSince(since) / 86_400).rounded())
+        Log.notice(.sync, "Sync gestartet: \(full ? "voll" : "inkrementell"), \(windowDays) Tage")
         do {
             let rides = try await stravaClient.fetchRides(after: since)
             let existing = try context.fetch(FetchDescriptor<StoredRide>())
             var byID = Dictionary(existing.map { ($0.stravaID, $0) }, uniquingKeysWith: { first, _ in first })
+            var inserted = 0
             for ride in rides {
                 if let stored = byID[ride.id] { stored.update(from: ride) }
                 else {
                     let stored = StoredRide(ride)
                     context.insert(stored)
                     byID[ride.id] = stored
+                    inserted += 1
                 }
             }
             linkCompletedWorkouts()
             try context.save()
+            Log.notice(.sync, "Sync beendet: \(rides.count) Fahrten geladen, \(inserted) neu, \(rides.count - inserted) aktualisiert, \(byID.count) gesamt, \(Self.elapsed(since: started))")
             lastSync = .now
             defaults.set(lastSync, forKey: Keys.lastSync)
             show(rides.isEmpty ? "Strava: keine neuen Fahrten." : "Strava: \(rides.count) Fahrten synchronisiert.", error: false)
         } catch {
+            Log.error(.sync, "Sync fehlgeschlagen nach \(Self.elapsed(since: started)): \(type(of: error)) – \(error.localizedDescription)")
             refreshCredentialState()
             show(error.localizedDescription, error: true)
         }
@@ -383,14 +395,19 @@ public final class AppModel {
         let coach: Coach = key.isEmpty
             ? DemoCoach()
             : ClaudeCoach(client: ClaudeClient(apiKey: key, model: profile.model, transport: transport))
+        let started = ContinuousClock.now
+        let horizon = (Calendar.current.dateComponents([.day], from: ctx.horizonStart, to: ctx.horizonEnd).day ?? 0) + 1
+        Log.notice(.plan, "Planung gestartet: \(key.isEmpty ? "Demo-Coach" : "Claude (\(profile.model))"), \(horizon) Tage, Wunsch \(wish.isEmpty ? "nein" : "ja")")
         do {
             let plan = try await coach.plan(ctx)
+            Log.notice(.plan, "Planung beendet: \(plan.workouts.count) Einheiten in \(Self.elapsed(since: started))")
             proposalSource = key.isEmpty ? .demo : .claude
             proposal = plan
             if plan.workouts.isEmpty {
                 show("Der Coach hat für diesen Zeitraum keine Einheit vorgeschlagen.", error: false)
             }
         } catch {
+            Log.error(.plan, "Planung fehlgeschlagen nach \(Self.elapsed(since: started)): \(type(of: error)) – \(error.localizedDescription)")
             show(error.localizedDescription, error: true)
         }
     }
@@ -404,6 +421,7 @@ public final class AppModel {
             created.append(stored)
         }
         try? context.save()
+        Log.notice(.plan, "Vorschlag übernommen: \(created.count) Einheiten, Kalender \(shouldAddToCalendar ? "ja" : "nein")")
         proposal = nil
         if shouldAddToCalendar {
             await addToCalendar(created)
@@ -457,8 +475,10 @@ public final class AppModel {
                     count += 1
                 }
             }
+            Log.notice(.calendar, "\(count) von \(ids.count) Einheiten eingetragen")
             show(count == 1 ? "Im Kalender eingetragen." : "\(count) Einheiten im Kalender eingetragen.", error: false)
         } catch {
+            Log.error(.calendar, "Eintragen abgebrochen nach \(count) von \(ids.count): \(type(of: error)) – \(error.localizedDescription)")
             show(error.localizedDescription, error: true)
         }
     }
@@ -468,7 +488,11 @@ public final class AppModel {
         let eventID = workout.calendarEventID
         context.delete(workout)
         try? context.save()
-        if let eventID { try? await calendarService.remove(eventID: eventID) }
+        if let eventID {
+            do { try await calendarService.remove(eventID: eventID) } catch {
+                Log.error(.calendar, "Kalendereintrag nicht entfernt: \(type(of: error))")
+            }
+        }
     }
 
     public func setStatus(_ status: WorkoutStatus, for workout: StoredWorkout) {
@@ -489,7 +513,14 @@ public final class AppModel {
     // MARK: - Helpers
 
     public func show(_ message: String, error: Bool) {
+        if error { Log.error(.app, "Banner: \(message)") }
         banner = Banner(message: message, isError: error)
+    }
+
+    static func elapsed(since start: ContinuousClock.Instant) -> String {
+        let d = ContinuousClock.now - start
+        let ms = d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000
+        return ms < 1000 ? "\(ms) ms" : String(format: "%.1f s", Double(ms) / 1000)
     }
 
     private func persistProfile() {

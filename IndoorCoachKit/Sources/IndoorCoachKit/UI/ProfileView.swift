@@ -18,6 +18,7 @@ struct ProfileView: View {
                 availabilitySection(model)
                 coachSection(model)
                 stravaSection(model)
+                helpSection()
                 infoSection
             }
             .scrollContentBackground(.hidden)
@@ -233,6 +234,10 @@ struct ProfileView: View {
                 Text("Einmalig unter strava.com/settings/api eine eigene API-App anlegen. Als „Authorization Callback Domain“ localhost eintragen. Client-ID und Client-Secret hier einfügen.")
             }
         }
+    }
+
+    private func helpSection() -> some View {
+        HelpFeedbackSection()
     }
 
     private var infoSection: some View {

@@ -161,12 +161,13 @@ public actor StravaClient {
     public func completeAuthorization(callbackURL: URL, expectedState: String) async throws -> StravaTokens {
         let items = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?.queryItems ?? []
         func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
-        if value("error") != nil { throw StravaError.authorizationDenied }
-        guard value("state") == expectedState else { throw StravaError.stateMismatch }
-        guard let code = value("code") else { throw StravaError.authorizationDenied }
-        if let scope = value("scope"), !scope.contains("activity:read") { throw StravaError.missingScope }
+        if value("error") != nil { Log.error(.strava, "OAuth: Zugriff verweigert"); throw StravaError.authorizationDenied }
+        guard value("state") == expectedState else { Log.error(.strava, "OAuth: state stimmt nicht"); throw StravaError.stateMismatch }
+        guard let code = value("code") else { Log.error(.strava, "OAuth: kein Code im Callback"); throw StravaError.authorizationDenied }
+        if let scope = value("scope"), !scope.contains("activity:read") { Log.error(.strava, "OAuth: Scope activity:read fehlt"); throw StravaError.missingScope }
         let tokens = try await tokenRequest(["grant_type": "authorization_code", "code": code])
         store.saveTokens(tokens)
+        Log.notice(.strava, "OAuth: Token-Austausch erfolgreich")
         return tokens
     }
 
@@ -179,6 +180,7 @@ public actor StravaClient {
         guard config.isComplete else { throw StravaError.notConfigured }
         guard let tokens = store.loadTokens() else { throw StravaError.notConnected }
         if !tokens.needsRefresh(now: now) { return tokens.accessToken }
+        Log.notice(.strava, "Access-Token läuft ab – wird erneuert")
         var refreshed = try await tokenRequest(["grant_type": "refresh_token", "refresh_token": tokens.refreshToken])
         refreshed.athleteName = refreshed.athleteName ?? tokens.athleteName
         store.saveTokens(refreshed)
@@ -202,6 +204,7 @@ public actor StravaClient {
             try Self.check(response, data)
             let list = try StravaActivityDTO.decodeList(data)
             rides += list.filter(\.isRide).map(\.summary)
+            Log.notice(.strava, "Aktivitäten Seite \(page): HTTP \(response.statusCode), \(list.count) Aktivitäten, davon \(list.filter(\.isRide).count) Fahrten")
             if list.count < 100 { break }
         }
         return rides
@@ -234,6 +237,7 @@ public actor StravaClient {
     }
 
     static func check(_ response: HTTPURLResponse, _ data: Data) throws {
+        if !(200..<300).contains(response.statusCode) { Log.error(.strava, "HTTP \(response.statusCode) \(response.url?.path ?? "")") }
         switch response.statusCode {
         case 200..<300: return
         case 429: throw StravaError.rateLimited
