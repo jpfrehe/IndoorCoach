@@ -81,16 +81,19 @@ struct MigrationTests {
         #expect(ride.preferPerceivedExertion == false)
         #expect(ride.stravaRelativeEffort == nil)
         #expect(ride.decoupling == nil)
+        #expect(ride.durability == nil)
 
         // The migrated store is fully usable: new fields can be written and read back.
         ride.perceivedExertion = 7
         ride.decoupling = 3.5
+        ride.durability = 91.5
         try ride.modelContext?.save()
         let reopened = try ModelContext(AppEnvironment.makeContainer(url: url)).fetch(FetchDescriptor<StoredRide>())
         #expect(reopened.first?.perceivedExertion == 7)
         #expect(reopened.first?.decoupling == 3.5)
+        #expect(reopened.first?.durability == 91.5)
         #expect(columns(of: "ZSTOREDRIDE", in: url).isSuperset(of: ["ZPERCEIVEDEXERTION", "ZPREFERPERCEIVEDEXERTION",
-                                                                    "ZSTRAVARELATIVEEFFORT", "ZDECOUPLING"]))
+                                                                    "ZSTRAVARELATIVEEFFORT", "ZDECOUPLING", "ZDURABILITY"]))
     }
 
     /// Column names of a Core Data table, read directly via SQLite.
