@@ -23,12 +23,14 @@ public enum Log {
     public static func notice(_ category: Category, _ message: String) {
         let text = Redactor.scrub(message)
         logger(category).notice("\(text, privacy: .public)")
+        LogFile.shared?.append(category: category.rawValue, level: "notice", text)
     }
 
     /// Failure that the user may report.
     public static func error(_ category: Category, _ message: String) {
         let text = Redactor.scrub(message)
         logger(category).error("\(text, privacy: .public)")
+        LogFile.shared?.append(category: category.rawValue, level: "error", text)
     }
 
     /// Reads this process's entries of our subsystem since `since` (oldest first, at most `limit` lines).
@@ -57,6 +59,51 @@ public enum Log {
         default: "log"
         }
     }
+}
+
+/// Persistent copy of the (already redacted) log lines in Application Support, so diagnostics survive app
+/// restarts – the unified log only returns the current process. Capped at 512 KB (older half dropped).
+/// Only active in the app itself, never in unit tests.
+final class LogFile: @unchecked Sendable {
+    static let shared: LogFile? = Bundle.main.bundleIdentifier == "app.indoorcoach.personal" ? LogFile(url: defaultURL) : nil
+    static var defaultURL: URL { URL.applicationSupportDirectory.appendingPathComponent("diagnostics-log.txt") }
+
+    let url: URL
+    private let lock = NSLock()
+    private let maxBytes = 512 * 1024
+    private let formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f
+    }()
+
+    init(url: URL) { self.url = url }
+
+    func append(category: String, level: String, _ text: String, date: Date = .now) {
+        let line = "\(formatter.string(from: date)) [\(category)] \(level): \(text.replacingOccurrences(of: "\n", with: " "))\n"
+        lock.withLock {
+            let fm = FileManager.default
+            try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if !fm.fileExists(atPath: url.path) { fm.createFile(atPath: url.path, contents: nil) }
+            guard let handle = try? FileHandle(forWritingTo: url) else { return }
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: Data(line.utf8))
+            if let size = try? handle.offset(), size > UInt64(maxBytes), let data = try? Data(contentsOf: url) {
+                try? Data(data.suffix(maxBytes / 2)).write(to: url, options: .atomic)
+            }
+        }
+    }
+
+    /// Lines written at or after `since` (oldest first).
+    func entries(since: Date) -> [String] {
+        let text = lock.withLock { (try? String(contentsOf: url, encoding: .utf8)) ?? "" }
+        return text.split(separator: "\n").compactMap { line -> String? in
+            guard let stamp = line.split(separator: " ", maxSplits: 1).first,
+                  let date = formatter.date(from: String(stamp)), date >= since else { return nil }
+            return String(line)
+        }
+    }
+
+    func clear() { lock.withLock { try? FileManager.default.removeItem(at: url) } }
 }
 
 /// Removes secrets from free text (log lines, server error messages, the diagnostics export).

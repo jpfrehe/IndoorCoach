@@ -162,7 +162,10 @@ public struct MyWhooshActivity: Sendable, Equatable {
     public var name: String?
     public var date: Date?
     public var fitURL: URL?
+    /// Key of the ride file on MyWhoosh's storage (`activityFileId`), when no direct URL is given.
+    public var fileKey: String?
     public var durationSeconds: Int?
+    public var distanceMeters: Double?
     public var averageWatts: Double?
     public var averageHeartrate: Double?
 
@@ -179,7 +182,25 @@ public struct MyWhooshActivity: Sendable, Equatable {
         guard let items = findList(json, depth: 0) else { return nil }
         return MyWhooshClient.ActivityList(activities: items.compactMap(MyWhooshActivity.init(json:)),
                                            responseKeys: ((json as? [String: Any])?.keys).map { $0.sorted() } ?? ["<Liste>"],
-                                           itemKeys: items.first.map { $0.keys.sorted() } ?? [])
+                                           itemKeys: items.first.map { $0.keys.sorted() } ?? [],
+                                           sample: items.first.map(sample) ?? "–")
+    }
+
+    /// Shape of one entry for the log: types and values of the measurement fields only (no names or routes),
+    /// the file key reduced to its length and extension.
+    static func sample(_ item: [String: Any]) -> String {
+        let fields = ["date", "startDatetime", "createdAt", "rideDuration", "distance", "elevation", "watt",
+                      "heartrate", "type", "sportType", "totalWorkout"]
+        var parts = fields.compactMap { key -> String? in
+            guard let v = item[key] else { return nil }
+            let text = v is NSNull ? "null" : String("\(v)".prefix(40))
+            return "\(key)=\(type(of: v)):\(text)"
+        }
+        if let key = item["activityFileId"] {
+            let s = "\(key)"
+            parts.append("activityFileId=\(type(of: key)):\(s.count) Zeichen, Endung=\((s as NSString).pathExtension.isEmpty ? "–" : (s as NSString).pathExtension), URL=\(s.hasPrefix("http"))")
+        }
+        return parts.joined(separator: ", ")
     }
 
     init?(json: [String: Any]) {
@@ -204,12 +225,34 @@ public struct MyWhooshActivity: Sendable, Equatable {
         guard let id = string(["id", "_id", "activityId", "ActivityId", "rideId", "RideId", "Id"]) else { return nil }
         self.id = id
         name = string(["name", "title", "Name", "activityName", "routeName", "RouteName"])
-        date = Self.date(value(["date", "startTime", "StartTime", "createdAt", "rideDate", "startDate"]))
-        fitURL = string(["downloadUrl", "fitFileUrl", "fileUrl", "s3Url", "fitFile", "FitFileUrl", "fitUrl"])
-            .flatMap(URL.init(string:)).flatMap { $0.scheme == "https" ? $0 : nil }
-        durationSeconds = number(["duration", "rideTime", "totalTime", "movingTime", "elapsedTime", "TotalRideTime"]).map { Int($0) }
-        averageWatts = number(["avgPower", "averagePower", "avgWatts", "AveragePower"])
-        averageHeartrate = number(["avgHeartRate", "averageHeartRate", "avgHr", "AverageHeartRate"])
+        date = Self.date(value(["startDatetime", "startTime", "StartTime", "date", "rideDate", "startDate", "createdAt"]))
+        let fileValue = string(["downloadUrl", "fitFileUrl", "fileUrl", "s3Url", "fitFile", "FitFileUrl", "fitUrl",
+                                "activityFileUrl", "activityFileId", "fileKey", "fitFileKey"])
+        if let fileValue, fileValue.hasPrefix("https://") { fitURL = URL(string: fileValue) }
+        else if let fileValue, !fileValue.hasPrefix("http") { fileKey = fileValue }
+        durationSeconds = Self.seconds(value(["rideDuration", "duration", "rideTime", "totalTime", "movingTime",
+                                              "elapsedTime", "TotalRideTime"]))
+        // MyWhoosh shows kilometres; values below 1000 are taken as km.
+        distanceMeters = number(["distance", "totalDistance"]).map { $0 < 1000 ? $0 * 1000 : $0 }
+        averageWatts = number(["watt", "avgPower", "averagePower", "avgWatts", "AveragePower"]).flatMap { $0 > 0 ? $0 : nil }
+        averageHeartrate = number(["heartrate", "heartRate", "avgHeartRate", "averageHeartRate", "avgHr", "AverageHeartRate"])
+            .flatMap { $0 > 0 ? $0 : nil }
+    }
+
+    /// Seconds from a number (seconds; values below 400 are taken as minutes) or "H:MM:SS" / "MM:SS".
+    static func seconds(_ raw: Any?) -> Int? {
+        switch raw {
+        case let n as NSNumber:
+            let v = n.doubleValue
+            guard v > 0 else { return nil }
+            return Int(v < 400 ? v * 60 : v)
+        case let s as String:
+            let parts = s.split(separator: ":").compactMap { Double($0) }
+            if parts.count >= 2 { return Int(parts.reduce(0) { $0 * 60 + $1 }) }
+            return Double(s).flatMap { seconds(NSNumber(value: $0)) }
+        default:
+            return nil
+        }
     }
 
     static func date(_ raw: Any?) -> Date? {
@@ -345,6 +388,8 @@ public actor MyWhooshClient {
         /// Field names (no values) of the response and of the first item – logged for diagnostics.
         public var responseKeys: [String]
         public var itemKeys: [String]
+        /// See `MyWhooshActivity.sample`.
+        public var sample = "–"
     }
 
     /// Lists the rider's past activities. Tries the request bodies community tools use, in order.
@@ -383,7 +428,10 @@ public actor MyWhooshClient {
                 if page == 1 { throw MyWhooshError.historyUnavailable }
                 break
             }
-            if page == 1 { responseKeys = list.responseKeys; itemKeys = list.itemKeys }
+            if page == 1 {
+                responseKeys = list.responseKeys; itemKeys = list.itemKeys
+                Log.notice(.mywhoosh, "Fahrtenliste Beispiel: \(list.sample)")
+            }
             let new = list.activities.filter { seen.insert($0.id).inserted }
             collected += new
             // Stop on an empty/repeated page or once the page reaches back past `notBefore`.
@@ -392,6 +440,23 @@ public actor MyWhooshClient {
             page += 1
         }
         return ActivityList(activities: collected, responseKeys: responseKeys, itemKeys: itemKeys)
+    }
+
+    /// The ride file of a listed activity: its URL, or – with only a file key – MyWhoosh's ride storage
+    /// (path as used by community tools; tried with and without ".fit").
+    public func downloadFIT(for activity: MyWhooshActivity) async throws -> Data {
+        if let url = activity.fitURL { return try await downloadFIT(url) }
+        guard let key = activity.fileKey, let session = store.loadSession() else { throw MyWhooshError.unexpectedResponse }
+        let safeKey = key.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? key
+        let base = "https://mywhooshprod.s3.eu-west-1.amazonaws.com/ride/\(session.whooshId)/\(safeKey)"
+        var candidates = [base]
+        if (key as NSString).pathExtension.isEmpty { candidates.append(base + ".fit") }
+        var lastError: Error = MyWhooshError.unexpectedResponse
+        for candidate in candidates {
+            guard let url = URL(string: candidate) else { continue }
+            do { return try await downloadFIT(url) } catch { lastError = error }
+        }
+        throw lastError
     }
 
     /// Downloads an activity's FIT file. Only https URLs are followed; the token goes only to MyWhoosh hosts

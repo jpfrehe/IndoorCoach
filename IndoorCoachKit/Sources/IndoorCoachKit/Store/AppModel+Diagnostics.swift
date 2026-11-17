@@ -7,7 +7,11 @@ extension AppModel {
     static let diagnosticsDirectory = "diagnostics"
 
     public func diagnosticsReport(since: Date = .now.addingTimeInterval(-24 * 3600)) async -> String {
-        await diagnosticsReport(since: since) { try Log.storedEntries(since: $0) }
+        // The persistent file covers earlier app launches too; the unified log only the current process.
+        await diagnosticsReport(since: since) { since in
+            if let file = LogFile.shared { return file.entries(since: since).suffix(2_000).map { $0 } }
+            return try Log.storedEntries(since: since)
+        }
     }
 
     /// `entries` is injectable for tests; it runs off the main actor because reading the log store is slow.

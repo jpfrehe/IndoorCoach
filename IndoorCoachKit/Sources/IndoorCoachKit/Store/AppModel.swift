@@ -444,12 +444,16 @@ public final class AppModel {
                 .prefix(80)
             var rides: [RideSummary] = []
             var unreadable = 0
+            var fileAccess = true                       // after the first refused file, use the list values only
             for activity in fresh {
-                if let ride = await myWhooshRide(activity) { rides.append(ride) } else { unreadable += 1 }
+                if let ride = await myWhooshRide(activity, fileAccess: &fileAccess) { rides.append(ride) } else { unreadable += 1 }
             }
             let inserted = storeImportedRides(rides)
-            lastMyWhooshImport = .now
-            defaults.set(lastMyWhooshImport, forKey: Keys.myWhooshLastImport)
+            // Only move the window forward when every listed ride made it in – otherwise retry them next time.
+            if unreadable == 0 {
+                lastMyWhooshImport = .now
+                defaults.set(lastMyWhooshImport, forKey: Keys.myWhooshLastImport)
+            }
             Log.notice(.sync, "MyWhoosh-Import: \(fresh.count) neu gelistet, \(inserted) gespeichert, \(unreadable) ohne Daten, \(Self.elapsed(since: started))")
             if inserted > 0 {
                 show("MyWhoosh: \(inserted) \(inserted == 1 ? "Fahrt" : "Fahrten") importiert.", error: false)
@@ -469,20 +473,26 @@ public final class AppModel {
     }
 
     /// One listed activity → ride: from its FIT file when available, otherwise from the list's own numbers.
-    private func myWhooshRide(_ activity: MyWhooshActivity) async -> RideSummary? {
+    private func myWhooshRide(_ activity: MyWhooshActivity, fileAccess: inout Bool) async -> RideSummary? {
         let id = Self.importedRideID("mywhoosh:\(activity.id)")
         let name = activity.name ?? "MyWhoosh-Fahrt"
-        if let url = activity.fitURL {
+        if fileAccess, activity.fitURL != nil || activity.fileKey != nil {
             do {
-                let fit = try FITParser.summary(from: try await myWhoosh.downloadFIT(url))
+                let fit = try FITParser.summary(from: try await myWhoosh.downloadFIT(for: activity))
                 return RideSummary(fit: fit, id: id, name: name)
             } catch {
-                Log.error(.sync, "FIT-Datei von MyWhoosh nicht lesbar: \(type(of: error))")
+                fileAccess = false
+                Log.error(.sync, "FIT-Datei von MyWhoosh nicht ladbar/lesbar: \(type(of: error)) – nutze für diesen Import die Werte der Liste")
             }
         }
-        guard let date = activity.date, let seconds = activity.durationSeconds, seconds > 0 else { return nil }
-        return RideSummary(id: id, name: name, sportType: "VirtualRide", startDate: date, movingTime: seconds, distance: 0,
-                           averageWatts: activity.averageWatts, averageHeartrate: activity.averageHeartrate, trainer: true)
+        // Without the file: the list's own summary (duration, avg power, avg HR) – enough for TSS and Relative Effort.
+        guard let date = activity.date, let seconds = activity.durationSeconds, seconds > 0 else {
+            Log.error(.sync, "MyWhoosh-Fahrt ohne Datum/Dauer übersprungen (Datum \(activity.date != nil), Dauer \(activity.durationSeconds.map(String.init) ?? "–"))")
+            return nil
+        }
+        return RideSummary(id: id, name: name, sportType: "VirtualRide", startDate: date, movingTime: seconds,
+                           distance: activity.distanceMeters ?? 0, averageWatts: activity.averageWatts,
+                           averageHeartrate: activity.averageHeartrate, trainer: true)
     }
 
     /// Imports FIT files picked in the Files app (MyWhoosh, Zwift, Wahoo … all write FIT).
@@ -805,6 +815,7 @@ public final class AppModel {
         try? context.delete(model: StoredWorkout.self)
         try? context.save()
         calendarService.removeAppData(eventIDs: eventIDs)
+        LogFile.shared?.clear()
 
         secrets.setSecret(nil, for: .claudeAPIKey)
         secrets.setSecret(nil, for: .stravaClientSecret)

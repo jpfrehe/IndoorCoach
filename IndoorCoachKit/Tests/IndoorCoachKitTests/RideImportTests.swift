@@ -210,6 +210,56 @@ struct MyWhooshHistoryTests {
         #expect(!excerpt.contains("\n") && excerpt.count == 300 && excerpt.hasPrefix(#"{ "errors": ["x"]"#))
     }
 
+    /// Field names as MyWhoosh actually answers (device log, 17.11.2026).
+    static let realEntry = #"""
+    {"error":false,"data":[{"id":"6744a1","title":"Tempo","routeName":"Alula","sportType":"Cycling","type":"E_Ride",
+      "startDatetime":"2026-11-16T17:30:00.000Z","date":"2026-11-16","createdAt":"2026-11-16T18:35:00.000Z",
+      "rideDuration":3725,"distance":36.4,"elevation":210,"watt":214,"wattPerKg":2.9,"heartrate":148,
+      "activityFileId":"a1b2c3d4-e5f6","totalWorkout":1}]}
+    """#
+
+    @Test func readsTheRealMyWhooshFields() throws {
+        let list = try #require(MyWhooshActivity.list(from: Data(Self.realEntry.utf8)))
+        let a = try #require(list.activities.first)
+        #expect(a.id == "6744a1" && a.name == "Tempo")
+        #expect(a.date == ISO8601DateFormatter().date(from: "2026-11-16T17:30:00Z"))
+        #expect(a.durationSeconds == 3725 && a.distanceMeters == 36_400)
+        #expect(a.averageWatts == 214 && a.averageHeartrate == 148)
+        #expect(a.fileKey == "a1b2c3d4-e5f6" && a.fitURL == nil)
+        #expect(list.sample.contains("rideDuration=") && !list.sample.contains("Alula") && !list.sample.contains("Tempo"))
+        #expect(MyWhooshActivity.seconds(NSNumber(value: 62)) == 3720)          // small numbers are minutes
+        #expect(MyWhooshActivity.seconds("1:02:05") == 3725)
+    }
+
+    @Test func fileKeyGoesToRideStorageWithoutToken() async throws {
+        let transport = RoutingTransport { request in
+            request.url?.lastPathComponent.hasSuffix(".fit") == true ? (200, Data("fit".utf8)) : (403, Data())
+        }
+        let client = MyWhooshClient(store: signedIn(), transport: transport)
+        let activity = try #require(MyWhooshActivity.list(from: Data(Self.realEntry.utf8))?.activities.first)
+        #expect(try await client.downloadFIT(for: activity) == Data("fit".utf8))
+        #expect(transport.requests.map { $0.url!.absoluteString } == [
+            "https://mywhooshprod.s3.eu-west-1.amazonaws.com/ride/w-1/a1b2c3d4-e5f6",
+            "https://mywhooshprod.s3.eu-west-1.amazonaws.com/ride/w-1/a1b2c3d4-e5f6.fit"])
+        #expect(transport.requests.allSatisfy { $0.value(forHTTPHeaderField: "Authorization") == nil })
+    }
+
+    @Test func logFileKeepsLinesAcrossLaunchesAndCaps() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("log-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let file = LogFile(url: url)
+        file.append(category: "sync", level: "notice", "alt", date: .now.addingTimeInterval(-2 * 86_400))
+        file.append(category: "mywhoosh", level: "error", "neu\nzeile")
+        let again = LogFile(url: url)                                   // "next launch"
+        let lines = again.entries(since: .now.addingTimeInterval(-86_400))
+        #expect(lines.count == 1 && lines[0].contains("[mywhoosh] error: neu zeile"))
+        for _ in 0..<3_000 { again.append(category: "sync", level: "notice", String(repeating: "x", count: 300)) }
+        let size = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int ?? 0
+        #expect(size <= 512 * 1024 + 400)
+        again.clear()
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+
     @Test func logRedactionCoversTokensAndEmails() {
         let line = Redactor.scrub("Login ok für rider@example.com, token \(token())")
         #expect(!line.contains("rider@example.com") && !line.contains("eyJ"))
@@ -281,6 +331,32 @@ struct RideImportTests {
         await model.importMyWhooshRides()
         #expect(transport.requests.count == before + 2)                 // list pages only, no second FIT download
         #expect(try rides(model).count == 1)
+    }
+
+    @Test func listValuesStandInWhenTheFileIsRefused() async throws {
+        let recent = Date(timeIntervalSince1970: (Date.now.timeIntervalSince1970 - 86_400).rounded())
+        let iso = ISO8601DateFormatter().string(from: recent)
+        let transport = RoutingTransport { request in
+            guard request.url == MyWhooshClient.activitiesURL else { return (403, Data()) }
+            return (200, Data(#"{"data":[{"id":"r9","title":"Z2","startDatetime":"\#(iso)","rideDuration":3600,"watt":180,"heartrate":131,"distance":30.5,"activityFileId":"k9"}]}"#.utf8))
+        }
+        let model = model(transport, store: signedIn())
+        await model.importMyWhooshRides()
+        let ride = try #require(try rides(model).first?.summary)
+        #expect(ride.movingTime == 3600 && ride.averageWatts == 180 && ride.averageHeartrate == 131 && ride.distance == 30_500)
+        #expect(ride.startDate == recent && ride.isIndoor)
+        #expect(model.lastMyWhooshImport != nil)
+    }
+
+    @Test func windowStaysOpenWhileRidesAreUnreadable() async throws {
+        let transport = RoutingTransport { request in
+            guard request.url == MyWhooshClient.activitiesURL else { return (403, Data()) }
+            return (200, Data(#"{"data":[{"id":"x1","title":"ohne Dauer","activityFileId":"k1"}]}"#.utf8))
+        }
+        let model = model(transport, store: signedIn())
+        await model.importMyWhooshRides()
+        #expect(try rides(model).isEmpty && model.lastMyWhooshImport == nil)
+        #expect(model.banner?.isError == true)
     }
 
     @Test func sameRideFromAnotherSourceIsNotCountedTwice() throws {

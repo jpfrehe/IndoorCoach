@@ -256,7 +256,7 @@ struct ProfileView: View {
                 LabeledContent("Verbunden", value: user)
                 Toggle("Neue Pläne automatisch senden", isOn: $model.profile.autoSendToMyWhoosh)
                 Button {
-                    Task { await model.importMyWhooshRides() }
+                    Task { await model.importMyWhooshRides(full: true) }   // known rides are skipped, so the full window is cheap
                 } label: {
                     HStack {
                         Label("Fahrten aus MyWhoosh laden", systemImage: "arrow.down.circle")
