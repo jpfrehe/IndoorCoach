@@ -461,7 +461,10 @@ public final class AppModel {
         } catch {
             Log.error(.sync, "MyWhoosh-Import fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
             refreshCredentialState()
-            show(error.localizedDescription, error: true)
+            // At app start a history that MyWhoosh refuses is only logged – the user saw it once already.
+            if announce || error as? MyWhooshError != .historyUnavailable {
+                show(error.localizedDescription, error: true)
+            }
         }
     }
 

@@ -350,7 +350,10 @@ public actor MyWhooshClient {
     /// Lists the rider's past activities. Tries the request bodies community tools use, in order.
     public func activities(limit: Int = 200) async throws -> ActivityList {
         let session = try validSession()
-        let bodies: [[String: Any]] = [[:], ["limit": limit, "offset": 0], ["page": 1, "limit": limit]]
+        // Variants seen in community tools, plus ones naming the rider (a 400 without them suggests a missing id).
+        let id = session.whooshId
+        let bodies: [[String: Any]] = [[:], ["WhooshId": id], ["userId": id, "page": 1, "limit": limit],
+                                       ["limit": limit, "offset": 0], ["page": 1, "limit": limit]]
         // A refusal here does not mean the login expired (uploads may still work): keep the session.
         var attempts: [String] = []
         for body in bodies {
@@ -415,7 +418,7 @@ public actor MyWhooshClient {
         let name = label ?? "\(request.httpMethod ?? "GET") \(request.url?.host() ?? "?")/\(request.url?.pathComponents.dropFirst().prefix(3).joined(separator: "/") ?? "")"
         if !(200..<300).contains(response.statusCode) {
             let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-            Log.error(.mywhoosh, "\(name): HTTP \(response.statusCode), Meldung=\(Self.serverMessage(json) ?? "–"), \(data.count) Bytes")
+            Log.error(.mywhoosh, "\(name): HTTP \(response.statusCode), Meldung=\(Self.serverMessage(json) ?? "–"), \(data.count) Bytes, Antwort=\(Self.bodyExcerpt(data))")
         }
         switch response.statusCode {
         case 200..<300: return data
@@ -424,6 +427,14 @@ public actor MyWhooshClient {
             throw MyWhooshError.sessionExpired
         default: throw MyWhooshError.http(response.statusCode)
         }
+    }
+
+    /// Error body for the log: one line, at most 300 characters; `Log` redacts tokens, e-mails and long hex ids.
+    static func bodyExcerpt(_ data: Data) -> String {
+        guard !data.isEmpty else { return "–" }
+        let text = String(decoding: data.prefix(600), as: UTF8.self)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        return String(text.prefix(300))
     }
 
     /// Short server message for the log (MyWhoosh uses `Message` or `message`).

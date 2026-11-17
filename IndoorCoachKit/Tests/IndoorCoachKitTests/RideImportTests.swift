@@ -159,7 +159,9 @@ struct MyWhooshHistoryTests {
         let store = signedIn()
         let client = MyWhooshClient(store: store, transport: transport)
         await #expect(throws: MyWhooshError.historyUnavailable) { try await client.activities() }
-        #expect(transport.requests.count == 3 && store.session != nil)
+        #expect(transport.requests.count == 5 && store.session != nil)
+        let bodies = transport.requests.map { String(decoding: $0.httpBody ?? Data(), as: UTF8.self) }
+        #expect(bodies.contains { $0.contains(#""WhooshId":"w-1""#) })
     }
 
     @Test func loginAcceptsNumericWhooshIdAndKeepsDocumentedRefusal() async throws {
@@ -172,6 +174,25 @@ struct MyWhooshHistoryTests {
         await #expect(throws: MyWhooshError.loginFailed) {
             try await MyWhooshClient(store: MemoryMyWhooshStore(), transport: refused).login(username: "a", password: "b")
         }
+    }
+
+    @MainActor @Test func silentImportAtLaunchOnlyLogsARefusedHistory() async throws {
+        // Keep the container alive for the whole test – the context does not retain it.
+        let container = try ModelContainer(for: StoredRide.self, StoredWorkout.self,
+                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let model = AppModel(context: container.mainContext,
+                             secrets: InMemorySecretStore(), defaults: UserDefaults(suiteName: "t-\(UUID().uuidString)")!,
+                             transport: RoutingTransport { _ in (400, Data(#"{"errors":["userId required"]}"#.utf8)) },
+                             myWhooshStore: signedIn())
+        await model.importMyWhooshRides(announce: false)
+        #expect(model.banner == nil && model.isMyWhooshConnected)
+        await model.importMyWhooshRides(announce: true)
+        #expect(model.banner?.isError == true)
+    }
+
+    @Test func errorBodyExcerptIsOneShortLine() {
+        let excerpt = MyWhooshClient.bodyExcerpt(Data("{\n  \"errors\": [\"x\"],\n \"pad\": \"\(String(repeating: "y", count: 900))\"}".utf8))
+        #expect(!excerpt.contains("\n") && excerpt.count == 300 && excerpt.hasPrefix(#"{ "errors": ["x"]"#))
     }
 
     @Test func logRedactionCoversTokensAndEmails() {
