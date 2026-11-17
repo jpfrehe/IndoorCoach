@@ -121,12 +121,13 @@ class AuditCase: XCTestCase {
     }
 
     /// Workout / ride rows: SwiftUI exposes each list row as a button whose label contains "TSS".
+    /// Workout/ride rows carry "… TSS …" in their label; the metric picker's "TSS" segment alone is not a row.
     func row(_ index: Int) -> XCUIElement {
-        app.collectionViews.buttons.matching(NSPredicate(format: "label CONTAINS 'TSS'")).element(boundBy: index)
+        app.collectionViews.buttons.matching(NSPredicate(format: "label CONTAINS 'TSS' AND label != 'TSS'")).element(boundBy: index)
     }
 
     var rowCount: Int {
-        app.collectionViews.buttons.matching(NSPredicate(format: "label CONTAINS 'TSS'")).count
+        app.collectionViews.buttons.matching(NSPredicate(format: "label CONTAINS 'TSS' AND label != 'TSS'")).count
     }
 
     func scrollUntilExists(_ element: XCUIElement, maxSwipes: Int = 8) -> XCUIElement {

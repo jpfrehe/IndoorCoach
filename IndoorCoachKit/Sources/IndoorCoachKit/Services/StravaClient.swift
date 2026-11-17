@@ -109,6 +109,7 @@ public struct StravaActivityDTO: Decodable, Sendable {
     public let distance: Double
     public let average_watts: Double?
     public let weighted_average_watts: Double?
+    public let max_watts: Double?
     public let kilojoules: Double?
     public let average_heartrate: Double?
     public let max_heartrate: Double?
@@ -128,6 +129,7 @@ public struct StravaActivityDTO: Decodable, Sendable {
                             kilojoules: kilojoules, averageHeartrate: average_heartrate, maxHeartrate: max_heartrate,
                             trainer: trainer ?? false)
         r.stravaRelativeEffort = suffer_score.flatMap { $0 > 0 ? $0 : nil }
+        r.maxWatts = max_watts.flatMap { $0 > 0 ? $0 : nil }
         return r
     }
 

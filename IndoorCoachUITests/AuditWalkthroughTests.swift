@@ -217,7 +217,7 @@ final class AuditWalkthroughTests: AuditCase {
         }
         shot("metric-tss")
 
-        let ride = row(0)
+        let ride = scrollUntilExists(row(0))                       // rides sit below the "Leistung" section
         tap(ride, "Erste Fahrt")
         _ = waitFast(app.navigationBars.buttons["BackButton"], timeout: 4)
         route = "fahrt"
@@ -554,7 +554,8 @@ final class AuditWalkthroughTests: AuditCase {
         openTab("Verlauf")
         check(text(containing: "Relative Effort · diese Woche").waitForExistence(timeout: 3), "Relative-Effort-Wochenkarte im Verlauf")
         shot("effort-week")
-        tap(row(0), "Erste Fahrt")
+        // The "Leistung" section sits above the rides; the list is lazy, so scroll the first ride into existence.
+        tap(scrollUntilExists(row(0)), "Erste Fahrt")
         route = "fahrt"
         let reTitle = scrollUntilExists(text(containing: "Relative Effort"))
         check(reTitle.exists, "Relative-Effort-Karte im Fahrt-Detail")
@@ -619,6 +620,36 @@ final class AuditWalkthroughTests: AuditCase {
         check(scrollUntilExists(button(containing: "FIT-Dateien importieren")).exists, "FIT-Import auch ohne Konto")
         shot("profile-login")
         accessibilityAudit("Profil-MyWhoosh")
+    }
+
+    // MARK: Leistung – Leistungskurve, Bestleistungen, VO2max
+
+    func test19_PerformanceAndVO2max() {
+        launch()                                     // demo seed: rides carry synthetic measured curves
+        openTab("Verlauf")
+        let open = app.descendants(matching: .any)["performance.open"].firstMatch
+        check(waitFast(open), "Zeile „Leistung“ oben im Verlauf")
+        tap(open, "Leistung öffnen")
+        route = "leistung"
+        check(waitFast(app.navigationBars["Leistung"]), "Leistung-Screen öffnet")
+        check(app.descendants(matching: .any)["performance.curve"].firstMatch.waitForExistence(timeout: 5), "Leistungskurve sichtbar")
+        let best5min = app.descendants(matching: .any)["performance.best.300"].firstMatch
+        check(scrollUntilExists(best5min).exists, "Bestleistung 5 min in der Liste")
+        check(app.descendants(matching: .any)["performance.best.1200"].firstMatch.exists, "Bestleistung 20 min in der Liste")
+        shot("kurve")
+        tap(app.buttons["6 Wochen"], "Zeitraum 6 Wochen")
+        check(app.buttons["6 Wochen"].isSelected, "6 Wochen gewählt")
+        check(scrollUntilExists(app.descendants(matching: .any)["vo2max.card"].firstMatch).exists, "VO₂max-Karte in Leistung")
+        check(text(containing: "Schätzung, kein Labortest").exists, "Hinweis „kein Labortest“")
+        shot("vo2max")
+        accessibilityAudit("Leistung")
+        back()
+
+        openTab("Heute")
+        route = "heute"
+        let card = app.descendants(matching: .any)["vo2max.card"].firstMatch
+        check(scrollUntilExists(card).exists, "VO₂max-Karte auf Heute")
+        shot("heute-vo2max")
     }
 
     // MARK: B01 – Onboarding beim ersten Start

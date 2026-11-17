@@ -63,6 +63,10 @@ struct TodayDashboard: View {
             }
             if let week = weeks.last { weekCard(week) }
             volumeCard(weeks)
+            if !rides.isEmpty {
+                NavigationLink { PerformanceView() } label: { VO2maxCard(rides: rides) }
+                    .buttonStyle(.plain)
+            }
         }
     }
 

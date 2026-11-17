@@ -20,6 +20,10 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
     public var preferPerceivedExertion = false
     /// Strava's own Relative Effort (`suffer_score`) when the API provides it.
     public var stravaRelativeEffort: Double? = nil
+    /// Highest power of the ride (Strava `max_watts` or the FIT file).
+    public var maxWatts: Double? = nil
+    /// Measured mean-maximal power per standard duration (only rides with 1 Hz data, see `PowerCurve`).
+    public var powerCurve: [Int: Double]? = nil
 
     public init(id: Int, name: String, sportType: String, startDate: Date, movingTime: Int, distance: Double,
                 averageWatts: Double? = nil, weightedAverageWatts: Double? = nil, kilojoules: Double? = nil,
@@ -49,6 +53,8 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
                   distance: fit.distance, averageWatts: fit.averageWatts, weightedAverageWatts: fit.normalizedPower,
                   kilojoules: fit.kilojoules, averageHeartrate: fit.averageHeartrate, maxHeartrate: fit.maxHeartrate,
                   trainer: true)
+        maxWatts = fit.maxWatts
+        powerCurve = fit.powerCurve
     }
 }
 
