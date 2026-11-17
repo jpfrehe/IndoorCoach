@@ -630,15 +630,9 @@ public final class AppModel {
         let startCTL = points.last(where: { $0.date <= start })?.fitness ?? points.first?.fitness ?? 0
         let current = points.last?.fitness ?? 0
         let best = points.filter { $0.date >= start }.map(\.fitness).max() ?? current
-        // Completed full weeks since the start: drop the running week and a partial first week.
-        var weeks = TrainingLoad.weeks(rides: rides.filter { $0.startDate >= start }, ftp: profile.ftp,
-                                       from: start, to: now, calendar: calendar)
-        if !weeks.isEmpty { weeks.removeLast() }
-        if let first = weeks.first, first.weekStart < start { weeks.removeFirst() }
         return WinterArc.status(start: start, goal: goal, today: now, startCTL: startCTL, currentCTL: current,
                                 bestCTLSinceStart: best, targetCTL: profile.targetCTL,
-                                weeklyHours: weeks.map { Double($0.seconds) / 3600 }, weeklyBudgetHours: profile.weeklyHours,
-                                calendar: calendar)
+                                consistency: consistency(rides: rides, now: now), calendar: calendar)
     }
 
     /// Saves the athlete's Perceived Exertion for a ride (local only; a Strava sync never overwrites it).

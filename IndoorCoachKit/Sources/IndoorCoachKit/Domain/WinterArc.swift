@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Progress is measured as fitness (CTL) gained towards a target. Ten levels; the shown level is the best one
 /// reached since the start, so a sick week never takes a level away. A linear pace line tells whether the
-/// athlete is ahead of, on, or behind course; a streak counts weeks with ≥ 80 % of the weekly time budget.
+/// athlete is ahead of, on, or behind course; the streak (with jokers) follows the `Consistency` rules.
 public enum WinterArc {
     public struct Level: Equatable, Sendable {
         public var number: Int
@@ -55,7 +55,10 @@ public enum WinterArc {
         public var level: Level
         /// 0…1 towards the next level (1 at the last level).
         public var levelProgress: Double
+        /// Weeks in a row incl. joker weeks (see `Consistency`).
         public var streakWeeks: Int
+        /// Saved jokers (0…2).
+        public var jokers: Int
 
         public var isFinished: Bool { daysLeft == 0 }
     }
@@ -76,8 +79,8 @@ public enum WinterArc {
     }
 
     public static func status(start: Date, goal: Date, today: Date, startCTL: Double, currentCTL: Double,
-                              bestCTLSinceStart: Double, targetCTL: Double?, weeklyHours: [Double],
-                              weeklyBudgetHours: Double, calendar: Calendar = .current) -> Status {
+                              bestCTLSinceStart: Double, targetCTL: Double?, consistency: Consistency.Result = .empty,
+                              calendar: Calendar = .current) -> Status {
         let s = calendar.startOfDay(for: start), g = calendar.startOfDay(for: goal), t = calendar.startOfDay(for: today)
         let total = max(1, calendar.dateComponents([.day], from: s, to: g).day ?? 1)
         let elapsed = min(total, max(0, calendar.dateComponents([.day], from: s, to: t).day ?? 0))
@@ -89,14 +92,9 @@ public enum WinterArc {
         let raw = progress * Double(levels.count)
         let index = min(levels.count - 1, Int(raw))
         let levelProgress = index == levels.count - 1 ? 1 : raw - Double(index)
-        let threshold = weeklyBudgetHours * 0.8
-        var streak = 0
-        for hours in weeklyHours.reversed() {
-            guard hours >= threshold, threshold > 0 else { break }
-            streak += 1
-        }
         return Status(start: s, goal: g, daysTotal: total, daysLeft: total - elapsed, seasonFraction: fraction,
                       startCTL: startCTL, targetCTL: target, currentCTL: currentCTL, paceCTL: paceCTL, pace: pace,
-                      progress: progress, level: levels[index], levelProgress: levelProgress, streakWeeks: streak)
+                      progress: progress, level: levels[index], levelProgress: levelProgress, streakWeeks: consistency.streak,
+                      jokers: consistency.jokers)
     }
 }

@@ -785,6 +785,34 @@ final class AuditMatrixTests: AuditCase {
             app.terminate()
         }
     }
+
+    // MARK: Konstanz-Serie mit Joker + Plan-Treue (K1)
+
+    func test20_ConsistencyStreak() {
+        launch()
+        route = "heute"
+        let arcCard = button(containing: "Winter Arc")
+        check(scrollUntilExists(arcCard, maxSwipes: 3).exists, "Winter-Arc-Karte auf Heute")
+        tap(arcCard, "Winter-Arc-Karte")
+        route = "winterarc"
+        check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
+        let card = app.descendants(matching: .any)["consistency.card"].firstMatch
+        check(scrollUntilExists(card).exists || card.exists, "Karte „Konstanz“ im Winter-Arc-Detail")
+        check(text(containing: "Konstanz").exists, "Titel „Konstanz“ sichtbar")
+        check(text(containing: "Joker").exists, "Joker-Erklärung/Legende sichtbar")
+        shot("konstanz-karte")
+        accessibilityAudit("Konstanz")
+        back()
+
+        openTab("Plan")
+        route = "plan"
+        let adherence = app.descendants(matching: .any)["plan.adherence"].firstMatch
+        check(scrollUntilExists(adherence, maxSwipes: 4).exists, "Plan-Kopf zeigt Plan-Treue („x von y Einheiten · z % TSS“)")
+        shot("plan-treue")
+    }
+
+
+    // ---
 }
 
 /// Phase 4 performance budget equivalent: cold launch and tab-switch latency.
