@@ -103,6 +103,7 @@ struct MyWhooshClientTests {
         #expect(req.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
         let body = try JSONSerialization.jsonObject(with: req.httpBody!) as! [String: Any]
         #expect(body["UserId"] as? String == "w-42")
+        #expect(body["SportsModeType"] as? Int == 0)                        // 0 = cycling, required by MyWhoosh
         #expect((body["WorkoutsData"] as? [[String: Any]])?.first?["Id"] as? Int == 1001)                 // a JSON number, not a string
     }
 

@@ -485,6 +485,9 @@ public actor MyWhooshClient {
 
     private struct UploadBody: Encodable {
         let UserId: String
+        /// Required at the top level (device log, Nov 2026: "SportsModeType must be one of 0, 1, 2, 3").
+        /// 0 = cycling – the events API pairs `SportsMode=E_Cycling` with `SportsModeType: [0]`.
+        var SportsModeType = 0
         let WorkoutsData: [MyWhooshWorkout]
     }
 
