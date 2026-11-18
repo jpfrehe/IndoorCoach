@@ -24,6 +24,11 @@ struct DeleteAllDataTests {
         defaults.set(true, forKey: AppModel.Keys.ridesImported)
         defaults.set(Date.now, forKey: AppModel.Keys.myWhooshLastImport)
         defaults.set(["2026-11-16"], forKey: AppModel.Keys.weeklyReviewDismissed)
+        secrets.setSecret("c2VjcmV0", for: .bridgeSecret)
+        defaults.set("Lenas MacBook Air", forKey: AppModel.Keys.bridgeMacName)
+        defaults.set(Date.now, forKey: AppModel.Keys.bridgeLastSync)
+        defaults.set(["fit-1"], forKey: AppModel.Keys.bridgeKnownIDs)
+        model.bridge.load(defaults: defaults)
         model.onboardingStep = 2
         model.setClaudeAPIKey("placeholder-claude-key")
         model.setStravaClientSecret("client-secret")
@@ -41,6 +46,8 @@ struct DeleteAllDataTests {
         #expect(try context.fetchCount(FetchDescriptor<StoredWorkout>()) == 0)
         #expect(secrets.secret(.claudeAPIKey) == nil)
         #expect(secrets.secret(.stravaClientSecret) == nil)
+        #expect(secrets.secret(.bridgeSecret) == nil)
+        #expect(model.bridgeMacName == nil && model.lastBridgeSync == nil && !model.isBridgePaired)
         #expect(secrets.loadTokens() == nil)
         for key in AppModel.Keys.all { #expect(defaults.object(forKey: key) == nil, "\(key) still set") }
         #expect(defaults.persistentDomain(forName: suite)?.isEmpty ?? true)

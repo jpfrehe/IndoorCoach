@@ -76,6 +76,8 @@ public final class AppModel {
     /// Not observed: filled lazily from view bodies, must not trigger re-renders.
     @ObservationIgnored private var seriesCache: (key: Int, series: FitnessFreshness.Series)?
     public private(set) var proposalSource: WorkoutSource = .demo
+    /// IndoorCoach Brücke state (pairing, last sync, transport) – see AppModel+Bridge.swift. ANCHOR-BRIDGE
+    public let bridge = BridgeState()
 
     public let context: ModelContext
     let secrets: SecretStore
@@ -102,9 +104,13 @@ public final class AppModel {
         static let weeklyReviewDismissed = "weeklyReview.dismissed.v1"
         /// Current step of the 5-step onboarding (resume after relaunch).
         static let onboardingStep = "onboarding.step.v2"
+        /// IndoorCoach Brücke: name of the paired Mac, last successful pickup, ids of rides already received.
+        static let bridgeMacName = "bridge.macName.v1"
+        static let bridgeLastSync = "bridge.lastSync.v1"
+        static let bridgeKnownIDs = "bridge.knownIDs.v1"
         /// Everything "Alle Daten löschen" removes – add every new persisted key here.
         static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport,
-                          weeklyReviewDismissed, onboardingStep]
+                          weeklyReviewDismissed, onboardingStep, bridgeMacName, bridgeLastSync, bridgeKnownIDs]
     }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
@@ -127,6 +133,7 @@ public final class AppModel {
         lastSync = defaults.object(forKey: Keys.lastSync) as? Date
         hasImportedRides = defaults.bool(forKey: Keys.ridesImported)
         lastMyWhooshImport = defaults.object(forKey: Keys.myWhooshLastImport) as? Date
+        bridge.load(defaults: defaults)
         refreshCredentialState()
         needsOnboarding = Self.resolveOnboarding(defaults: defaults, isExistingInstall: isExistingInstall)
         #if DEBUG
@@ -532,7 +539,8 @@ public final class AppModel {
                            averageHeartrate: activity.averageHeartrate, trainer: true)
     }
 
-    /// Imports FIT files picked in the Files app (MyWhoosh, Zwift, Wahoo … all write FIT).
+    /// Imports FIT files picked in the Files app or opened via "Öffnen in IndoorCoach" (MyWhoosh, Zwift, Wahoo …).
+    /// A file for a ride that is already stored (Strava, MyWhoosh list) adds its seconds data to that ride.
     public func importFITFiles(_ urls: [URL]) {
         var rides: [RideSummary] = []
         var failed = 0
@@ -544,36 +552,79 @@ public final class AppModel {
             rides.append(RideSummary(fit: fit, id: Self.importedRideID("fit:\(Int(fit.startDate.timeIntervalSince1970))"),
                                      name: name.isEmpty ? "Indoor-Fahrt" : name))
         }
-        let inserted = storeImportedRides(rides)
-        Log.notice(.sync, "FIT-Import: \(urls.count) Dateien, \(inserted) neu, \(failed) nicht lesbar")
-        switch (inserted, failed) {
-        case (0, 0): show("Diese Fahrten sind schon in der App.", error: false)
-        case (_, 0): show("\(inserted) \(inserted == 1 ? "Fahrt" : "Fahrten") importiert.", error: false)
-        case (0, _): show("Die Datei ist keine lesbare FIT-Aktivität.", error: true)
-        default: show("\(inserted) importiert, \(failed) nicht lesbar.", error: true)
+        let result = mergeImportedRides(rides)
+        Log.notice(.sync, "FIT-Import: \(urls.count) Dateien, \(result.inserted) neu, \(result.enriched) ergänzt, \(failed) nicht lesbar")
+        show(Self.fitImportMessage(result, failed: failed), error: failed > 0)
+    }
+
+    static func fitImportMessage(_ result: ImportResult, failed: Int) -> String {
+        func rides(_ n: Int) -> String { n == 1 ? "Fahrt" : "Fahrten" }
+        switch (result.inserted, result.enriched, failed) {
+        case (0, 0, 0): return "Diese Fahrten sind schon in der App."
+        case (let n, 0, 0): return "\(n) \(rides(n)) importiert."
+        case (0, let e, 0): return "\(e) \(rides(e)) mit Sekundendaten ergänzt."
+        case (0, 0, _): return "Die Datei ist keine lesbare FIT-Aktivität."
+        default:
+            var parts: [String] = []
+            if result.inserted > 0 { parts.append("\(result.inserted) importiert") }
+            if result.enriched > 0 { parts.append("\(result.enriched) ergänzt") }
+            if failed > 0 { parts.append("\(failed) nicht lesbar") }
+            return parts.joined(separator: ", ") + "."
         }
     }
 
-    /// Inserts new rides, skipping ones already present – same id, or any ride starting within 5 minutes
-    /// (the same ride via Strava, the MyWhoosh list or a FIT file). Real rides end demo mode. Returns the count.
+    /// Outcome of an import: new rides, existing rides that received seconds data, rides skipped as duplicates.
+    struct ImportResult: Equatable {
+        var inserted = 0
+        var enriched = 0
+        var skipped = 0
+        /// The newest ride that was inserted (for the "Neue Fahrt vom Mac" banner).
+        var lastInserted: RideSummary?
+    }
+
+    /// Inserts new rides; a ride that already exists (same id, or a start within 5 minutes – the same ride via Strava,
+    /// the MyWhoosh list or a FIT file) is enriched with the incoming seconds data when it has none yet (see
+    /// `RideMerge`), otherwise skipped. Real rides end demo mode.
     @discardableResult
-    func storeImportedRides(_ rides: [RideSummary]) -> Int {
-        guard !rides.isEmpty else { return 0 }
+    func mergeImportedRides(_ rides: [RideSummary]) -> ImportResult {
+        var result = ImportResult()
+        guard !rides.isEmpty else { return result }
         if (try? context.fetchCount(FetchDescriptor<StoredRide>(predicate: #Predicate { $0.isDemo }))) ?? 0 > 0 {
             deleteDemoData()
         }
-        var starts = ((try? context.fetch(FetchDescriptor<StoredRide>())) ?? []).map(\.startDate)
-        var inserted = 0
-        for ride in rides where !starts.contains(where: { abs($0.timeIntervalSince(ride.startDate)) < 300 }) {
-            context.insert(StoredRide(ride))
-            starts.append(ride.startDate)
-            inserted += 1
+        let stored = (try? context.fetch(FetchDescriptor<StoredRide>())) ?? []
+        var byID = Dictionary(stored.map { ($0.stravaID, $0) }, uniquingKeysWith: { first, _ in first })
+        var working = stored.map(\.summary)
+        for ride in rides {
+            switch RideMerge.decide(ride, existing: working) {
+            case .insert:
+                let row = StoredRide(ride)
+                context.insert(row)
+                byID[ride.id] = row
+                working.append(ride)
+                result.inserted += 1
+                if result.lastInserted.map({ $0.startDate < ride.startDate }) ?? true { result.lastInserted = ride }
+            case .enrich(let id):
+                guard let index = working.firstIndex(where: { $0.id == id }) else { result.skipped += 1; continue }
+                let merged = RideMerge.enriched(working[index], with: ride)
+                working[index] = merged
+                byID[id]?.update(from: merged)
+                result.enriched += 1
+            case .alreadyComplete, .duplicate:
+                result.skipped += 1
+            }
         }
         linkCompletedWorkouts()
         try? context.save()
         hasImportedRides = true
         defaults.set(true, forKey: Keys.ridesImported)
-        return inserted
+        return result
+    }
+
+    /// Inserts new rides, skipping ones already present (see `mergeImportedRides`). Returns the number inserted.
+    @discardableResult
+    func storeImportedRides(_ rides: [RideSummary]) -> Int {
+        mergeImportedRides(rides).inserted
     }
 
     /// Marks past planned workouts as done when a ride exists on the same day.
@@ -858,6 +909,8 @@ public final class AppModel {
         secrets.tokenStore.saveTokens(nil)
         myWhooshStore.saveSession(nil)
         UserDefaults.standard.removeObject(forKey: "mywhoosh.deviceId")
+        secrets.setSecret(nil, for: .bridgeSecret)
+        bridge.reset()
 
         // In-memory state first: the property observers would write the defaults back.
         profile = AthleteProfile()
