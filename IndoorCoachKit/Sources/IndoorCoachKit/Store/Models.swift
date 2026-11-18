@@ -138,6 +138,9 @@ public final class StoredWorkout {
     public var myWhooshWorkoutID: String?
     public var myWhooshTaskID: String?
     public var myWhooshSentAt: Date?
+    // "Einheit anpassen" – optional for lightweight migration. The original segments are kept once, so the change can be undone.
+    public var originalSegmentsData: Data?
+    public var adjustmentNote: String?
 
     public init(proposal: PlannedWorkoutProposal, source: WorkoutSource, weekFocus: String?) {
         id = UUID()
@@ -164,6 +167,12 @@ public final class StoredWorkout {
 
     public var definition: WorkoutDefinition {
         let segments = (try? JSONDecoder().decode([Segment].self, from: segmentsData)) ?? []
+        return WorkoutDefinition(title: title, type: type, summary: summary, segments: segments)
+    }
+
+    /// The workout as originally planned (before "Anpassen"), nil if it was never adjusted.
+    public var originalDefinition: WorkoutDefinition? {
+        guard let originalSegmentsData, let segments = try? JSONDecoder().decode([Segment].self, from: originalSegmentsData) else { return nil }
         return WorkoutDefinition(title: title, type: type, summary: summary, segments: segments)
     }
 

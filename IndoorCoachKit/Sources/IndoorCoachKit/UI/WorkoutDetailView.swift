@@ -66,6 +66,7 @@ struct WorkoutDetailContent: View {
     var zwoURL: URL?
     var onCalendar: () -> Void
     @Environment(AppModel.self) private var model
+    @State private var showAdjust = false
 
     var body: some View {
         let d = workout.definition
@@ -108,6 +109,12 @@ struct WorkoutDetailContent: View {
                     }
                 }
             }
+
+            if workout.status == .planned {
+                AdjustSection(workout: workout) { showAdjust = true }
+            }
+
+            // ANCHOR-SECONDS: IntervalComplianceCard (done workouts with a linked ride, shown after profile/summary)
 
             Card(title: "Zeit in Zonen", systemImage: "square.stack.3d.up") {
                 ZoneDistributionBar(definition: d)
@@ -183,5 +190,152 @@ struct WorkoutDetailContent: View {
                 .font(.subheadline)
             }
         }
+        .sheet(isPresented: $showAdjust) { AdjustSheet(workout: workout) }
+    }
+}
+
+// MARK: - Einheit anpassen
+
+/// Button plus, after an adjustment, the note "Angepasst · vorher 75 min" with a restore button.
+private struct AdjustSection: View {
+    var workout: StoredWorkout
+    var onAdjust: () -> Void
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let original = workout.originalDefinition {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Angepasst · vorher \(WorkoutAdjust.minutes(original.totalDuration)) min", systemImage: "slider.horizontal.3")
+                        .font(.subheadline.weight(.semibold))
+                        .accessibilityIdentifier("workout.adjust.note")
+                    if let note = workout.adjustmentNote {
+                        Text(note).font(.caption).foregroundStyle(Theme.rowSecondary)
+                    }
+                    Button { Task { await model.restoreOriginal(workout) } } label: {
+                        Text("Original wiederherstellen").multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    }
+                        .buttonStyle(.soft)
+                        .accessibilityIdentifier("workout.adjust.restore")
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .accessibilityElement(children: .contain)
+            }
+            Button(action: onAdjust) {
+                Label("Anpassen", systemImage: "slider.horizontal.3").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.soft)
+            .accessibilityHint("Einheit kürzer oder leichter machen")
+            .accessibilityIdentifier("workout.adjust")
+        }
+    }
+}
+
+private struct AdjustSheet: View {
+    var workout: StoredWorkout
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var minutes: Int?
+    @State private var easier = 0
+
+    private var base: WorkoutDefinition { workout.originalDefinition ?? workout.definition }
+    private var options: [Int] { WorkoutAdjust.shortenOptions(for: base) }
+    private var result: WorkoutAdjustment? { WorkoutAdjust.apply(to: base, minutes: minutes, easierBy: easier) }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Card(title: "Dauer", systemImage: "clock") {
+                        choice("Unverändert (\(WorkoutAdjust.minutes(base.totalDuration)) min)", selected: minutes == nil, id: "adjust.minutes.0") { minutes = nil }
+                        ForEach(options, id: \.self) { m in
+                            choice("\(m) min", selected: minutes == m, id: "adjust.minutes.\(m)") { minutes = m }
+                        }
+                        if options.isEmpty {
+                            Text("Die Einheit ist schon kurz – kürzer geht hier nicht.").font(.caption).foregroundStyle(Theme.rowSecondary)
+                        }
+                    }
+                    Card(title: "Intensität", systemImage: "gauge.with.dots.needle.33percent") {
+                        choice("Normal", selected: easier == 0, id: "adjust.easier.0") { easier = 0 }
+                        choice("−5 %", selected: easier == 5, id: "adjust.easier.5") { easier = 5 }
+                        choice("−10 %", selected: easier == 10, id: "adjust.easier.10") { easier = 10 }
+                    }
+                    preview
+                    VStack(spacing: 10) {
+                        Button { apply() } label: { Text("Übernehmen").frame(maxWidth: .infinity) }
+                            .buttonStyle(.jelly)
+                            .disabled(result == nil)
+                            .accessibilityIdentifier("workout.adjust.apply")
+                        Button { dismiss() } label: { Text("Abbrechen").frame(maxWidth: .infinity) }
+                            .buttonStyle(.soft)
+                            .accessibilityIdentifier("workout.adjust.cancel")
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 24)
+                .animation(reduceMotion ? nil : .default, value: minutes)
+                .animation(reduceMotion ? nil : .default, value: easier)
+            }
+            .background(Theme.canvas)
+            .navigationTitle("Einheit anpassen")
+            .inlineNavigationTitle()
+        }
+        .presentationDetents([.large])
+        .onAppear {
+            // Start from the current adjustment so it can be tweaked.
+            if let note = workout.adjustmentNote {
+                if note.contains("−10 %") { easier = 10 } else if note.contains("−5 %") { easier = 5 }
+                let current = WorkoutAdjust.minutes(workout.definition.totalDuration)
+                if options.contains(current) { minutes = current }
+            }
+        }
+    }
+
+    private var preview: some View {
+        let ftp = model.profile.ftp
+        let shown = result?.definition ?? base
+        return Card(title: "Vorschau", systemImage: "eye") {
+            PowerProfileChart(definition: shown, ftp: ftp, showAxes: false, height: 110)
+                .accessibilityHidden(true)
+            let before = "\(WorkoutAdjust.minutes(base.totalDuration)) min"
+            let after = "\(WorkoutAdjust.minutes(shown.totalDuration)) min"
+            let tssBefore = Int(base.estimatedTSS.rounded()), tssAfter = Int(shown.estimatedTSS.rounded())
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Dauer: \(before) → \(after)").font(.subheadline.weight(.semibold))
+                Text("TSS: \(tssBefore) → \(tssAfter)").font(.subheadline.weight(.semibold))
+                if let result, !result.isExact {
+                    Text("So kurz geht es hier nicht genau – das ist der nächste sinnvolle Wert.")
+                        .font(.caption).foregroundStyle(Theme.rowSecondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("workout.adjust.preview")
+        }
+    }
+
+    private func choice(_ title: String, selected: Bool, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title).font(.body)
+                Spacer(minLength: 8)
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selected ? Theme.accent : Color.secondary)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier(id)
+    }
+
+    private func apply() {
+        let target = workout
+        let (m, e) = (minutes, easier)
+        dismiss()
+        Task { await model.adjust(target, minutes: m, easierBy: e == 0 ? nil : e) }
     }
 }
