@@ -18,11 +18,12 @@
 IndoorCoach plant deine Indoor-Woche mit Claude, schickt die Einheiten direkt an MyWhoosh und in deinen Kalender – und zeigt dir ehrlich, ob du auf Kurs bist, um im Frühling in Form zu sein.
 
 Im Winter sinkt das Radvolumen bei vielen um ein Drittel. IndoorCoach setzt genau da an:
-- **Konstanz statt Tagesstreaks:** Wochen-Serie mit Joker, Ruhewochen zählen als Erfolg.
-- **Fortschritt sichtbar machen:** Leistungskurve, VO₂max, Fähigkeitslevel und Fitness-Prognose zeigen, dass die Arbeit ankommt.
+- **Konstanz statt Tagesstreaks:** Wochen-Serie mit Joker, Ruhewochen zählen als Erfolg. Wenig Zeit heute? Die Einheit mit zwei Tipps auf 45 min kürzen statt ausfallen lassen.
+- **Fortschritt sichtbar machen:** Leistungskurve, VO₂max, Fähigkeitslevel und Fitness-Prognose zeigen, dass die Arbeit ankommt. Nach jeder Fahrt siehst du, ob du deine Intervalle getroffen hast.
 - **Ein Grund für die nächste Einheit:** Winter Arc mit 10 Leveln, Alpenüberquerung als Etappenreise, Challenges und Trophäen.
+- **Jede MyWhoosh-Fahrt sekundengenau, ohne Handgriff:** Die kleine Mac-App „IndoorCoach Brücke“ holt die Daten aus MyWhoosh und bringt sie im WLAN aufs iPhone.
 
-Alles läuft auf dem iPhone. Es gibt kein Backend und kein Konto bei IndoorCoach; Schlüssel und Sitzungen liegen im iOS-Schlüsselbund.
+Alles läuft auf deinen Geräten: auf dem iPhone und auf Wunsch zusätzlich auf dem Mac. Es gibt kein Backend und kein Konto bei IndoorCoach; Schlüssel und Sitzungen liegen im Schlüsselbund. Die Brücke überträgt Fahrten nur im eigenen WLAN, und an Claude gehen nur zusammengefasste Trainingsdaten, wenn du planst.
 
 **In zwei Minuten startklar:** Das Onboarding fragt Training und Trainingstage ab, verbindet MyWhoosh und prüft deinen Claude-API-Key direkt beim Einrichten. Danach zeigt eine kurze animierte Tour, was die App kann. Alles ist überspringbar – ohne Verbindung startet die App mit Demo-Daten.
 
@@ -32,9 +33,15 @@ Alles läuft auf dem iPhone. Es gibt kein Backend und kein Konto bei IndoorCoach
 
 Claude kennt deine Form (CTL/ATL/TSB), dein Ziel, deine Trainingstage und dein Wochenbudget. Er schlägt strukturierte Einheiten mit Begründung vor; du übernimmst sie mit einem Tipp in Kalender und MyWhoosh. Als Rückfallweg gibt es den Export als `.zwo` für Zwift und andere Apps.
 
+**Einheit anpassen, wenn der Tag anders läuft:** Eine geplante Einheit lässt sich auf 30, 45 oder 60 min kürzen und/oder um 5 bzw. 10 % leichter machen. Die Vorschau zeigt vorher Dauer und TSS. Warm-up und Cool-down bleiben, gekürzt werden zuerst die Füllblöcke. Kalender und MyWhoosh ziehen automatisch nach, „Original wiederherstellen“ macht es rückgängig.
+
 | Wochenplan | Einheit im Detail | Vorschlag des Coachs |
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/07-plan.png" width="260" alt="Wochenplan mit Sweet Spot, Grundlage und VO2max"> | <img src="docs/screenshots/08-einheit.png" width="260" alt="Workout-Profil VO2max 5x4 mit Zonen"> | <img src="docs/screenshots/09-vorschlag.png" width="260" alt="Planvorschlag mit Fokus und Begründung"> |
+
+| Einheit anpassen |
+|:---:|
+| <img src="docs/screenshots/14-anpassen.png" width="260" alt="Einheit anpassen: 45 statt 69 Minuten, 5 Prozent leichter, Vorschau mit TSS 72 auf 43"> |
 
 ## Winter Arc: Motivation, die das Richtige belohnt
 
@@ -56,12 +63,32 @@ Vom 1. November bis zum Frühlingsziel wächst deine Fitness Level für Level �
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/05-leistung.png" width="260" alt="Leistungskurve 5 s bis 60 min mit Bestleistungen"> | <img src="docs/screenshots/06-vo2max.png" width="260" alt="VO2max-Schätzung und Effizienz-Trend"> | <img src="docs/screenshots/11-faehigkeiten-dark.png" width="260" alt="eFTP-Verlauf und Fähigkeitslevel im Dark Mode"> |
 
+| Soll/Ist je Intervall | Zeit in Zonen |
+|:---:|:---:|
+| <img src="docs/screenshots/13-soll-ist.png" width="260" alt="Soll/Ist: 2 von 2 Intervallen getroffen, Durchschnitt 98 Prozent, Diagramm Soll gegen Ist"> | <img src="docs/screenshots/12-zonen.png" width="260" alt="Zeit in Zonen einer Fahrt, umschaltbar zwischen Leistung und Puls"> |
+
+- **Soll/Ist je Intervall:** IndoorCoach legt den Plan auf deine Sekundendaten und zeigt je Intervall Soll- und Ist-Watt, also „2 von 2 Intervallen getroffen · Ø 98 %“, oder wo du zu leicht oder zu hart warst.
+- **Zeit in Zonen** je Fahrt, nach Leistung oder Puls
 - **Leistungskurve und Bestleistungen** von 5 s bis 60 min, mit Vorperiode und PR-Trophäen
 - **VO₂max** aus der 5-min-Leistung (ACSM), sonst aus FTP oder Puls
-- **Fitness & Freshness** (CTL, ATL, Form) und **Relative Effort** je Fahrt und Woche
-- **eFTP-Verlauf**, **Trainingsverteilung** (Grundlage, Sweet Spot, Schwelle+), **Ermüdungsresistenz**
+- **Fitness & Freshness** (CTL, ATL, Form) und **Relative Effort** je Fahrt und Woche, mit Sekundendaten Sekunde für Sekunde aus dem Puls berechnet
+- **eFTP-Verlauf**, **Trainingsverteilung** (Grundlage, Sweet Spot, Schwelle+) aus der gemessenen Zeit je Band, **Ermüdungsresistenz**
 - **Aerobe Effizienz:** „Gleiche Watt, weniger Puls“ macht Grundlagenarbeit sichtbar
 - **Wochenrückblick** am Sonntag mit Plan gegen Ist
+
+## Sekundendaten vom Mac: IndoorCoach Brücke
+
+MyWhoosh liefert über seine Schnittstelle nur Durchschnittswerte. Die FIT-Datei mit jeder Sekunde liegt aber auf dem Mac, auf dem du fährst. Die Menüleisten-App **IndoorCoach Brücke** bringt sie aufs iPhone:
+
+1. Brücke auf dem Mac öffnen und den MyWhoosh-Ordner einmal freigeben.
+2. Auf dem iPhone den Mac antippen und den 6-stelligen Code eingeben.
+3. Fertig. Nach jeder Fahrt holt sich das iPhone die neuen Daten beim Öffnen der App. Fahrten, die schon aus MyWhoosh da sind, werden um die Sekundendaten ergänzt statt doppelt angelegt.
+
+| Einrichten | Gekoppelt |
+|:---:|:---:|
+| <img src="docs/screenshots/15-bruecke-einrichten.png" width="260" alt="Mac-Brücke einrichten: drei Schritte und gefundener Mac"> | <img src="docs/screenshots/16-bruecke-gekoppelt.png" width="260" alt="Gekoppelt mit dem Mac, Fahrten mit Sekundendaten, Jetzt abholen"> |
+
+Die Übertragung läuft verschlüsselt (TLS mit gemeinsamem Schlüssel aus der Kopplung) und nur im eigenen WLAN, ohne Cloud. Ohne Mac geht es auch: `.fit`-Dateien von MyWhoosh, Zwift, Wahoo oder Garmin per „Öffnen in IndoorCoach“. Hintergrund und Alternativen: [Konzept](docs/14-SEKUNDENDATEN-MAC-BRUECKE.md).
 
 ## Tag und Nacht
 
@@ -101,7 +128,7 @@ git clone https://github.com/jpfrehe/IndoorCoach.git
 open IndoorCoach/IndoorCoach.xcodeproj
 ```
 
-Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im Simulator starten. Die ausführliche Anleitung mit Strava, Claude und MyWhoosh steht in [docs/03-INSTALLATION.md](docs/03-INSTALLATION.md).
+Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im Simulator starten. Für die Mac-Brücke das Scheme **IndoorCoachBridge** auf *My Mac* starten. Die ausführliche Anleitung mit Strava, Claude, MyWhoosh und Brücke steht in [docs/03-INSTALLATION.md](docs/03-INSTALLATION.md).
 
 **Tests:**
 
@@ -109,15 +136,16 @@ Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im
 cd IndoorCoach/IndoorCoachKit && swift test
 ```
 
-Dazu kommen 43 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift).
+Dazu kommen 43 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
 
-**CI/CD:** GitHub Actions baut und testet jeden Push ([ci.yml](.github/workflows/ci.yml)). Ein Tag `v1.2.3` startet [release.yml](.github/workflows/release.yml): Archiv, Signierung per App-Store-Connect-API-Key, Upload zu TestFlight. Einrichtung in [docs/13-APP-STORE-RELEASE.md](docs/13-APP-STORE-RELEASE.md).
+**CI/CD:** GitHub Actions baut iPhone-App und Mac-Brücke und testet jeden Push ([ci.yml](.github/workflows/ci.yml)). Ein Tag `v1.2.3` startet [release.yml](.github/workflows/release.yml): Archiv, Signierung per App-Store-Connect-API-Key, Upload zu TestFlight. Einrichtung in [docs/13-APP-STORE-RELEASE.md](docs/13-APP-STORE-RELEASE.md).
 
 ## Datenschutz & Secrets
 
 - Claude-API-Key, Strava-Tokens und die MyWhoosh-Sitzung liegen nur im iOS-Schlüsselbund, nie im Code oder in Dateien.
 - Das MyWhoosh-Passwort wird nicht gespeichert.
-- Das Diagnose-Log schwärzt Tokens und E-Mail-Adressen.
+- Mac-Brücke: nur gekoppelte iPhones bekommen Fahrten, nur im lokalen Netz und nur verschlüsselt. Das Geheimnis wird bei der Kopplung zusätzlich mit Einmalschlüsseln geschützt, und nach 10 falschen Codes schließt das Kopplungsfenster.
+- Das Diagnose-Log schwärzt Tokens, E-Mail-Adressen und den Namen deines Macs.
 - Keys, Signing-Zertifikate und Provisioning-Profile gehören nicht ins Repository. Lokale Overrides liegen in `Config/Local.xcconfig` (per `.gitignore` ausgeschlossen); die eigene `DEVELOPMENT_TEAM`-ID bitte nur lokal setzen.
 
 ## Aufbau
@@ -163,6 +191,7 @@ docs/                   Konzept, Feature-Pakete, Audits, Screenshots
 ## Roadmap
 
 - Widget „Heute“ mit Level und nächster Einheit
+- Mac-Brücke auch unterwegs über iCloud, Mac-App über den App Store
 - Accountability-Gruppe für 3–5 Fahrer, Rangliste nach Plan-Treue statt Watt (braucht ein Backend)
 
 Ideen und Fehler gerne als [Issue](https://github.com/jpfrehe/IndoorCoach/issues).
