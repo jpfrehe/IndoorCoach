@@ -1145,6 +1145,37 @@ final class AuditPerformanceTests: AuditCase {
 
     // ANCHOR-UITEST-O2 (Feature-Tour & Tipps)
 
+    /// O2: Feature-Tour über `-uiTour YES` (DEBUG-Cover in IndoorCoachApp), danach Tipp „Woche planen“ mit `-uiTips YES`.
+    func test31_FeatureTourAndTips() {
+        route = "tour"
+        launch(extra: ["-uiTour", "YES"])
+        let page1 = app.descendants(matching: .any)["tour.page.1"].firstMatch
+        check(waitFast(page1, timeout: 10), "Tour öffnet mit Seite 1")
+        check(app.staticTexts["Claude plant deine Woche"].waitForExistence(timeout: 4), "Titel Seite 1")
+        let indicator = app.descendants(matching: .any)["tour.pageIndicator"].firstMatch
+        check(indicator.exists && indicator.label == "Seite 1 von 5", "Seitenanzeige „Seite 1 von 5“")
+        check(app.buttons["tour.skip"].exists, "„Überspringen“ vorhanden")
+        shot("seite-1")
+        accessibilityAudit("Tour Seite 1")
+        for n in 2...5 {
+            tap(app.buttons["tour.next"], "Weiter zu Seite \(n)")
+            check(waitFast(app.descendants(matching: .any)["tour.page.\(n)"].firstMatch), "Seite \(n) sichtbar")
+            check(indicator.label == "Seite \(n) von 5", "Seitenanzeige „Seite \(n) von 5“")
+            if n == 3 || n == 5 { usleep(3_200_000); shot("seite-\(n)") }
+        }
+        check(!app.buttons["tour.next"].exists, "Letzte Seite: kein „Weiter“ mehr")
+        accessibilityAudit("Tour Seite 5")
+        tap(app.buttons["tour.finish"], "Los geht’s")
+        check(!app.buttons["tour.finish"].waitForExistence(timeout: 2), "Tour schließt")
+        check(app.tabBars.firstMatch.waitForExistence(timeout: 6), "App sichtbar nach der Tour")
+
+        route = "tipps"
+        app.terminate()
+        launch(extra: ["-uiTab", "plan", "-uiTips", "YES"])
+        check(waitFast(app.staticTexts["Woche planen"], timeout: 10), "Tipp „Woche planen“ auf dem Plan-Tab")
+        shot("tipp-plan")
+    }
+
     // ANCHOR-UITEST-O3 (Feedback als GitHub-Issue)
 
     /// O3: Feedback-Formular (Wunsch), Vorschau, Text kopieren, Weiter zu GitHub (Safari), App-Einführung.

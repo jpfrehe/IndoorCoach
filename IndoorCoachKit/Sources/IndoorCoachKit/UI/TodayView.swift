@@ -1,6 +1,7 @@
 import Charts
 import SwiftData
 import SwiftUI
+import TipKit
 
 struct TodayView: View {
     @Binding var tab: AppTab
@@ -66,6 +67,7 @@ struct TodayDashboard: View {
             if let arc = model.winterArc(rides: rides) {
                 NavigationLink { WinterArcView() } label: { WinterArcCard(status: arc) }
                     .buttonStyle(.plain)
+                    .popoverTip(WinterArcTip())
             }
             // Without rides the 0/0/0 "Ausgewogen" card would look like a real assessment.
             if !rides.isEmpty, let current = series.last {

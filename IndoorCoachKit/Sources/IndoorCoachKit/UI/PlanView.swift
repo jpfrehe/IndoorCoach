@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import TipKit
 
 struct PlanView: View {
     @Environment(AppModel.self) private var model
@@ -87,6 +88,7 @@ struct PlanView: View {
                         }
                     }
                     .buttonStyle(.jellySmall)
+                    .popoverTip(PlanTip())
                     .accessibilityLabel("Planen")
                 }
                 ToolbarItem(placement: .secondaryAction) {

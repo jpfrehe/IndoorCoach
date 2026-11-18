@@ -1,6 +1,7 @@
 import Charts
 import SwiftData
 import SwiftUI
+import TipKit
 
 enum RideFilter: String, CaseIterable, Identifiable {
     case all = "Alle", indoor = "Indoor", outdoor = "Outdoor"
@@ -35,6 +36,7 @@ struct HistoryView: View {
                         }
                         .frame(minHeight: 44)
                     }
+                    .popoverTip(PerformanceTip())
                     .accessibilityIdentifier("performance.open")
                 }
                 Section {
