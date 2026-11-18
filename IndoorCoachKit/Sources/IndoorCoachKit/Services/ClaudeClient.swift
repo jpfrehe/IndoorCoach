@@ -3,6 +3,7 @@ import Foundation
 public enum ClaudeError: LocalizedError, Equatable {
     case missingAPIKey
     case invalidAPIKey
+    case permissionDenied
     case rateLimited
     case overloaded
     case refusal(String?)
@@ -14,6 +15,7 @@ public enum ClaudeError: LocalizedError, Equatable {
         switch self {
         case .missingAPIKey: "Kein Claude-API-Key hinterlegt (Profil → Claude)."
         case .invalidAPIKey: "Der Claude-API-Key wurde abgelehnt. Bitte in der Claude Console prüfen."
+        case .permissionDenied: "Dieser Key hat keine Berechtigung. Bitte einen neuen Key in der Claude Console erstellen."
         case .rateLimited: "Claude-Ratenlimit erreicht – bitte kurz warten."
         case .overloaded: "Claude ist gerade überlastet – bitte gleich erneut versuchen."
         case let .refusal(reason): "Claude hat die Anfrage abgelehnt\(reason.map { " (\($0))" } ?? "")."
@@ -77,6 +79,27 @@ public struct ClaudeClient: Sendable {
         request.setValue(Self.fallbackBeta, forHTTPHeaderField: "anthropic-beta")
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
         return request
+    }
+
+    static let modelsURL = URL(string: "https://api.anthropic.com/v1/models?limit=1")!
+
+    /// Checks the key with the free models list (no tokens). Throws `invalidAPIKey` (401), `permissionDenied` (403),
+    /// `http` for other statuses and the transport's own error when the server cannot be reached. Never logs the key.
+    public func validateKey() async throws {
+        guard !apiKey.isEmpty else { throw ClaudeError.missingAPIKey }
+        var request = URLRequest(url: Self.modelsURL)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 15
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue(Self.apiVersion, forHTTPHeaderField: "anthropic-version")
+        let (data, response) = try await transport.data(for: request)
+        Log.notice(.claude, "Key-Prüfung: HTTP \(response.statusCode)")
+        switch response.statusCode {
+        case 200..<300: return
+        case 401: throw ClaudeError.invalidAPIKey
+        case 403: throw ClaudeError.permissionDenied
+        default: throw ClaudeError.http(response.statusCode, Self.errorMessage(from: data))
+        }
     }
 
     /// Sends one structured-output request and returns the JSON text. Retries once on 429/529.

@@ -63,6 +63,16 @@ public final class AppModel {
     public private(set) var needsOnboarding = false
     /// Set when onboarding ends with "Mit Strava verbinden"; ProfileView scrolls to the Strava section and resets it.
     public var stravaSetupRequested = false
+    /// Current onboarding step (0 … `onboardingStepCount - 1`), persisted so a relaunch resumes there.
+    public var onboardingStep: Int {
+        didSet {
+            let clamped = min(max(onboardingStep, 0), Self.onboardingStepCount - 1)
+            if clamped != onboardingStep { onboardingStep = clamped; return }
+            defaults.set(onboardingStep, forKey: Keys.onboardingStep)
+        }
+    }
+    /// Message of the last failed MyWhoosh sign-in, for forms that cannot show the banner (onboarding cover).
+    public private(set) var lastMyWhooshError: String?
     /// Not observed: filled lazily from view bodies, must not trigger re-renders.
     @ObservationIgnored private var seriesCache: (key: Int, series: FitnessFreshness.Series)?
     public private(set) var proposalSource: WorkoutSource = .demo
@@ -90,9 +100,11 @@ public final class AppModel {
         static let myWhooshLastImport = "mywhoosh.lastImport"
         /// Weeks (Monday as yyyy-MM-dd) whose Wochenrückblick card was dismissed on Heute.
         static let weeklyReviewDismissed = "weeklyReview.dismissed.v1"
+        /// Current step of the 5-step onboarding (resume after relaunch).
+        static let onboardingStep = "onboarding.step.v2"
         /// Everything "Alle Daten löschen" removes – add every new persisted key here.
         static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport,
-                          weeklyReviewDismissed]
+                          weeklyReviewDismissed, onboardingStep]
     }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
@@ -111,6 +123,7 @@ public final class AppModel {
             profile = AthleteProfile()
         }
         stravaClientID = defaults.string(forKey: Keys.stravaClientID) ?? ""
+        onboardingStep = min(max(defaults.integer(forKey: Keys.onboardingStep), 0), Self.onboardingStepCount - 1)
         lastSync = defaults.object(forKey: Keys.lastSync) as? Date
         hasImportedRides = defaults.bool(forKey: Keys.ridesImported)
         lastMyWhooshImport = defaults.object(forKey: Keys.myWhooshLastImport) as? Date
@@ -156,6 +169,8 @@ public final class AppModel {
     public func completeOnboarding() {
         needsOnboarding = false
         defaults.set(true, forKey: Keys.onboardingCompleted)
+        onboardingStep = 0
+        defaults.removeObject(forKey: Keys.onboardingStep)
         if isDemoMode {
             resetDemoData()
             bootstrap()
@@ -168,6 +183,8 @@ public final class AppModel {
         let args = UserDefaults.standard
         if args.object(forKey: "uiOnboarding") != nil {
             needsOnboarding = args.bool(forKey: "uiOnboarding")
+            // A forced onboarding starts at the top; a plain relaunch (no flag) resumes the stored step.
+            if needsOnboarding { onboardingStep = 0 }
         } else if args.string(forKey: "uiSeed") != nil {
             needsOnboarding = false
         } else {
@@ -193,6 +210,7 @@ public final class AppModel {
     /// Signs in; only the session is kept (Keychain), never the password.
     @discardableResult
     public func connectMyWhoosh(username: String, password: String) async -> Bool {
+        lastMyWhooshError = nil
         do {
             try await myWhoosh.login(username: username.trimmingCharacters(in: .whitespaces), password: password)
             refreshCredentialState()
@@ -203,6 +221,7 @@ public final class AppModel {
             return true
         } catch {
             Log.error(.mywhoosh, "Anmeldung fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
+            lastMyWhooshError = error.localizedDescription
             show(error.localizedDescription, error: true)
             return false
         }
@@ -849,6 +868,7 @@ public final class AppModel {
         proposal = nil
         plannerRequested = false
         seriesCache = nil
+        onboardingStep = 0
         for key in Keys.all { defaults.removeObject(forKey: key) }
         try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent("zwo"))
         refreshCredentialState()

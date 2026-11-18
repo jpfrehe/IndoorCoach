@@ -24,6 +24,7 @@ struct DeleteAllDataTests {
         defaults.set(true, forKey: AppModel.Keys.ridesImported)
         defaults.set(Date.now, forKey: AppModel.Keys.myWhooshLastImport)
         defaults.set(["2026-11-16"], forKey: AppModel.Keys.weeklyReviewDismissed)
+        model.onboardingStep = 2
         model.setClaudeAPIKey("placeholder-claude-key")
         model.setStravaClientSecret("client-secret")
         secrets.saveTokens(StravaTokens(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, athleteName: "Test"))
