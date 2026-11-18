@@ -768,7 +768,7 @@ final class AuditWalkthroughTests: AuditCase {
         check(opened, "Teilen-Menü öffnet sich")
         shot("share-sheet")
         if opened { app.swipeDown(velocity: .fast) }
-        check(scrollUntilExists(app.descendants(matching: .any)["feedback.send"].firstMatch, maxSwipes: 4).exists,
+        check(scrollUntilExists(app.descendants(matching: .any)["feedback.open"].firstMatch, maxSwipes: 4).exists,
               "Feedback-Weg vorhanden (Mail oder GitHub-Issue)")
     }
 
