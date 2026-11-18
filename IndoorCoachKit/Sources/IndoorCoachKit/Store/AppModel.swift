@@ -319,8 +319,12 @@ public final class AppModel {
         var demoRides = DemoData.rides(days: rideDays, ftp: profile.ftp)
         // G6: a demo "last winter" for the Vorjahres-Schatten (the 730-day seed already has a previous year).
         if rideDays <= 365 { demoRides += DemoData.previousYearRides(ftp: profile.ftp) }
+        let recent = Calendar.current.date(byAdding: .day, value: -rideDays, to: .now) ?? .distantPast
         for ride in demoRides {
-            context.insert(StoredRide(ride, isDemo: true))
+            let row = StoredRide(ride, isDemo: true)
+            // Seconds data for the current window only (the previous-year block stays summary-only).
+            if ride.startDate >= recent, ride.trainer { row.secondsData = DemoData.syntheticSeconds(for: ride, ftp: profile.ftp).encoded() }
+            context.insert(row)
         }
         let ctx = planContext(wish: "", startToday: true)
         let plan = DemoCoach.makePlan(ctx)
@@ -543,16 +547,18 @@ public final class AppModel {
     /// A file for a ride that is already stored (Strava, MyWhoosh list) adds its seconds data to that ride.
     public func importFITFiles(_ urls: [URL]) {
         var rides: [RideSummary] = []
+        var seconds: [Int: RideSeconds] = [:]
         var failed = 0
         for url in urls {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             guard let data = try? Data(contentsOf: url), let fit = try? FITParser.summary(from: data) else { failed += 1; continue }
             let name = url.deletingPathExtension().lastPathComponent
-            rides.append(RideSummary(fit: fit, id: Self.importedRideID("fit:\(Int(fit.startDate.timeIntervalSince1970))"),
-                                     name: name.isEmpty ? "Indoor-Fahrt" : name))
+            let id = Self.importedRideID("fit:\(Int(fit.startDate.timeIntervalSince1970))")
+            rides.append(RideSummary(fit: fit, id: id, name: name.isEmpty ? "Indoor-Fahrt" : name))
+            if let s = fit.seconds { seconds[id] = s }
         }
-        let result = mergeImportedRides(rides)
+        let result = mergeImportedRides(rides, seconds: seconds)
         Log.notice(.sync, "FIT-Import: \(urls.count) Dateien, \(result.inserted) neu, \(result.enriched) ergänzt, \(failed) nicht lesbar")
         show(Self.fitImportMessage(result, failed: failed), error: failed > 0)
     }
@@ -586,7 +592,7 @@ public final class AppModel {
     /// the MyWhoosh list or a FIT file) is enriched with the incoming seconds data when it has none yet (see
     /// `RideMerge`), otherwise skipped. Real rides end demo mode.
     @discardableResult
-    func mergeImportedRides(_ rides: [RideSummary]) -> ImportResult {
+    func mergeImportedRides(_ rides: [RideSummary], seconds: [Int: RideSeconds] = [:]) -> ImportResult {
         var result = ImportResult()
         guard !rides.isEmpty else { return result }
         if (try? context.fetchCount(FetchDescriptor<StoredRide>(predicate: #Predicate { $0.isDemo }))) ?? 0 > 0 {
@@ -599,6 +605,7 @@ public final class AppModel {
             switch RideMerge.decide(ride, existing: working) {
             case .insert:
                 let row = StoredRide(ride)
+                row.secondsData = seconds[ride.id]?.encoded()
                 context.insert(row)
                 byID[ride.id] = row
                 working.append(ride)
@@ -609,8 +616,13 @@ public final class AppModel {
                 let merged = RideMerge.enriched(working[index], with: ride)
                 working[index] = merged
                 byID[id]?.update(from: merged)
+                if let s = seconds[ride.id], byID[id]?.secondsData == nil { byID[id]?.secondsData = s.encoded() }
                 result.enriched += 1
-            case .alreadyComplete, .duplicate:
+            case .alreadyComplete(let id):
+                // Same ride with a curve but without stored seconds (imported before they were kept): add them.
+                if let s = seconds[ride.id], let row = byID[id], row.secondsData == nil { row.secondsData = s.encoded() }
+                result.skipped += 1
+            case .duplicate:
                 result.skipped += 1
             }
         }
@@ -619,6 +631,13 @@ public final class AppModel {
         hasImportedRides = true
         defaults.set(true, forKey: Keys.ridesImported)
         return result
+    }
+
+    /// The stored 1 Hz data of a ride (`StoredRide.stravaID`), nil without seconds data.
+    public func rideSeconds(id: Int) -> RideSeconds? {
+        var descriptor = FetchDescriptor<StoredRide>(predicate: #Predicate { $0.stravaID == id })
+        descriptor.fetchLimit = 1
+        return RideSeconds.decode((try? context.fetch(descriptor))?.first?.secondsData)
     }
 
     /// Inserts new rides, skipping ones already present (see `mergeImportedRides`). Returns the number inserted.

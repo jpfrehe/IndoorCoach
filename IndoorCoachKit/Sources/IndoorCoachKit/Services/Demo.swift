@@ -162,6 +162,43 @@ public enum DemoData {
         return (value * 10).rounded() / 10
     }
 
+    /// Deterministic 1 Hz power and heart rate that follow the demo ride's structure (warm-up, main set by name,
+    /// cool-down), so time-in-zones and planned-vs-actual have something to show. Synthetic like the rides.
+    public static func syntheticSeconds(for ride: RideSummary, ftp: Int) -> RideSeconds {
+        var rng = SeededGenerator(seed: UInt64(truncatingIfNeeded: ride.id) &* 31)
+        let total = max(600, ride.movingTime)
+        let f = Double(ftp)
+        let intensity = (ride.weightedAverageWatts ?? ride.averageWatts ?? f * 0.7) / f
+        let warm = 600, cool = 480
+        func target(_ t: Int) -> Double {
+            if t < warm { return 0.5 + 0.2 * Double(t) / Double(warm) }
+            if t >= total - cool { return 0.5 }
+            let m = t - warm
+            if ride.name.contains("2×20") {                  // 2 × 20 min Sweet Spot, 5 min easy between
+                let block = m % (25 * 60)
+                return m < 2 * 25 * 60 && block < 20 * 60 ? 0.9 : 0.55
+            }
+            if ride.name.contains("5×3") {                   // 5 × 3 min VO2max, 3 min easy between
+                let block = m % 360
+                return m < 5 * 360 && block < 180 ? 1.15 : 0.5
+            }
+            return intensity
+        }
+        var power: [Double] = []
+        var heart: [Double] = []
+        var hr = 95.0
+        power.reserveCapacity(total)
+        heart.reserveCapacity(total)
+        for t in 0..<total {
+            let p = max(0, f * target(t) * Double.random(in: 0.95...1.05, using: &rng))
+            power.append(p)
+            let goal = 100 + 75 * min(1.2, p / f)
+            hr += (goal - hr) / 25                           // pulse follows power with a lag
+            heart.append(hr)
+        }
+        return RideSeconds(watts: power, beatsPerMinute: heart)
+    }
+
     /// Plausible, deterministic mean-maximal curve for a demo ride (critical-power model with a sprint cap),
     /// scaled by how hard the ride was. Synthetic like the rides themselves.
     static func syntheticCurve(rideID: Int, durationSeconds: Int, averageWatts: Double, intensity: Double, ftp: Int) -> [Int: Double] {

@@ -30,6 +30,9 @@ public final class StoredRide {
     // Added with the abilities feature – optional so SwiftData migrates lightweight.
     /// Fatigue resistance in percent from a FIT file of at least 60 minutes; nil otherwise.
     public var durability: Double?
+    // Added with the seconds-data analyses – optional so SwiftData migrates lightweight.
+    /// 1 Hz power/heart rate from a FIT file (`RideSeconds` format); nil for rides without seconds data.
+    @Attribute(.externalStorage) public var secondsData: Data?
 
     public init(_ r: RideSummary, isDemo: Bool = false) {
         stravaID = r.id

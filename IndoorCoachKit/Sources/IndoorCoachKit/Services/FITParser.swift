@@ -32,6 +32,8 @@ public enum FITParser {
         public var decoupling: Double? = nil
         /// Fatigue resistance in percent (see `Durability`); nil for rides under 60 min or without power.
         public var durability: Double? = nil
+        /// The 1 Hz series itself (power, heart rate) for later analyses; nil without power records.
+        public var seconds: RideSeconds? = nil
     }
 
     /// Power samples above this are sensor glitches and count as 0 W.
@@ -50,6 +52,9 @@ public enum FITParser {
         }
 
         let durability = series.flatMap(Durability.percent(power:))
+        let seconds = series.map { power in
+            RideSeconds(watts: power, beatsPerMinute: heartRateSeries(records, count: power.count, origin: powerOrigin(records)))
+        }
 
         if let s = sessions.first, let start = s.uint(2).map(date) ?? fromRecords?.startDate {
             let timer = (s.uint(8) ?? s.uint(7)).map { Int(Double($0) / 1000) } ?? fromRecords?.movingTime ?? 0
@@ -62,13 +67,15 @@ public enum FITParser {
                            kilojoules: work ?? fromRecords?.kilojoules,
                            averageHeartrate: s.uint(16).map { Double($0) } ?? fromRecords?.averageHeartrate,
                            maxHeartrate: s.uint(17).map { Double($0) } ?? fromRecords?.maxHeartrate,
-                           maxWatts: maxWatts, powerCurve: curve, decoupling: decoupling, durability: durability)
+                           maxWatts: maxWatts, powerCurve: curve, decoupling: decoupling, durability: durability,
+                           seconds: seconds)
         }
         guard var fromRecords else { throw Error.noData }
         fromRecords.maxWatts = maxWatts
         fromRecords.powerCurve = curve
         fromRecords.decoupling = decoupling
         fromRecords.durability = durability
+        fromRecords.seconds = seconds
         return fromRecords
     }
 

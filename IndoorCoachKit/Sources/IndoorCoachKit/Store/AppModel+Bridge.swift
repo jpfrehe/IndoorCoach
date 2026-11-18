@@ -155,16 +155,18 @@ extension AppModel {
             let fetched = try await bridge.transport.fetchNewRides(macName: macName, secret: secret, known: bridge.knownIDs)
             var summary = BridgeSyncSummary(received: fetched.count)
             var rides: [RideSummary] = []
+            var seconds: [Int: RideSeconds] = [:]
             for item in fetched {
                 if let fit = try? FITParser.summary(from: item.fit) {
-                    rides.append(RideSummary(fit: fit, id: Self.importedRideID("fit:\(Int(fit.startDate.timeIntervalSince1970))"),
-                                             name: "MyWhoosh-Fahrt"))
+                    let id = Self.importedRideID("fit:\(Int(fit.startDate.timeIntervalSince1970))")
+                    rides.append(RideSummary(fit: fit, id: id, name: "MyWhoosh-Fahrt"))
+                    if let s = fit.seconds { seconds[id] = s }
                 } else {
                     summary.unreadable += 1
                 }
                 bridge.knownIDs.insert(item.ride.id)      // an unreadable file would fail again – do not refetch it
             }
-            let result = mergeImportedRides(rides)
+            let result = mergeImportedRides(rides, seconds: seconds)
             summary.inserted = result.inserted
             summary.enriched = result.enriched
             bridge.lastSync = .now
