@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 struct WorkoutDetailView: View {
     @Bindable var workout: StoredWorkout
@@ -146,6 +147,7 @@ struct WorkoutDetailContent: View {
                     }
                     .buttonStyle(.jelly)
                     .disabled(model.isSendingToMyWhoosh)
+                    .popoverTip(SendToMyWhooshTip())
                     if let sent = workout.myWhooshSentAt {
                         Label("In MyWhoosh seit \(sent.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: "de_DE"))))"
                               + (workout.myWhooshTaskID != nil ? " · im MyWhoosh-Kalender" : ""),
