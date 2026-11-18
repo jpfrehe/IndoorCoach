@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AC0000000000000000000301 /* IndoorCoachKit in Frameworks */ = {isa = PBXBuildFile; productRef = AC0000000000000000000501 /* IndoorCoachKit */; };
+		AC0000000000000000001301 /* IndoorCoachKit in Frameworks */ = {isa = PBXBuildFile; productRef = AC0000000000000000001501 /* IndoorCoachKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -18,6 +19,13 @@
 			remoteGlobalIDString = AC0000000000000000000701;
 			remoteInfo = IndoorCoach;
 		};
+		AC0000000000000000001601 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AC0000000000000000000801 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC0000000000000000001701;
+			remoteInfo = IndoorCoachBridge;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +34,8 @@
 		AC0000000000000000000103 /* IndoorCoachKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = IndoorCoachKit; sourceTree = "<group>"; };
 		AC0000000000000000000104 /* docs */ = {isa = PBXFileReference; lastKnownFileType = folder; path = docs; sourceTree = "<group>"; };
 		AC0000000000000000000105 /* IndoorCoachUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IndoorCoachUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC0000000000000000001001 /* IndoorCoach Brücke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "IndoorCoach Brücke.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC0000000000000000001002 /* IndoorCoachBridgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IndoorCoachBridgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -37,6 +47,19 @@
 		AC0000000000000000000202 /* IndoorCoachUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = IndoorCoachUITests;
+			sourceTree = "<group>";
+		};
+		AC0000000000000000001101 /* Bridge */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AC0000000000000000001201 /* Exceptions for "Bridge" folder in "IndoorCoachBridge" target */,
+			);
+			path = Bridge;
+			sourceTree = "<group>";
+		};
+		AC0000000000000000001102 /* BridgeTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Bridge/Tests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -57,6 +80,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AC0000000000000000001401 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0000000000000000001301 /* IndoorCoachKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC0000000000000000001411 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -69,6 +107,8 @@
 				AC0000000000000000000602 /* Config */,
 				AC0000000000000000000104 /* docs */,
 				AC0000000000000000000603 /* Products */,
+				AC0000000000000000001101 /* Bridge */,
+				AC0000000000000000001102 /* BridgeTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -85,6 +125,8 @@
 			children = (
 				AC0000000000000000000101 /* IndoorCoach.app */,
 				AC0000000000000000000105 /* IndoorCoachUITests.xctest */,
+				AC0000000000000000001001 /* IndoorCoach Brücke.app */,
+				AC0000000000000000001002 /* IndoorCoachBridgeTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -136,6 +178,50 @@
 			productReference = AC0000000000000000000105 /* IndoorCoachUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		AC0000000000000000001701 /* IndoorCoachBridge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC0000000000000000001902 /* Build configuration list for PBXNativeTarget "IndoorCoachBridge" */;
+			buildPhases = (
+				AC0000000000000000001402 /* Sources */,
+				AC0000000000000000001401 /* Frameworks */,
+				AC0000000000000000001403 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AC0000000000000000001101 /* Bridge */,
+			);
+			name = IndoorCoachBridge;
+			packageProductDependencies = (
+				AC0000000000000000001501 /* IndoorCoachKit */,
+			);
+			productName = IndoorCoachBridge;
+			productReference = AC0000000000000000001001 /* IndoorCoach Brücke.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AC0000000000000000001702 /* IndoorCoachBridgeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC0000000000000000001903 /* Build configuration list for PBXNativeTarget "IndoorCoachBridgeTests" */;
+			buildPhases = (
+				AC0000000000000000001412 /* Sources */,
+				AC0000000000000000001411 /* Frameworks */,
+				AC0000000000000000001413 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AC0000000000000000001602 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AC0000000000000000001102 /* BridgeTests */,
+			);
+			name = IndoorCoachBridgeTests;
+			productName = IndoorCoachBridgeTests;
+			productReference = AC0000000000000000001002 /* IndoorCoachBridgeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -152,6 +238,13 @@
 					AC0000000000000000000702 = {
 						CreatedOnToolsVersion = 27.2;
 						TestTargetID = AC0000000000000000000701;
+					};
+					AC0000000000000000001701 = {
+						CreatedOnToolsVersion = 27.2;
+					};
+					AC0000000000000000001702 = {
+						CreatedOnToolsVersion = 27.2;
+						TestTargetID = AC0000000000000000001701;
 					};
 				};
 			};
@@ -174,6 +267,8 @@
 			targets = (
 				AC0000000000000000000701 /* IndoorCoach */,
 				AC0000000000000000000702 /* IndoorCoachUITests */,
+				AC0000000000000000001701 /* IndoorCoachBridge */,
+				AC0000000000000000001702 /* IndoorCoachBridgeTests */,
 			);
 		};
 /* End PBXProject section */
@@ -187,6 +282,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AC0000000000000000000413 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC0000000000000000001403 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC0000000000000000001413 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -210,6 +319,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AC0000000000000000001402 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC0000000000000000001412 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -217,6 +340,11 @@
 			isa = PBXTargetDependency;
 			target = AC0000000000000000000701 /* IndoorCoach */;
 			targetProxy = AC0000000000000000000C01 /* PBXContainerItemProxy */;
+		};
+		AC0000000000000000001602 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC0000000000000000001701 /* IndoorCoachBridge */;
+			targetProxy = AC0000000000000000001601 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -371,6 +499,116 @@
 			};
 			name = Release;
 		};
+		AC0000000000000000001801 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Bridge/IndoorCoachBridge.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "IndoorCoach Brücke";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = app.indoorcoach.personal.bridge;
+				PRODUCT_MODULE_NAME = IndoorCoachBridge;
+				PRODUCT_NAME = "IndoorCoach Brücke";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		AC0000000000000000001802 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Bridge/IndoorCoachBridge.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "IndoorCoach Brücke";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = app.indoorcoach.personal.bridge;
+				PRODUCT_MODULE_NAME = IndoorCoachBridge;
+				PRODUCT_NAME = "IndoorCoach Brücke";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AC0000000000000000001803 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = app.indoorcoach.personal.bridge.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IndoorCoach Brücke.app/Contents/MacOS/IndoorCoach Brücke";
+			};
+			name = Debug;
+		};
+		AC0000000000000000001804 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = app.indoorcoach.personal.bridge.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IndoorCoach Brücke.app/Contents/MacOS/IndoorCoach Brücke";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -401,6 +639,24 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		AC0000000000000000001902 /* Build configuration list for PBXNativeTarget "IndoorCoachBridge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000001801 /* Debug */,
+				AC0000000000000000001802 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AC0000000000000000001903 /* Build configuration list for PBXNativeTarget "IndoorCoachBridgeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000001803 /* Debug */,
+				AC0000000000000000001804 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -415,7 +671,22 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = IndoorCoachKit;
 		};
+		AC0000000000000000001501 /* IndoorCoachKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IndoorCoachKit;
+		};
 /* End XCSwiftPackageProductDependency section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AC0000000000000000001201 /* Exceptions for "Bridge" folder in "IndoorCoachBridge" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				IndoorCoachBridge.entitlements,
+				Tests/BridgeStatusTests.swift,
+			);
+			target = AC0000000000000000001701 /* IndoorCoachBridge */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 	};
 	rootObject = AC0000000000000000000801 /* Project object */;
 }
