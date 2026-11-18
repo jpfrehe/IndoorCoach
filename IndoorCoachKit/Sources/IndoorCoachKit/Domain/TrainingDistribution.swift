@@ -31,6 +31,9 @@ public enum TrainingDistribution {
         public var weeks: Int
         public var seconds: [Band: Int]
         public var rides: Int
+        /// Rides whose time per band comes from 1 Hz data (the rest is estimated from the ride's IF).
+        public var measuredRides: Int = 0
+        public var estimatedRides: Int { rides - measuredRides }
         public var totalSeconds: Int { seconds.values.reduce(0, +) }
         public func share(_ band: Band) -> Double {
             totalSeconds > 0 ? Double(seconds[band] ?? 0) / Double(totalSeconds) : 0
@@ -49,15 +52,26 @@ public enum TrainingDistribution {
         return intensity < 0.95 ? .tempo : .threshold
     }
 
-    public static func distribution(rides: [RideSummary], ftp: Int, weeks: Int, now: Date) -> Result {
+    /// Rides for which `zoneTimes` returns 1 Hz zone data contribute their actual seconds per band (power bands cut at
+    /// the IF thresholds 0,75 / 0,95, 0 W seconds excluded); all others the whole ride in the band of its IF.
+    public static func distribution(rides: [RideSummary], ftp: Int, weeks: Int, now: Date,
+                                    zoneTimes: (RideSummary) -> ZoneTime.Result? = { _ in nil }) -> Result {
         let from = now.addingTimeInterval(-Double(weeks) * 7 * 86_400)
         var seconds: [Band: Int] = [:]
         var count = 0
+        var measured = 0
         for ride in rides where ride.startDate > from && ride.startDate <= now && ride.movingTime > 0 {
-            seconds[band(forIF: intensityFactor(for: ride, ftp: ftp)), default: 0] += ride.movingTime
             count += 1
+            if let zones = zoneTimes(ride), zones.powerTotal > 0 {
+                seconds[.base, default: 0] += zones.bands[0]
+                seconds[.tempo, default: 0] += zones.bands[1]
+                seconds[.threshold, default: 0] += zones.bands[2]
+                measured += 1
+            } else {
+                seconds[band(forIF: intensityFactor(for: ride, ftp: ftp)), default: 0] += ride.movingTime
+            }
         }
-        return Result(weeks: weeks, seconds: seconds, rides: count)
+        return Result(weeks: weeks, seconds: seconds, rides: count, measuredRides: measured)
     }
 
     /// Short advice for the winter base phase. The shares are those shown in the bar (of all riding time).

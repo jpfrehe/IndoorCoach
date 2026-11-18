@@ -229,6 +229,8 @@ struct RideDetailView: View {
 
                 RelativeEffortCard(ride: ride)
 
+                RideZonesCard(ride: ride)
+
                 // ANCHOR-K4-FAHRT (Effizienz & Entkopplung)
                 RideEfficiencyCard(ride: ride, ftp: model.profile.ftp)
 

@@ -69,6 +69,7 @@ struct RelativeEffortCard: View {
         switch e.source {
         case .strava: "Wert von Strava."
         case .heartRate: "IndoorCoach-Schätzung aus Ø-Herzfrequenz (Ruhe-/Max-HF aus dem Profil)."
+        case .heartRateSeconds: "IndoorCoach-Schätzung aus deinem Puls, Sekunde für Sekunde (Ruhe-/Max-HF aus dem Profil)."
         case .perceivedExertion: "IndoorCoach-Schätzung aus deiner gefühlten Anstrengung."
         case nil: "Keine Herzfrequenz – gib an, wie anstrengend es sich angefühlt hat."
         }

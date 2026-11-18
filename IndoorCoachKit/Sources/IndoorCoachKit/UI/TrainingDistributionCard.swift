@@ -8,6 +8,7 @@ struct TrainingDistributionCard: View {
     var now: Date = .now
 
     @State private var weeks = 4
+    @Environment(AppModel.self) private var model
 
     static func color(_ band: TrainingDistribution.Band) -> Color {
         switch band {
@@ -19,7 +20,7 @@ struct TrainingDistributionCard: View {
     }
 
     var body: some View {
-        let result = TrainingDistribution.distribution(rides: rides, ftp: ftp, weeks: weeks, now: now)
+        let result = model.trainingDistribution(rides: rides, weeks: weeks, now: now)
         Card(title: "Trainingsverteilung", systemImage: "chart.bar.doc.horizontal") {
             Picker("Zeitraum", selection: $weeks) {
                 Text("4 Wochen").tag(4)
@@ -40,6 +41,11 @@ struct TrainingDistributionCard: View {
                         if (result.seconds[band] ?? 0) > 0 || band != .unknown { row(band, result) }
                     }
                 }
+            }
+            if result.rides > 0 {
+                Text("\(result.measuredRides) von \(result.rides) Fahrten mit Sekundendaten gemessen")
+                    .font(.footnote.weight(.medium)).foregroundStyle(Theme.rowSecondary)
+                    .accessibilityIdentifier("distribution.measured")
             }
             Text("Intensität je Fahrt = NP ÷ FTP (\(ftp) W), ohne NP Ø-Leistung × 1,05. Grundlage unter 0,75, Tempo/Sweet Spot 0,75 bis 0,95, Schwelle und mehr ab 0,95. Gewichtet nach Fahrzeit, Quelle: deine Fahrten der letzten \(weeks) Wochen.")
                 .font(.footnote).foregroundStyle(Theme.rowSecondary)

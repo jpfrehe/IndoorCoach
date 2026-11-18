@@ -14,12 +14,13 @@ public enum RelativeEffort {
     }
 
     public enum Source: String, Sendable {
-        case strava, heartRate, perceivedExertion
+        case strava, heartRate, heartRateSeconds, perceivedExertion
 
         public var label: String {
             switch self {
             case .strava: "Strava"
             case .heartRate: "Herzfrequenz"
+            case .heartRateSeconds: "Puls (Sekunden)"
             case .perceivedExertion: "Gefühlte Anstrengung"
             }
         }
@@ -38,7 +39,9 @@ public enum RelativeEffort {
     ]
 
     /// Priority: preferred PE > Strava > heart rate > PE > nothing.
-    public static func estimate(for ride: RideSummary, heartRate profile: HeartRateProfile) -> Estimate {
+    /// `secondsTRIMP` is evaluated lazily (only when the 1 Hz heart-rate path is reached) and replaces the average-HR path.
+    public static func estimate(for ride: RideSummary, heartRate profile: HeartRateProfile,
+                                secondsTRIMP: (() -> Double?)? = nil) -> Estimate {
         let minutes = Double(ride.movingTime) / 60
         guard minutes > 0 else { return .none }
         let pe = ride.perceivedExertion.flatMap { (1...10).contains($0) ? $0 : nil }
@@ -47,6 +50,9 @@ public enum RelativeEffort {
         }
         if let strava = ride.stravaRelativeEffort, strava > 0 {
             return Estimate(value: strava, source: .strava)
+        }
+        if let value = secondsTRIMP?(), value > 0 {
+            return Estimate(value: value, source: .heartRateSeconds)
         }
         if profile.isValid, let hr = ride.averageHeartrate, hr > Double(profile.resting) {
             let fraction = min(1, (hr - Double(profile.resting)) / Double(profile.max - profile.resting))
@@ -61,6 +67,25 @@ public enum RelativeEffort {
     /// Banister TRIMP (male coefficients, the common default for cycling software).
     public static func trimp(minutes: Double, reserveFraction hrr: Double) -> Double {
         minutes * hrr * 0.64 * exp(1.92 * hrr)
+    }
+
+    /// Per-second TRIMP: Banister summed over every second with a heart-rate sample above resting (1/60 min each).
+    /// nil without a valid profile, without heart-rate seconds or when fewer than half of the seconds carry a sample.
+    public static func trimp(seconds: RideSeconds, heartRate profile: HeartRateProfile) -> Double? {
+        guard profile.isValid, let hr = seconds.heartRate, !hr.isEmpty else { return nil }
+        let reserve = Double(profile.max - profile.resting)
+        var perBPM = [Double](repeating: 0, count: 256)          // minutes-weighted TRIMP of one second at each bpm
+        for bpm in (profile.resting + 1)..<256 {
+            perBPM[bpm] = trimp(minutes: 1.0 / 60, reserveFraction: min(1, Double(bpm - profile.resting) / reserve))
+        }
+        var sum = 0.0
+        var samples = 0
+        for bpm in hr where bpm > 0 {
+            samples += 1
+            sum += perBPM[Int(bpm)]
+        }
+        guard samples * 2 >= hr.count else { return nil }
+        return sum
     }
 
     /// PE 1 → 45.5 % heart-rate reserve … PE 10 → 95 %.

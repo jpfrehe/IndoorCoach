@@ -699,7 +699,7 @@ public final class AppModel {
     // MARK: - Relative Effort & Winter Arc
 
     public func relativeEffort(for ride: RideSummary) -> RelativeEffort.Estimate {
-        RelativeEffort.estimate(for: ride, heartRate: profile.heartRateProfile)
+        RelativeEffort.estimate(for: ride, heartRate: profile.heartRateProfile) { [self] in secondsDigest(for: ride)?.trimp }
     }
 
     public struct EffortWeek: Hashable, Sendable, Identifiable {
