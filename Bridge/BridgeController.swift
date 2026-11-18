@@ -40,7 +40,7 @@ final class BridgeController {
 
     // MARK: Internals
     private let defaults = UserDefaults.standard
-    private let keychain = Keychain(service: "app.indoorcoach.bridge")
+    private let keychain = Keychain(service: "app.indoorcoach.bridge", dataProtection: true)
     private let bookmarks = SecurityScopedBookmarks()
     private let outbox: BridgeOutbox
     private var scanner = RideFolderScanner()
@@ -58,6 +58,7 @@ final class BridgeController {
         static let pairedDevice = "pairedDeviceName"
         static let lastFetch = "lastFetchDate"
         static let loginConfigured = "launchAtLoginConfigured"
+        static let debugSecret = "debug.bridgeSecret"
     }
 
     init() {
@@ -224,11 +225,24 @@ final class BridgeController {
 
     private func loadOrCreateSecret() -> Data {
         if let existing = keychain.data(.bridgeSecret), existing.count == 32 { return existing }
+        #if DEBUG
+        // Unsigned debug builds have no data-protection keychain: keep the secret in the defaults so pairing
+        // survives restarts during development. Release builds are signed and never take this path.
+        if let existing = defaults.data(forKey: Key.debugSecret), existing.count == 32 { return existing }
+        #endif
         let fresh = BridgeCrypto.newPairingSecret()
-        if !keychain.set(fresh, for: .bridgeSecret) {
-            Log.error(.bridge, "Schlüsselbund nicht verfügbar – Geheimnis nur im Speicher")
-        }
+        storeSecret(fresh)
         return fresh
+    }
+
+    private func storeSecret(_ secret: Data) {
+        if keychain.set(secret, for: .bridgeSecret) { return }
+        #if DEBUG
+        defaults.set(secret, forKey: Key.debugSecret)
+        Log.notice(.bridge, "Schlüsselbund nicht verfügbar (unsignierter Debug-Build) – Geheimnis in den Einstellungen")
+        #else
+        Log.error(.bridge, "Schlüsselbund nicht verfügbar – Geheimnis nur im Speicher")
+        #endif
     }
 
     private func makeServer() -> BridgeServer? {
@@ -346,7 +360,7 @@ final class BridgeController {
         NSApp.activate()
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let fresh = BridgeCrypto.newPairingSecret()
-        keychain.set(fresh, for: .bridgeSecret)
+        storeSecret(fresh)
         secret = fresh
         server?.updateSecret(fresh)
         pairedDeviceName = nil

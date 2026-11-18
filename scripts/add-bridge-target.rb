@@ -112,7 +112,7 @@ add(objects, tests_group, 'BridgeTests',
 add(objects, exception_set, 'Exceptions for "Bridge" folder in "IndoorCoachBridge" target',
     'isa' => 'PBXFileSystemSynchronizedBuildFileExceptionSet',
     # test sources are listed one by one (a folder entry is not honoured); add new test files here and re-create
-    'membershipExceptions' => ['IndoorCoachBridge.entitlements'] +
+    'membershipExceptions' => ['IndoorCoachBridge.entitlements', 'Info.plist'] +
                               Dir.glob(File.join(ROOT, 'Bridge/Tests/**/*.swift')).sort.map { |f| f.sub("#{ROOT}/Bridge/", '') },
     'target' => Ref.new(app_target, APP_NAME))
 append_child(objects, main_group_id, Ref.new(bridge_group, 'Bridge'))
@@ -177,6 +177,7 @@ common_app = {
   'GENERATE_INFOPLIST_FILE' => 'YES',
   'INFOPLIST_KEY_CFBundleDisplayName' => 'IndoorCoach Brücke',
   'INFOPLIST_KEY_LSApplicationCategoryType' => 'public.app-category.healthcare-fitness',
+  'INFOPLIST_FILE' => 'Bridge/Info.plist',
   'INFOPLIST_KEY_LSUIElement' => 'YES',
   'LD_RUNPATH_SEARCH_PATHS' => ['$(inherited)', '@executable_path/../Frameworks'],
   'MACOSX_DEPLOYMENT_TARGET' => '15.0',

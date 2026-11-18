@@ -4,9 +4,13 @@ import Security
 /// Tiny generic-password Keychain wrapper. Items are device-only and available after first unlock.
 public struct Keychain: Sendable {
     public let service: String
+    /// macOS only: use the data-protection keychain (no legacy "allow access" prompts when the binary changes).
+    /// Needs a signed app with an application identifier; unsigned builds get errSecMissingEntitlement.
+    public let dataProtection: Bool
 
-    public init(service: String = "app.indoorcoach.secrets") {
+    public init(service: String = "app.indoorcoach.secrets", dataProtection: Bool = false) {
         self.service = service
+        self.dataProtection = dataProtection
     }
 
     public enum Key: String, Sendable {
@@ -58,12 +62,16 @@ public struct Keychain: Sendable {
     }
 
     private func baseQuery(_ key: Key) -> [String: Any] {
-        [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key.rawValue,
             kSecAttrSynchronizable as String: false
         ]
+        #if os(macOS)
+        if dataProtection { query[kSecUseDataProtectionKeychain as String] = true }
+        #endif
+        return query
     }
 }
 

@@ -512,6 +512,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "IndoorCoach Brücke";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_FILE = Bridge/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -542,6 +543,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "IndoorCoach Brücke";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_FILE = Bridge/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -682,6 +684,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				IndoorCoachBridge.entitlements,
+				Info.plist,
 				Tests/BridgeStatusTests.swift,
 			);
 			target = AC0000000000000000001701 /* IndoorCoachBridge */;
