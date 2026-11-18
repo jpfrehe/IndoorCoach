@@ -1481,6 +1481,9 @@ final class AuditBridgeTests: AuditCase {
         check(coverage.label.hasPrefix("3 von 10"), "Drei Fahrten angereichert bzw. neu (\(coverage.label))")
         check(anyElement("bridge.syncNow").exists && anyElement("bridge.unpair").exists, "„Jetzt abholen“ und „Kopplung lösen“")
         shot("gekoppelt")
+        // The pickup banner fades out after a few seconds; auditing while it disappears hits a vanished element.
+        let bannerGone = Date().addingTimeInterval(8)
+        while text(containing: "Vom Mac").exists && Date() < bannerGone { usleep(250_000) }
         accessibilityAudit("Mac-Brücke-Gekoppelt")
 
         tap(anyElement("bridge.unpair"), "Kopplung lösen")

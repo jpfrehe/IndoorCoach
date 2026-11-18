@@ -24,7 +24,7 @@ struct MacBridgeView: View {
     @FocusState private var codeFocused: Bool
 
     private static let steps: [(symbol: String, title: String, detail: String)] = [
-        ("macbook", "IndoorCoach Brücke auf dem Mac öffnen", "Die kleine Mac-App läuft in der Menüleiste."),
+        ("macbook", "IndoorCoach Brücke auf dem Mac öffnen", "Die kleine Mac-App läuft in der Menüleiste. Erlaube ihr den Zugriff aufs lokale Netzwerk."),
         ("folder.badge.plus", "MyWhoosh-Ordner freigeben", "Einmal bestätigen, damit die Brücke deine Fahrten lesen darf."),
         ("lock.open", "Code eingeben", "Der Mac zeigt einen 6-stelligen Code. Gib ihn hier ein.")
     ]
@@ -113,7 +113,7 @@ struct MacBridgeView: View {
             } else if found.isEmpty {
                 HStack(spacing: 10) {
                     if searching { ProgressView() }
-                    Text("Ich suche im WLAN … Öffne die IndoorCoach Brücke auf dem Mac und klicke auf „Mit iPhone koppeln“.")
+                    Text("Ich suche im WLAN … Öffne die IndoorCoach Brücke auf dem Mac und klicke auf „iPhone koppeln“. Nichts gefunden? Beide Geräte müssen im selben WLAN sein, und IndoorCoach braucht unter Einstellungen → Datenschutz → Lokales Netzwerk die Erlaubnis.")
                         .font(.subheadline).foregroundStyle(Theme.rowSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }

@@ -199,6 +199,14 @@ public enum AppEnvironment {
             model.installBridgeStub()
             return model
         }
+        // End-to-end hook: `-uiBridgeEndpoint host:mainPort:pairingPort` talks to a real bridge without Bonjour,
+        // secrets in memory.
+        if let endpoint = UserDefaults.standard.string(forKey: "uiBridgeEndpoint") {
+            let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), transport: StubTransport(),
+                                 myWhooshStore: InMemoryMyWhooshSessionStore())
+            model.installDirectBridgeEndpoint(endpoint)
+            return model
+        }
         // UI-test hooks for the onboarding journey: `-uiMyWhooshStubLogin YES` (not signed in, any login works) and
         // `-uiClaudeStub YES` (`/v1/models`: 200 for keys containing "sk-ant-test", else 401). Both keep secrets
         // in memory, so nothing leaks into the simulator's Keychain between runs.

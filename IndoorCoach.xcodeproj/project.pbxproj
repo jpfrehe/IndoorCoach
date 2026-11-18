@@ -34,9 +34,20 @@
 		AC0000000000000000000103 /* IndoorCoachKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = IndoorCoachKit; sourceTree = "<group>"; };
 		AC0000000000000000000104 /* docs */ = {isa = PBXFileReference; lastKnownFileType = folder; path = docs; sourceTree = "<group>"; };
 		AC0000000000000000000105 /* IndoorCoachUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IndoorCoachUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		AC0000000000000000001001 /* IndoorCoach Brücke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "IndoorCoach Brücke.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC0000000000000000001001 /* IndoorCoach Brücke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "IndoorCoach Brücke.app"; path = "IndoorCoach Brücke.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC0000000000000000001002 /* IndoorCoachBridgeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IndoorCoachBridgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AC0000000000000000001201 /* Exceptions for "Bridge" folder in "IndoorCoachBridge" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				Tests/BridgeStatusTests.swift,
+			);
+			target = AC0000000000000000001701 /* IndoorCoachBridge */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AC0000000000000000000201 /* App */ = {
@@ -57,7 +68,7 @@
 			path = Bridge;
 			sourceTree = "<group>";
 		};
-		AC0000000000000000001102 /* BridgeTests */ = {
+		AC0000000000000000001102 /* Bridge/Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Bridge/Tests;
 			sourceTree = "<group>";
@@ -108,7 +119,7 @@
 				AC0000000000000000000104 /* docs */,
 				AC0000000000000000000603 /* Products */,
 				AC0000000000000000001101 /* Bridge */,
-				AC0000000000000000001102 /* BridgeTests */,
+				AC0000000000000000001102 /* Bridge/Tests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -125,7 +136,7 @@
 			children = (
 				AC0000000000000000000101 /* IndoorCoach.app */,
 				AC0000000000000000000105 /* IndoorCoachUITests.xctest */,
-				AC0000000000000000001001 /* IndoorCoach Brücke.app */,
+				AC0000000000000000001001 /* IndoorCoach Brücke.app */,
 				AC0000000000000000001002 /* IndoorCoachBridgeTests.xctest */,
 			);
 			name = Products;
@@ -198,7 +209,7 @@
 				AC0000000000000000001501 /* IndoorCoachKit */,
 			);
 			productName = IndoorCoachBridge;
-			productReference = AC0000000000000000001001 /* IndoorCoach Brücke.app */;
+			productReference = AC0000000000000000001001 /* IndoorCoach Brücke.app */;
 			productType = "com.apple.product-type.application";
 		};
 		AC0000000000000000001702 /* IndoorCoachBridgeTests */ = {
@@ -215,7 +226,7 @@
 				AC0000000000000000001602 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				AC0000000000000000001102 /* BridgeTests */,
+				AC0000000000000000001102 /* Bridge/Tests */,
 			);
 			name = IndoorCoachBridgeTests;
 			productName = IndoorCoachBridgeTests;
@@ -510,9 +521,9 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Bridge/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "IndoorCoach Brücke";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_FILE = Bridge/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -541,9 +552,9 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Bridge/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "IndoorCoach Brücke";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_FILE = Bridge/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -678,18 +689,6 @@
 			productName = IndoorCoachKit;
 		};
 /* End XCSwiftPackageProductDependency section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		AC0000000000000000001201 /* Exceptions for "Bridge" folder in "IndoorCoachBridge" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				IndoorCoachBridge.entitlements,
-				Info.plist,
-				Tests/BridgeStatusTests.swift,
-			);
-			target = AC0000000000000000001701 /* IndoorCoachBridge */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 	};
 	rootObject = AC0000000000000000000801 /* Project object */;
 }

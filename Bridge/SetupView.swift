@@ -86,7 +86,7 @@ struct SetupView: View {
                     Label("Gekoppelt mit \(device)", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
                     Button("Weiteres iPhone koppeln") { Task { await controller.startPairing() } }
                 } else {
-                    Text("Du bekommst einen 6-stelligen Code, den du am iPhone eingibst.")
+                    Text("Du bekommst einen 6-stelligen Code, den du am iPhone eingibst. Fragt macOS, ob die Brücke Geräte im lokalen Netzwerk finden darf, klicke auf „Erlauben“ – sonst findet dein iPhone sie nicht.")
                         .foregroundStyle(.secondary)
                     Button("iPhone koppeln") { Task { await controller.startPairing() } }
                 }

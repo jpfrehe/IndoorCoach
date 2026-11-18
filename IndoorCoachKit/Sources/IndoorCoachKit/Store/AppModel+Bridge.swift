@@ -18,10 +18,20 @@ public protocol BridgeTransport: Sendable {
 
 public struct LiveBridgeTransport: BridgeTransport {
     private let client = BridgeClient(deviceName: "iPhone")
-    public init() {}
+    /// DEBUG end-to-end tests without Bonjour (`-uiBridgeEndpoint host:mainPort:pairingPort`): fixed endpoints.
+    private let direct: (host: String, main: UInt16, pairing: UInt16)?
+
+    public init() { direct = nil }
+
+    #if DEBUG
+    init(directHost host: String, mainPort: UInt16, pairingPort: UInt16) { direct = (host, mainPort, pairingPort) }
+    #endif
 
     public func discover(pairing: Bool) async -> [DiscoveredBridge] {
-        await client.discover(pairing: pairing, timeout: .seconds(3))
+        if let direct, let port = NWEndpoint.Port(rawValue: pairing ? direct.pairing : direct.main) {
+            return [DiscoveredBridge(name: "Mac (direkt)", endpoint: .hostPort(host: .init(direct.host), port: port))]
+        }
+        return await client.discover(pairing: pairing, timeout: .seconds(3))
     }
 
     public func pair(with bridge: DiscoveredBridge, code: String) async throws -> (secret: Data, macName: String) {
@@ -29,7 +39,7 @@ public struct LiveBridgeTransport: BridgeTransport {
     }
 
     public func fetchNewRides(macName: String, secret: Data, known: Set<String>) async throws -> [(ride: BridgeRide, fit: Data)] {
-        let found = await client.discover(pairing: false, timeout: .seconds(4))
+        let found = direct != nil ? await discover(pairing: false) : await client.discover(pairing: false, timeout: .seconds(4))
         guard let mac = found.first(where: { $0.name == macName }) ?? (found.count == 1 ? found.first : nil) else {
             throw BridgeError.unreachable
         }
@@ -277,6 +287,14 @@ final class StubBridgeTransport: BridgeTransport, @unchecked Sendable {
 }
 
 extension AppModel {
+    /// `-uiBridgeEndpoint 127.0.0.1:64579:64580`: the real transport, but without Bonjour (end-to-end test against a
+    /// running bridge from the simulator while macOS has not yet allowed the bridge to advertise).
+    func installDirectBridgeEndpoint(_ spec: String) {
+        let parts = spec.split(separator: ":").map(String.init)
+        guard parts.count == 3, let main = UInt16(parts[1]), let pairing = UInt16(parts[2]) else { return }
+        bridge.transport = LiveBridgeTransport(directHost: parts[0], mainPort: main, pairingPort: pairing)
+    }
+
     /// Swaps in the stub transport. Called by `AppEnvironment.makeModel` for `-uiBridgeStub YES`.
     func installBridgeStub() {
         bridge.isStub = true
