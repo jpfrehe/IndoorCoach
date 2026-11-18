@@ -50,7 +50,7 @@ struct TodayDashboard: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            if model.isDemoMode { demoHint }
+            if model.isDemoMode && !Self.showcase { demoHint }
             nextWorkoutCard(next)
             // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
             // At most one highlight (docs/10, U1): the weekly review (Sun 16:00 – Tue) wins over the challenge.
@@ -79,6 +79,15 @@ struct TodayDashboard: View {
                     .buttonStyle(.plain)
             }
         }
+    }
+
+    /// Debug-only launch argument for README screenshots: `-uiShowcase YES` hides the demo banner.
+    static var showcase: Bool {
+        #if DEBUG
+        UserDefaults.standard.bool(forKey: "uiShowcase")
+        #else
+        false
+        #endif
     }
 
     private var demoHint: some View {
