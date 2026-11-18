@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Profil → "Hilfe & Feedback" (B05): redacted diagnostics export and a feedback mail.
+/// Profil → "Hilfe & Feedback": feedback form (O3), app tour and the redacted diagnostics export (B05).
 struct HelpFeedbackSection: View {
     @Environment(AppModel.self) private var model
     @State private var diagnosticsURL: URL?
     @State private var isExporting = false
+    @State private var showTour = false
 
     var body: some View {
         Section {
@@ -28,33 +29,27 @@ struct HelpFeedbackSection: View {
                 .disabled(isExporting)
                 .accessibilityIdentifier("diagnostics.export")
             }
-            if let mail = feedbackURL {
-                Link(destination: mail) {
-                    Label("Feedback senden", systemImage: "envelope")
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                }
-                .accessibilityIdentifier("feedback.send")
-            } else {
-                // No pilot address yet: the public issue tracker (opened in the browser, nothing is sent automatically).
-                Link(destination: AppConfig.feedbackIssueURL(
-                    title: "Feedback: ",
-                    body: "Was ist passiert / was wünschst du dir?\n\n—\nApp \(AppConfig.versionString) · \(AppConfig.osVersionString)")) {
-                    Label("Feedback auf GitHub (öffentlich)", systemImage: "bubble.left.and.text.bubble.right")
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                }
-                .accessibilityIdentifier("feedback.send")
-                .accessibilityHint("Öffnet ein neues GitHub-Issue im Browser. Es ist öffentlich sichtbar.")
+            NavigationLink {
+                FeedbackView()
+            } label: {
+                Label("Feedback & Wünsche", systemImage: "bubble.left.and.text.bubble.right")
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
+            .accessibilityIdentifier("feedback.open")
+            .accessibilityHint("Öffnet ein Formular für Fehler, Wünsche und Lob")
+            Button {
+                showTour = true
+            } label: {
+                Label("App-Einführung ansehen", systemImage: "sparkles")
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+            .accessibilityIdentifier("help.tour")
         } header: { Text("Hilfe & Feedback") } footer: {
-            Text("Die Diagnose enthält die App-Protokolle der letzten 24 Stunden – ohne Schlüssel, Tokens, Fahrtnamen, Ziel oder Hinweise. Du entscheidest im Teilen-Menü, wohin sie geht."
-                 + (feedbackURL == nil ? " Feedback auf GitHub ist öffentlich – bitte keine persönlichen Daten und keine Diagnose anhängen." : ""))
+            Text("Feedback wird als öffentliches Issue auf GitHub angelegt (kostenloses Konto nötig, bitte keine persönlichen Daten). Die Diagnose enthält die App-Protokolle der letzten 24 Stunden – ohne Schlüssel, Tokens, Fahrtnamen, Ziel oder Hinweise. Du entscheidest im Teilen-Menü, wohin sie geht.")
         }
-    }
-
-    private var feedbackURL: URL? {
-        AppConfig.feedbackMailURL(
-            subject: "IndoorCoach Feedback \(AppConfig.versionString)",
-            body: "\n\n—\nApp \(AppConfig.versionString) · \(AppConfig.osVersionString) · \(AppConfig.deviceModel)")
+        .sheet(isPresented: $showTour) {
+            FeatureTourView(context: .help) { showTour = false }
+        }
     }
 
     private func export() async {

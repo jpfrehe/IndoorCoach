@@ -16,10 +16,13 @@ public enum AppConfig {
         return components.url
     }
 
-    /// Public issue tracker – the feedback route while no pilot address is configured.
-    public static let issueTrackerURL = URL(string: "https://github.com/jpfrehe/IndoorCoach/issues/new")!
+    /// Public repository; feedback goes to its issue forms (`FeedbackDraft`).
+    public static let repoURL = URL(string: "https://github.com/jpfrehe/IndoorCoach")!
 
-    /// New-issue link with title and body prefilled (no diagnostics, no personal data: the issue is public).
+    /// Plain new-issue page (no template). Kept for compatibility; the app uses `FeedbackDraft` instead.
+    public static let issueTrackerURL = repoURL.appendingPathComponent("issues/new")
+
+    /// New-issue link with title and body prefilled. Kept for compatibility (see `QualityTests`).
     public static func feedbackIssueURL(title: String, body: String) -> URL {
         var components = URLComponents(url: issueTrackerURL, resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "title", value: title), URLQueryItem(name: "body", value: body)]

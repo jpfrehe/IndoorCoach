@@ -1146,4 +1146,58 @@ final class AuditPerformanceTests: AuditCase {
     // ANCHOR-UITEST-O2 (Feature-Tour & Tipps)
 
     // ANCHOR-UITEST-O3 (Feedback als GitHub-Issue)
+
+    /// O3: Feedback-Formular (Wunsch), Vorschau, Text kopieren, Weiter zu GitHub (Safari), App-Einführung.
+    func test32_FeedbackFormAndTour() {
+        launch()
+        openTab("Profil")
+        let open = scrollUntilExists(app.descendants(matching: .any)["feedback.open"].firstMatch, maxSwipes: 14)
+        check(open.exists, "Zeile „Feedback & Wünsche“ im Profil")
+        tap(open, "Feedback & Wünsche")
+        route = "feedback"
+        settle()
+        let submit = app.buttons["feedback.submit"]
+        check(waitFast(app.descendants(matching: .any)["feedback.kind"].firstMatch), "Art-Auswahl sichtbar")
+        shot("feedback-leer")
+        accessibilityAudit("Feedback-leer")
+        check(submit.exists && !submit.isEnabled, "„Weiter zu GitHub“ ist ohne Text deaktiviert")
+
+        let wish = app.segmentedControls.buttons["Wunsch"]
+        if wish.exists { tap(wish, "Art Wunsch") } else { tap(app.buttons["Wunsch"], "Art Wunsch") }
+        type(app.textFields["feedback.title"], "Testwunsch bitte ignorieren", "Titel")
+        let bodyField = app.textViews["feedback.body"]
+        type(bodyField, "Dies ist ein automatischer UI-Test ohne echte Daten.", "Beschreibung")
+        if app.keyboards.count > 0 { app.swipeDown() }
+        let preview = scrollUntilExists(app.descendants(matching: .any)["feedback.preview"].firstMatch, maxSwipes: 4)
+        check(preview.exists, "Vorschau erscheint")
+        check(text(containing: "[Wunsch] Testwunsch bitte ignorieren").exists, "Vorschau zeigt Präfix und Titel")
+        check(app.switches["feedback.appInfo"].exists, "Schalter „App-Version und Gerät anhängen“")
+        shot("feedback-ausgefuellt")
+        accessibilityAudit("Feedback-ausgefuellt")
+
+        let copy = scrollUntilExists(app.buttons["feedback.copy"], maxSwipes: 6)
+        check(submit.isEnabled, "„Weiter zu GitHub“ ist mit gültigem Text aktiv")
+        tap(copy, "Text kopieren")
+        check(app.descendants(matching: .any)["feedback.copied"].firstMatch.waitForExistence(timeout: 4),
+              "Bestätigung „Kopiert“")
+
+        tap(submit, "Weiter zu GitHub")
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        check(safari.wait(for: .runningForeground, timeout: 15), "Safari kommt in den Vordergrund")
+        app.activate()
+        check(app.descendants(matching: .any)["feedback.done"].firstMatch.waitForExistence(timeout: 8),
+              "Zurück in der App: Bestätigung mit „Erledigt“")
+        shot("feedback-bestaetigung")
+        tap(app.buttons["feedback.done"], "Erledigt")
+        back()
+
+        let tour = scrollUntilExists(app.descendants(matching: .any)["help.tour"].firstMatch, maxSwipes: 14)
+        check(tour.exists, "Zeile „App-Einführung ansehen“")
+        tap(tour, "App-Einführung ansehen")
+        let finish = app.buttons["tour.finish"]
+        check(finish.waitForExistence(timeout: 8), "Tour öffnet")
+        shot("tour-aus-hilfe")
+        tap(finish, "Tour beenden")
+        check(app.navigationBars["Profil"].waitForExistence(timeout: 6), "Zurück im Profil")
+    }
 }
