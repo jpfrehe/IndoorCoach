@@ -1,0 +1,31 @@
+name: Fehler melden
+description: Etwas funktioniert nicht wie erwartet.
+title: "[Fehler] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke fürs Melden! Bitte keine persönlichen Daten (Name, E-Mail, Schlüssel) eintragen. Diese Seite ist öffentlich.
+  - type: textarea
+    id: beschreibung
+    attributes:
+      label: Was ist passiert?
+      description: Beschreibe kurz, was du gesehen hast.
+    validations:
+      required: true
+  - type: textarea
+    id: schritte
+    attributes:
+      label: Wie kann man es nachstellen?
+      description: Ein paar Schritte, die zum Fehler führen.
+      placeholder: "1. Profil öffnen\n2. …"
+  - type: textarea
+    id: erwartet
+    attributes:
+      label: Was hast du erwartet?
+  - type: textarea
+    id: app-info
+    attributes:
+      label: App-Version und Gerät
+      description: Hilft bei der Fehlersuche.

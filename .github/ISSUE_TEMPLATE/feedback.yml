@@ -1,0 +1,19 @@
+name: Lob, Frage oder Feedback
+description: Allgemeines Feedback, eine Frage oder ein Dankeschön.
+title: "[Feedback] "
+labels: [feedback]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für dein Feedback! Bitte keine persönlichen Daten eintragen. Diese Seite ist öffentlich.
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Dein Feedback oder deine Frage
+    validations:
+      required: true
+  - type: textarea
+    id: app-info
+    attributes:
+      label: App-Version und Gerät

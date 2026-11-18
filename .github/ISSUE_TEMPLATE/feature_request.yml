@@ -1,0 +1,25 @@
+name: Wunsch äußern
+description: Eine Idee oder ein Wunsch für IndoorCoach.
+title: "[Wunsch] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Schön, dass du mitdenkst! Bitte keine persönlichen Daten eintragen. Diese Seite ist öffentlich.
+  - type: textarea
+    id: wunsch
+    attributes:
+      label: Was wünschst du dir?
+      description: Beschreibe die Idee in ein paar Sätzen.
+    validations:
+      required: true
+  - type: textarea
+    id: nutzen
+    attributes:
+      label: Wofür brauchst du das?
+      description: Was wäre damit leichter oder besser?
+  - type: textarea
+    id: app-info
+    attributes:
+      label: App-Version und Gerät
