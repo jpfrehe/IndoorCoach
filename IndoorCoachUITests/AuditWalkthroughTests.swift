@@ -961,7 +961,8 @@ final class AuditWalkthroughTests: AuditCase {
         tap(app.buttons["onboarding.next"], "Los geht’s")
         check(waitFast(text(containing: "Dein Training")), "Schritt 2 „Dein Training“")
         check(indicator.label == "Schritt 2 von 5", "Seitenanzeige „Schritt 2 von 5“")
-        check(text(containing: "250 W").exists, "FTP-Standard 250 W")
+        // The value lives in the stepper's label ("250 W, FTP"), not in a separate static text.
+        check(app.steppers["onboarding.ftp"].label.contains("250 W") || text(containing: "250 W").exists, "FTP-Standard 250 W")
         let ftp = app.steppers["onboarding.ftp"]
         // „Weiß ich nicht“: 2,5 W/kg × 75 kg = 187,5 → 190 W.
         tap(app.buttons["onboarding.ftpUnknown"], "FTP „Weiß ich nicht“")
@@ -1002,7 +1003,10 @@ final class AuditWalkthroughTests: AuditCase {
         tap(app.buttons["onboarding.start"], "Direkt starten")
         route = "heute"
         check(waitFast(app.navigationBars["Heute"], timeout: 6), "Onboarding endet auf Heute")
-        check(!text(containing: "Willkommen bei IndoorCoach").exists, "Onboarding geschlossen")
+        // The cover is still in the tree while it slides away.
+        let closing = Date().addingTimeInterval(4)
+        while app.buttons["onboarding.start"].exists && Date() < closing { usleep(200_000) }
+        check(!app.buttons["onboarding.start"].exists && !app.otherElements["onboarding.pageIndicator"].exists, "Onboarding geschlossen")
         check(app.tabBars.buttons["Heute"].isSelected, "Tab „Heute“ aktiv")
         check(waitFast(text(containing: "Nächste Einheit")) && !text(containing: "Nichts geplant").exists,
               "Demo-Daten geladen: Heute zeigt eine Einheit")

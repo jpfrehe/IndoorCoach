@@ -8,7 +8,8 @@
   <img alt="SwiftUI · SwiftData · Swift Charts" src="https://img.shields.io/badge/SwiftUI-SwiftData%20%C2%B7%20Charts-FFB38A">
   <img alt="Claude API" src="https://img.shields.io/badge/Planung-Claude%20API-B5175A">
   <img alt="Kein Backend" src="https://img.shields.io/badge/Backend-keins-24131D">
-  <img alt="322 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-322-5EDBB8">
+  <img alt="365 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-365-5EDBB8">
+  <a href="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
 # IndoorCoach
@@ -22,6 +23,8 @@ Im Winter sinkt das Radvolumen bei vielen um ein Drittel. IndoorCoach setzt gena
 - **Ein Grund für die nächste Einheit:** Winter Arc mit 10 Leveln, Alpenüberquerung als Etappenreise, Challenges und Trophäen.
 
 Alles läuft auf dem iPhone. Es gibt kein Backend und kein Konto bei IndoorCoach; Schlüssel und Sitzungen liegen im iOS-Schlüsselbund.
+
+**In zwei Minuten startklar:** Das Onboarding fragt Training und Trainingstage ab, verbindet MyWhoosh und prüft deinen Claude-API-Key direkt beim Einrichten. Danach zeigt eine kurze animierte Tour, was die App kann. Alles ist überspringbar – ohne Verbindung startet die App mit Demo-Daten.
 
 ---
 
@@ -81,6 +84,10 @@ Farbsystem „Sunset Jelly“, geprüft auf iPhone SE und iPhone Pro, mit Dynami
 
 Ohne Verbindung startet die App mit Demo-Daten, so lässt sich alles sofort ausprobieren.
 
+## Feedback & Wünsche
+
+In der App unter *Profil → Hilfe & Feedback → Feedback & Wünsche*: Art wählen (Fehler, Wunsch, Lob & Frage), kurz beschreiben, „Weiter zu GitHub“. Die App öffnet ein vorausgefülltes [Issue-Formular](https://github.com/jpfrehe/IndoorCoach/issues/new/choose); du tippst nur noch auf „Create“. Es gibt kein Token in der App, E-Mail-Adressen und Schlüssel werden vorher geschwärzt. Ohne GitHub-Konto lässt sich der Text kopieren.
+
 ## Loslegen
 
 Voraussetzungen: Mac mit Xcode 27, ein iPhone mit iOS 18 oder neuer. Ein kostenloser Apple-Account reicht.
@@ -101,7 +108,9 @@ Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im
 cd IndoorCoach/IndoorCoachKit && swift test
 ```
 
-Dazu kommen 32 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit).
+Dazu kommen 37 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift).
+
+**CI/CD:** GitHub Actions baut und testet jeden Push ([ci.yml](.github/workflows/ci.yml)). Ein Tag `v1.2.3` startet [release.yml](.github/workflows/release.yml): Archiv, Signierung per App-Store-Connect-API-Key, Upload zu TestFlight. Einrichtung in [docs/13-APP-STORE-RELEASE.md](docs/13-APP-STORE-RELEASE.md).
 
 ## Datenschutz & Secrets
 
@@ -142,6 +151,8 @@ docs/                   Konzept, Feature-Pakete, Audits, Screenshots
 10. [Konstanz-Paket: Serie mit Joker, Wochenrückblick, Challenges, Effizienz](docs/10-KONSTANZ-PAKET.md)
 11. [Winter-Paket 2: Prognose, Fähigkeiten, Vorjahr, Winter-Reise](docs/11-WINTER-PAKET-2.md)
 12. [UX-Audit 1](docs/ux-audit-2026-11-17.md) und [UX-Audit 2](docs/ux-audit-2026-11-17-b.md)
+13. [Paket „Öffnung“: Onboarding mit Verbindungen, Feature-Tour, Feedback, CI/CD](docs/12-PAKET-OEFFNUNG.md)
+14. [App-Store-Release mit GitHub Actions](docs/13-APP-STORE-RELEASE.md) und [Datenschutzerklärung (Entwurf)](docs/PRIVACY.md)
 
 ## Roadmap
 

@@ -151,3 +151,30 @@ Wie im [Konstanz-Paket](10-KONSTANZ-PAKET.md) §4: eigener Worktree und Branch j
 - alle UI-Tests im Simulator;
 - ausführlicher UX-Test: Journey, Fehlerfälle, Unterbrechung, Dark Mode, AX-Schriftgrößen, iPhone SE, „Bewegung reduzieren“, VoiceOver-Audit;
 - Commit.
+
+## 5. Umsetzung und Prüfung (18.11.2026)
+
+Vier Sonnet-Subagenten, parallel in eigenen Worktrees (vorher auf `main` vorgespult). Die Hauptsession hat jedes Paket geprüft, zusammengeführt und die UX im Simulator getestet.
+
+| Paket | Ergebnis | Nacharbeit der Hauptsession |
+|---|---|---|
+| O1 Onboarding-Journey | ✅ 5 Schritte, Key-Prüfung über `/v1/models`, Schritt-Persistenz, gemeinsame Formulare in Onboarding und Profil | Untere Leiste weicht der Tastatur (sie verdeckte „Bei MyWhoosh anmelden“). Formulare schließen die Tastatur beim Absenden. Bei AX5 nur Chevron statt „Zu-rück“, Leisten bei AX2/AX3 gedeckelt, Nummern der Key-Anleitung skalieren mit. |
+| O2 Feature-Tour & Tipps | ✅ 5 animierte Seiten, 4 TipKit-Tipps nach dem Onboarding | Die Animationen liefen im Paging-`TabView` nicht (`TimelineView` tickte nicht) → eigene Frame-Schleife. MyWhoosh-Illustration bekam eine Quelle (IndoorCoach) statt einer leeren linken Hälfte. |
+| O3 Feedback als GitHub-Issue | ✅ Formular, Issue-Formulare mit Labels, Schwärzung, Kürzung unter 8 000 Zeichen | Tour aus „Hilfe“ öffnete nicht (Sheet an der `Section`) → Vollbild aus der Zeile. Nach der Rückkehr von GitHub scrollt die Ansicht zur Bestätigung. „Alle Daten löschen“ entfernt auch den Entwurf. |
+| O4 CI/CD | ✅ `ci.yml`, `release.yml` (Runner `xcode-27`, Xcode 27.2), `archive.sh` mit API-Key, Release-Doku, Datenschutz-Entwurf | – |
+
+**Ergebnis:**
+- 365 Unit-Tests grün (322 vorher).
+- UI-Tests test29–32 und die UX-Matrix (`testMatrixOpening`: L/Dark und AX5/Light, iPhone 18 Pro und iPhone SE) grün.
+- Regression: test01–28 laufen durch.
+  - Abweichende weiche Checks in test03 (`.zwo`-Menüpunkt) und test22 (Challenge-Highlight) gibt es genauso auf dem Stand vor dem Paket (Gegenprobe auf `874ccca`). Sie sind nicht durch das Paket entstanden.
+  - Der bekannte Wackel-Check „Metrik zeigt TSS nach einem Tap“ bleibt.
+- Sichtprüfung im Simulator: Onboarding in Hell/Dunkel, iPhone SE bei AX5, alle 5 Tour-Seiten mit Animation, Feedback mit Safari-Übergabe.
+- iOS bietet nach dem MyWhoosh-Login „Passwort sichern?“ an. Das ist gewollt: Das Passwort landet im iOS-Passwörter-Schlüsselbund des Nutzers, nicht in der App.
+
+**Offen:**
+- Label `feedback` im GitHub-Repo anlegen, sonst bleibt Feedback ohne Label.
+- Secrets und das Environment `app-store` für den Release-Workflow anlegen ([docs/13](13-APP-STORE-RELEASE.md)); der erste echte Release-Lauf ist ungetestet.
+- `docs/PRIVACY.md` vor der Store-Einreichung rechtlich prüfen und den Verantwortlichen eintragen.
+- Die Automatik-Kontrastmeldungen auf unbenannten Knoten wie im UX-Audit 2 auf dem Gerät prüfen (B13).
+- test03 und test22 an die heutige Oberfläche anpassen (vorbestehend).

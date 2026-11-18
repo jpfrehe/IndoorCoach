@@ -1,6 +1,6 @@
 # Status & nächste Schritte
 
-Stand: v0.1 (Pilot-Vorbereitung) · 17.11.2026 · öffentlich auf [GitHub](https://github.com/jpfrehe/IndoorCoach)
+Stand: v0.1 (Pilot-Vorbereitung) · 18.11.2026 · öffentlich auf [GitHub](https://github.com/jpfrehe/IndoorCoach)
 
 ## Was fertig ist
 
@@ -15,11 +15,13 @@ Stand: v0.1 (Pilot-Vorbereitung) · 17.11.2026 · öffentlich auf [GitHub](https
 | Leistung: Leistungskurve, Bestleistungen, eFTP, VO2max | ✅ | [Feature-Dokument](08-FEATURES-LEISTUNG.md) |
 | Konstanz-Paket: Serie mit Joker, Plan-Treue, Wochenrückblick + Erinnerung, Saison-Challenges, Trophäen, aerobe Effizienz | ✅ | [Feature-Dokument](10-KONSTANZ-PAKET.md) |
 | Winter-Paket 2: Ziel-Prognose mit Was-wäre-wenn, Trainingsverteilung, eFTP-Verlauf, Fähigkeitslevel, Ermüdungsresistenz, Vorjahres-Schatten, Saisonrückblick zum Teilen, Winter-Reise, Erinnerung vor Einheiten | ✅ | [Feature-Dokument](11-WINTER-PAKET-2.md) |
+| Paket „Öffnung“: Onboarding mit MyWhoosh-Login und Claude-Key-Prüfung, animierte Feature-Tour + Tipps, Feedback als GitHub-Issue, CI/CD für den App Store | ✅ | [Paket-Dokument](12-PAKET-OEFFNUNG.md), [Release](13-APP-STORE-RELEASE.md) |
 | UX-Audit 2 der erweiterten Version | ✅ 6 Befunde behoben | [Bericht](ux-audit-2026-11-17-b.md); formal offen: automatisch gemeldete Kontrast-Knoten (Gerät, B13) |
 
 **Tests:**
-- 322 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
-- 32 UI-Tests (Walkthrough, Größenmatrix inkl. neuer Oberflächen, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
+- 365 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
+- 37 UI-Tests (Walkthrough, Onboarding-Journey, Tour, Feedback, Größen- und Dark-Mode-Matrix, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
+- GitHub Actions: `ci.yml` (Unit-Tests + Simulator-Build) bei jedem Push, `release.yml` für TestFlight.
 
 ## Live auf dem iPhone geprüft
 
