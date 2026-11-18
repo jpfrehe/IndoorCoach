@@ -1140,4 +1140,10 @@ final class AuditPerformanceTests: AuditCase {
             for tab in ["Plan", "Verlauf", "Profil", "Heute"] { openTab(tab) }
         }
     }
+
+    // ANCHOR-UITEST-O1 (Onboarding-Journey & Verbindungen)
+
+    // ANCHOR-UITEST-O2 (Feature-Tour & Tipps)
+
+    // ANCHOR-UITEST-O3 (Feedback als GitHub-Issue)
 }
