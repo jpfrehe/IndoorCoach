@@ -30,7 +30,7 @@ struct SeasonSummaryTests {
                      ride(2, day(2026, 11, 10), curve20: 230),
                      ride(3, day(2026, 12, 1), curve20: 245)]
         let challenges = Challenges.season(rides: rides, ftp: 250, now: now, calendar: cal)
-        let s = SeasonSummary.make(status: status(now: now), challenges: challenges, rides: rides, name: "  Jan ", now: now)
+        let s = SeasonSummary.make(status: status(now: now), challenges: challenges, rides: rides, name: "  Jan ", now: now, calendar: cal)
         #expect(s.best20MinWatts == 245)
         #expect(s.best20MinText == "245 W")
         #expect(s.fitnessText == "24 → 34")
@@ -43,7 +43,7 @@ struct SeasonSummaryTests {
 
     @Test func noNameNoPowerStaysEmpty() {
         let now = day(2026, 12, 20)
-        let s = SeasonSummary.make(status: status(now: now), challenges: [], rides: [], name: "   ", now: now)
+        let s = SeasonSummary.make(status: status(now: now), challenges: [], rides: [], name: "   ", now: now, calendar: cal)
         #expect(s.name == nil)
         #expect(s.best20MinWatts == nil)
         #expect(s.best20MinText == "–")
@@ -53,7 +53,7 @@ struct SeasonSummaryTests {
 
     @Test func streakWording() {
         let now = day(2026, 12, 20)
-        var s = SeasonSummary.make(status: status(now: now), challenges: [], rides: [], name: "", now: now)
+        var s = SeasonSummary.make(status: status(now: now), challenges: [], rides: [], name: "", now: now, calendar: cal)
         s.streakWeeks = 1
         #expect(s.streakText == "1 Woche")
         s.streakWeeks = 5
