@@ -14,6 +14,8 @@ public struct Keychain: Sendable {
         case stravaClientSecret = "strava.clientSecret"
         case stravaTokens = "strava.tokens"
         case myWhooshSession = "mywhoosh.session"
+        /// IndoorCoach Brücke: the long pairing secret (Mac: its own; iPhone: the paired Mac's).
+        case bridgeSecret = "bridge.secret"
     }
 
     public func data(_ key: Key) -> Data? {
