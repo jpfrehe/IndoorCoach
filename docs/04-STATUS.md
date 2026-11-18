@@ -16,12 +16,14 @@ Stand: v0.1 (Pilot-Vorbereitung) · 18.11.2026 · öffentlich auf [GitHub](https
 | Konstanz-Paket: Serie mit Joker, Plan-Treue, Wochenrückblick + Erinnerung, Saison-Challenges, Trophäen, aerobe Effizienz | ✅ | [Feature-Dokument](10-KONSTANZ-PAKET.md) |
 | Winter-Paket 2: Ziel-Prognose mit Was-wäre-wenn, Trainingsverteilung, eFTP-Verlauf, Fähigkeitslevel, Ermüdungsresistenz, Vorjahres-Schatten, Saisonrückblick zum Teilen, Winter-Reise, Erinnerung vor Einheiten | ✅ | [Feature-Dokument](11-WINTER-PAKET-2.md) |
 | Paket „Öffnung“: Onboarding mit MyWhoosh-Login und Claude-Key-Prüfung, animierte Feature-Tour + Tipps, Feedback als GitHub-Issue, CI/CD für den App Store | ✅ | [Paket-Dokument](12-PAKET-OEFFNUNG.md), [Release](13-APP-STORE-RELEASE.md) |
+| Sekundendaten aus MyWhoosh: Mac-App „IndoorCoach Brücke“ (Menüleiste, liest den MyWhoosh-Ordner, WLAN-Übertragung mit TLS-PSK nach Kopplung per Code), iPhone-Kopplung und Auto-Abgleich, FIT-Import ergänzt vorhandene Fahrten, `.fit` öffnen | ✅ End-to-End mit Simulator ↔ laufender Brücke getestet | [Konzept & User Journey](14-SEKUNDENDATEN-MAC-BRUECKE.md); offen: signierter Gerätetest (B25) |
 | UX-Audit 2 der erweiterten Version | ✅ 6 Befunde behoben | [Bericht](ux-audit-2026-11-17-b.md); formal offen: automatisch gemeldete Kontrast-Knoten (Gerät, B13) |
 
 **Tests:**
-- 365 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
-- 37 UI-Tests (Walkthrough, Onboarding-Journey, Tour, Feedback, Größen- und Dark-Mode-Matrix, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
-- GitHub Actions: `ci.yml` (Unit-Tests + Simulator-Build) bei jedem Push, `release.yml` für TestFlight.
+- 416 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
+- 39 UI-Tests (Walkthrough, Onboarding-Journey, Tour, Feedback, Mac-Brücke, Größen- und Dark-Mode-Matrix, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
+- 7 Unit-Tests der Mac-App (`IndoorCoachBridgeTests`).
+- GitHub Actions: `ci.yml` (Unit-Tests + Simulator-Build + Build der Mac-Brücke) bei jedem Push, `release.yml` für TestFlight.
 
 ## Live auf dem iPhone geprüft
 

@@ -18,7 +18,13 @@ final class BridgeServerCore: @unchecked Sendable {
     private var pairingTimer: DispatchWorkItem?
     private var pairingCode: String?
     private var eventHandler: (@Sendable (BridgeServer.Event) -> Void)?
-    private var generation = 0
+    /// Pairing hardening (security review): failed handshakes close the window, few connections at a time,
+    /// one pairing per window.
+    static let maxPairingFailures = 10
+    static let maxPairingConnections = 4
+    private var pairingFailures = 0
+    private var pairingInFlight = 0
+    private var pairedThisWindow = false
 
     init(name: String, secret: Data, source: any BridgeRideSource, advertise: Bool) {
         self.name = name
@@ -43,14 +49,13 @@ final class BridgeServerCore: @unchecked Sendable {
     // MARK: Listeners
 
     func start() async throws {
-        let (key, gen) = lock.withLock { () -> (Data, Int) in generation += 1; return (secret, generation) }
+        let key = lock.withLock { secret }
         let listener = try await makeListener(psk: key, identity: BridgeCrypto.mainIdentity,
                                               serviceType: Bridge.serviceType, pairing: false)
         let old: NWListener? = lock.withLock {
             let previous = mainListener
             mainListener = listener
             mainPort = listener.port?.rawValue
-            _ = gen
             return previous
         }
         old?.cancel()
@@ -80,6 +85,8 @@ final class BridgeServerCore: @unchecked Sendable {
             pairingPortValue = listener.port?.rawValue
             pairingTimer = timer
             pairingCode = code
+            pairingFailures = 0
+            pairedThisWindow = false
         }
         let seconds = Bridge.pairingWindow.components.seconds
         queue.asyncAfter(deadline: .now() + .seconds(Int(seconds)), execute: timer)
@@ -99,18 +106,30 @@ final class BridgeServerCore: @unchecked Sendable {
         }
     }
 
-    /// Replaces the secret: the main listener restarts (the port changes) and existing connections are dropped.
+    /// Replaces the secret: the old listener (old PSK) is closed first so no phone with the old secret gets in, then
+    /// the main listener restarts with the new one (the port changes). Retries a few times if the restart fails.
     func updateSecret(_ newSecret: Data) {
         let (old, conns) = lock.withLock { () -> (NWListener?, [BridgeChannel]) in
             secret = newSecret
             let result = (mainListener, Array(connections.values))
+            mainListener = nil
+            mainPort = nil
             connections = [:]
             return result
         }
-        guard old != nil else { return }
+        guard let old else { return }
+        old.cancel()
         conns.forEach { $0.cancel() }
         Task { [self] in
-            try? await start()
+            for attempt in 1...5 {
+                do {
+                    try await start()
+                    return
+                } catch {
+                    Log.error(.bridge, "restart after new secret failed (\(attempt)/5): \(type(of: error))")
+                    try? await Task.sleep(for: .seconds(attempt))
+                }
+            }
         }
     }
 
@@ -140,20 +159,49 @@ final class BridgeServerCore: @unchecked Sendable {
     // MARK: Connections
 
     private func accept(_ connection: NWConnection, pairing: Bool) {
+        if pairing {
+            let admitted = lock.withLock { () -> Bool in
+                guard pairingInFlight < Self.maxPairingConnections, !pairedThisWindow else { return false }
+                pairingInFlight += 1
+                return true
+            }
+            guard admitted else { connection.cancel(); return }
+        }
         let channel = BridgeChannel(connection: connection, queue: queue)
         let key = ObjectIdentifier(channel)
         lock.withLock { connections[key] = channel }
         Task { [self] in
             defer {
                 channel.cancel()
-                _ = lock.withLock { connections.removeValue(forKey: key) }
+                lock.withLock {
+                    connections.removeValue(forKey: key)
+                    if pairing { pairingInFlight -= 1 }
+                }
             }
             do {
-                try await channel.start(timeout: 15)
+                try await channel.start(timeout: pairing ? 8 : 15)
+            } catch {
+                if pairing { countPairingFailure() }
+                Log.notice(.bridge, "connection ended: \(error)")
+                return
+            }
+            do {
                 if pairing { try await servePairing(channel) } else { try await serveMain(channel) }
             } catch {
                 Log.notice(.bridge, "connection ended: \(error)")
             }
+        }
+    }
+
+    /// A failed TLS handshake on the pairing service is a wrong code (or a scan): after a few, the window closes.
+    private func countPairingFailure() {
+        let exhausted = lock.withLock { () -> Bool in
+            pairingFailures += 1
+            return pairingFailures >= Self.maxPairingFailures && pairingListener != nil
+        }
+        if exhausted {
+            Log.notice(.bridge, "pairing window closed after \(Self.maxPairingFailures) failed attempts")
+            stopPairing()
         }
     }
 
@@ -162,8 +210,22 @@ final class BridgeServerCore: @unchecked Sendable {
             try? await channel.send(.failure("hello expected"))
             return
         }
-        let secret = lock.withLock { self.secret }
-        try await channel.send(.pairingSecret(secret, macName: name))
+        guard case .pairingRequest(let publicKey) = try await channel.receive(timeout: 10) else {
+            try? await channel.send(.failure("pairing request expected"))
+            return
+        }
+        // Exactly one pairing per window, even if two phones completed the handshake at the same time.
+        let claim = lock.withLock { () -> (secret: Data, code: String)? in
+            guard !pairedThisWindow, let code = pairingCode else { return nil }
+            pairedThisWindow = true
+            return (secret, code)
+        }
+        guard let claim else {
+            try? await channel.send(.failure("pairing window closed"))
+            return
+        }
+        let sealed = try BridgePairingSeal.seal(secret: claim.secret, clientPublicKey: publicKey, code: claim.code)
+        try await channel.send(.pairingSecret(sealed, macName: name))
         emit(device, .paired)
         Log.notice(.bridge, "paired a device")
         stopPairing()

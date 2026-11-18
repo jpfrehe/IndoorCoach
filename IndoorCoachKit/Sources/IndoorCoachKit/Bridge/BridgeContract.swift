@@ -13,7 +13,8 @@ public enum Bridge {
     public static let serviceType = "_indoorcoach._tcp"
     /// Bonjour service that only exists while the Mac shows a pairing code (TLS with a key derived from the code).
     public static let pairingServiceType = "_icpair._tcp"
-    public static let protocolVersion = 1
+    /// 2: pairing seals the secret with an ephemeral key exchange (`pairingRequest`).
+    public static let protocolVersion = 2
     /// Upper bound for one message (a 3-hour FIT file is ~1–2 MB).
     public static let maxMessageBytes = 20 * 1024 * 1024
     /// How long a pairing code stays valid.
@@ -45,7 +46,10 @@ public enum BridgeMessage: Sendable, Equatable {
     case hello(deviceName: String, protocolVersion: Int)
     /// server → client answer to `hello` on the main service.
     case welcome(macName: String, protocolVersion: Int)
-    /// server → client answer to `hello` on the pairing service: the long secret (32 bytes).
+    /// client → server on the pairing service after `hello`: the phone's ephemeral X25519 public key (32 bytes).
+    case pairingRequest(publicKey: Data)
+    /// server → client answer to `pairingRequest`: the long secret, sealed (see `BridgePairingSeal`):
+    /// server's ephemeral public key (32 bytes) followed by a ChaChaPoly box.
     case pairingSecret(Data, macName: String)
     case listRides(since: Date?)
     case rides([BridgeRide])
@@ -73,6 +77,7 @@ public enum BridgeCodec {
         case .hello: BridgeWireType.hello
         case .welcome: BridgeWireType.welcome
         case .pairingSecret: BridgeWireType.pairingSecret
+        case .pairingRequest: BridgeWireType.pairingRequest
         case .listRides: BridgeWireType.listRides
         case .rides: BridgeWireType.rides
         case .fetchRide: BridgeWireType.fetchRide
@@ -92,6 +97,8 @@ public enum BridgeCodec {
                 return try encoder.encode(BridgeWire.Welcome(macName: name, protocolVersion: version))
             case .pairingSecret(let secret, let name):
                 return try encoder.encode(BridgeWire.PairingSecret(secret: secret, macName: name))
+            case .pairingRequest(let key):
+                return try encoder.encode(BridgeWire.PairingRequest(publicKey: key))
             case .listRides(let since): return try encoder.encode(BridgeWire.ListRides(since: since))
             case .rides(let rides): return try encoder.encode(BridgeWire.Rides(rides: rides))
             case .fetchRide(let id): return try encoder.encode(BridgeWire.FetchRide(id: id))
@@ -118,6 +125,8 @@ public enum BridgeCodec {
             case BridgeWireType.pairingSecret:
                 let m = try decoder.decode(BridgeWire.PairingSecret.self, from: payload)
                 return .pairingSecret(m.secret, macName: m.macName)
+            case BridgeWireType.pairingRequest:
+                return .pairingRequest(publicKey: try decoder.decode(BridgeWire.PairingRequest.self, from: payload).publicKey)
             case BridgeWireType.listRides:
                 return .listRides(since: try decoder.decode(BridgeWire.ListRides.self, from: payload).since)
             case BridgeWireType.rides:
@@ -245,9 +254,13 @@ public actor BridgeClient {
                                            identity: BridgeCrypto.pairingIdentity)
         defer { channel.cancel() }
         try await channel.start(timeout: 8)
-        let answer = try await channel.request(.hello(deviceName: deviceName, protocolVersion: Bridge.protocolVersion),
-                                               timeout: 8)
-        guard case .pairingSecret(let secret, let macName) = answer else { throw BridgeError.malformedMessage }
+        let ephemeral = Curve25519.KeyAgreement.PrivateKey()
+        try await channel.send(.hello(deviceName: deviceName, protocolVersion: Bridge.protocolVersion))
+        let answer = try await channel.request(.pairingRequest(publicKey: ephemeral.publicKey.rawRepresentation), timeout: 8)
+        guard case .pairingSecret(let sealed, let macName) = answer else { throw BridgeError.malformedMessage }
+        guard let secret = try? BridgePairingSeal.open(sealed, clientKey: ephemeral, code: code), secret.count == 32 else {
+            throw BridgeError.authenticationFailed
+        }
         Log.notice(.bridge, "paired with a bridge")
         return (secret, macName)
     }

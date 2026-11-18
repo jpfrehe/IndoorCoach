@@ -13,12 +13,14 @@ enum BridgeWireType {
     static let fetchRide: UInt32 = 6
     static let rideData: UInt32 = 7
     static let failure: UInt32 = 8
+    static let pairingRequest: UInt32 = 9
 }
 
 enum BridgeWire {
     struct Hello: Codable { var deviceName: String; var protocolVersion: Int }
     struct Welcome: Codable { var macName: String; var protocolVersion: Int }
     struct PairingSecret: Codable { var secret: Data; var macName: String }
+    struct PairingRequest: Codable { var publicKey: Data }
     struct ListRides: Codable { var since: Date? }
     struct Rides: Codable { var rides: [BridgeRide] }
     struct FetchRide: Codable { var id: String }

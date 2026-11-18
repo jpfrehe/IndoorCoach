@@ -33,6 +33,8 @@ Die App sendet Daten nur dann, wenn **du** die jeweilige Funktion nutzt. Die Ver
 | **Strava** | Du verbindest Strava | OAuth-Anmeldung, Abruf deiner Aktivitäten. Es gelten die Bedingungen von Strava. |
 | **GitHub** | Du sendest Feedback | Die App öffnet im Browser ein vorausgefülltes Issue-Formular. Gesendet wird erst, wenn du dort selbst auf „Create“ tippst; dafür brauchst du ein GitHub-Konto. Issues sind öffentlich. |
 
+**IndoorCoach Brücke (Mac, optional):** Die Mac-App liest nach deiner Freigabe die FIT-Dateien im MyWhoosh-Ordner und speichert eine Kopie auf deinem Mac. Sie gibt die Fahrten nur an iPhones weiter, die du per Code gekoppelt hast, und nur verschlüsselt (TLS mit einem gemeinsamen Schlüssel) im lokalen Netzwerk. Es gibt keinen Server und keine Übertragung ins Internet. Den Schlüssel speichern beide Geräte im Schlüsselbund. „Kopplung zurücksetzen“ auf dem Mac macht ihn ungültig.
+
 Außerdem kann iOS Standard-Funktionen anbieten, etwa das Teilen eines Bildes oder einer Datei über das Share-Sheet. Dabei entscheidest du, wohin die Daten gehen.
 
 ## 4. Was nicht passiert

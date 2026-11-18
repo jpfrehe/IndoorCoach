@@ -77,7 +77,7 @@ IndoorCoach (iOS)                                                               
 
 **Sicherheit:**
 - Im Normalbetrieb nur TLS mit 32-Byte-PSK (Cipher `TLS_PSK_WITH_AES_128_GCM_SHA256`, ausgehandelt als TLS 1.2 – wie in Apples Beispiel). Der Kopplungs-Listener läuft nur, solange der Code sichtbar ist (höchstens 5 min, einmalig).
-- Der Code hat 6 Ziffern. Ein Angreifer im selben WLAN, der den Handshake mitschneidet, könnte ihn offline erraten. Er bekäme dann nur Fahrtdaten, kein Konto. Gegenmaßnahmen: Kopplungsfenster kurz und einmalig, und das Geheimnis lässt sich auf dem Mac jederzeit erneuern. Apple verwendet dasselbe Muster im Beispielprojekt *TicTacToe – Building a custom peer-to-peer protocol*.
+- Der Code hat 6 Ziffern. Den TLS-PSK-Handshake allein könnte ein Mithörer offline erraten. Deshalb geht das lange Geheimnis nur versiegelt über die Leitung (X25519 mit Einmalschlüsseln, siehe §7), sodass ein erratener Code allein nichts nützt. Online-Versuche sind auf 10 pro Fenster begrenzt. Das Geheimnis lässt sich auf dem Mac jederzeit erneuern.
 - Keine Ride-Namen oder Geheimnisse im Log, nur Zahlen.
 
 ## 6. Arbeitspakete (Ownership exklusiv)
@@ -98,3 +98,40 @@ IndoorCoach (iOS)                                                               
 - Signaturen aus `BridgeContract.swift` bleiben unverändert. Fehlt etwas, kommt es additiv in die eigene Datei, mit Kommentar `ANCHOR-BRIDGE`.
 - Keine echten Zugangsdaten.
 - Commits in Worktrees ohne Push.
+
+## 7. Umsetzung und Prüfung (18.11.2026)
+
+| Paket | Ergebnis | Abweichungen |
+|---|---|---|
+| S0 Vertrag | `Bridge/BridgeContract.swift`, `Keychain.Key.bridgeSecret`, Log-Kategorie `bridge` | – |
+| B1 Kit | Codec, Framer (8-Byte-Header, max. 20 MB), TLS-PSK, Server (Haupt- und Kopplungs-Listener), Client, Scanner, Ausgang. 22 Tests, davon 6 als Loopback-Integrationstests über 127.0.0.1 | Ausgehandelt wird TLS 1.2 mit `TLS_PSK_WITH_AES_128_GCM_SHA256` (wie in Apples Beispiel). `updateSecret` startet den Haupt-Listener neu. Der Ausgang liefert nur IDs aus seinem Index aus (kein Pfadzugriff über die ID). |
+| B2 iOS | `RideMerge` (neu / ergänzen / schon vollständig / Dublette), `mergeImportedRides`, `AppModel+Bridge` (Kopplung, Auto-Abgleich höchstens alle 2 min, Banner), `MacBridgeView`, Einstiege in Leistung, Profil und Verlauf (Abzeichen „Sekundendaten“), `.fit`-Dokumenttyp, Debug-Stub, test33/test34 | Die Einrichtung ist ein Push-Screen statt eines Blatts. Das Abzeichen sitzt unter der Fahrtzeile, weil `RideRow` nicht zum Paket gehörte. |
+| B3 macOS | Target `IndoorCoachBridge` (per Skript `scripts/add-bridge-target.rb`, Nanaimo statt xcodeproj-API wegen synchronisierter Ordner), Menüleiste + Einrichtungsfenster, Bookmark, Scan alle 20 s, Login-Item, CI-Build, 7 Tests | Die Info.plist wird generiert und um `Bridge/Info.plist` ergänzt (s. u.). |
+
+**Was der End-to-End-Test gefunden hat** (Brücke auf diesem Mac mit erzeugten FIT-Dateien: 52 und 65 min, Leistung + HF je Sekunde):
+1. **Schlüsselbund-Dialog blockiert den Start.** Die Brücke nutzte den alten Datei-Schlüsselbund, der bei jedem neuen Binary „Zugriff erlauben?“ fragt. **Fix:** `Keychain(dataProtection: true)` (Data-Protection-Keychain, signierte Builds). Unsignierte Debug-Builds legen das Geheimnis in den Einstellungen ab.
+2. **Bonjour unsichtbar.** Ohne `NSBonjourServices` und `NSLocalNetworkUsageDescription` hält macOS die Anzeige zurück. **Fix:** `Bridge/Info.plist`. Auch danach fragt macOS einmal nach dem **lokalen Netzwerk**. Das steht jetzt in den Texten auf Mac und iPhone und in der Installationsanleitung.
+3. **Textfehler:** Das iPhone verwies auf „Mit iPhone koppeln“, der Knopf heißt auf dem Mac „iPhone koppeln“.
+4. **Ergebnis über das echte Netz** (Simulator ↔ laufende Brücke, Debug-Schalter `-uiBridgeEndpoint` ohne Bonjour, solange die macOS-Abfrage offen war): Falscher Code abgelehnt; richtiger Code koppelt („Gekoppelt mit Jan’s MacBook Pro, 3 Fahrten übertragen“, „3 von 3 Fahrten mit Sekundendaten“). Der zweite Abruf bringt nichts doppelt, ein falsches Geheimnis wird abgewiesen. Eine überschriebene `MyNewActivity-….fit` wird als neue Fahrt übernommen, die alte bleibt im Ausgang. Ausgewertet: NP 201 / 186 W, 5-min-Leistung 242 / 231 W.
+
+**Tests:**
+- 416 Unit-Tests grün, auch mit `TZ=UTC`.
+- UI: test33/test34 grün, test04/05/19 ohne neue Soft-Fails (bekannter Wackel-Check „Metrik zeigt TSS nach einem Tap“ in test04).
+- AX5 visuell geprüft: Einrichtung, Code-Eingabe über der Tastatur und gekoppelt brechen sauber um.
+- Accessibility-Audit: nur die projektweit bekannten Dynamic-Type- und Clipping-Hinweise.
+
+**Security-Review** (Sonnet, `ecc:security-reviewer`). Alle Befunde sind bestätigt und behoben:
+
+| Schwere | Befund | Behebung |
+|---|---|---|
+| HIGH | Eine präparierte FIT-Datei (zwei Zeitstempel ~136 Jahre auseinander) ließ den Parser ein Array mit Milliarden Einträgen anlegen: Absturz auf dem iPhone (Netz, „Öffnen in“) und Absturz-Schleife der Brücke | Reihen höchstens 24 h, höchstens 500 000 Nachrichten pro Datei, Brücke liest höchstens 50 MB pro Datei; 3 Tests |
+| HIGH | Den 6-stelligen Code kann ein passiver Mithörer nach einem aufgezeichneten Handshake offline erraten (TLS-PSK ohne (EC)DHE) und dann das übertragene Geheimnis entschlüsseln | Im Kopplungskanal läuft jetzt ein X25519-Austausch mit Einmalschlüsseln. Das Geheimnis geht nur ChaChaPoly-versiegelt über die Leitung, Schlüssel = HKDF(gemeinsames Geheimnis, Salt: Code) (`BridgePairingSeal`). Protokollversion 2. |
+| MEDIUM | Unbegrenzte Online-Versuche im Kopplungsfenster | Nach 10 fehlgeschlagenen Handshakes schließt das Fenster, höchstens 4 gleichzeitige Kopplungsverbindungen |
+| MEDIUM | `updateSecret`: Scheitert der Neustart, bleibt der alte Listener (altes Geheimnis) offen | Erst schließen, dann mit bis zu 5 Wiederholungen neu starten |
+| MEDIUM | Zwei Telefone mit korrektem Code bekamen gleichzeitig das Geheimnis | Höchstens eine Kopplung pro Fenster (Flag unter Lock) |
+| MEDIUM | Release-Build ohne Keychain-Zugriff erzeugte bei jedem Start ein neues Geheimnis, ohne dass es auffiel | `keychain-access-groups`-Entitlement, Warnung in der Menüleiste („nach einem Neustart neu koppeln“) |
+| LOW | `network.client`-Entitlement unnötig | entfernt |
+
+**Offen:**
+- B25: Gerätetest mit signiertem Build, also echter Freigabe-Dialog des MyWhoosh-Containers, Netzwerk-Abfrage, Login-Item und eine echte MyWhoosh-FIT-Datei. Das Format von MyWhoosh-FIT-Dateien ist über die Community belegt, eine echte Datei war hier nicht lesbar.
+- B24: iCloud-Transport und Verteilung der Mac-App.

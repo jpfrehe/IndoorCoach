@@ -29,6 +29,8 @@ final class BridgeController {
     private(set) var lastFetch: Date?
     private(set) var serverRunning = false
     private(set) var serverError: String?
+    /// Set when the secret could not be stored (release build without keychain access): pairing would not survive a restart.
+    private(set) var secretStorageError: String?
     private(set) var pairing: PairingState = .idle
     private(set) var launchAtLogin = false
     private(set) var launchAtLoginError: String?
@@ -108,10 +110,10 @@ final class BridgeController {
 
     var statusLine: BridgeStatusLine {
         BridgeFormat.statusLine(BridgeStatusInput(folder: folderState, pairedDeviceName: pairedDeviceName, rideCount: rideCount,
-                                                  lastFetch: lastFetch, serverError: serverError))
+                                                  lastFetch: lastFetch, serverError: serverError ?? secretStorageError))
     }
 
-    var needsAttention: Bool { folderState != .ready || serverError != nil }
+    var needsAttention: Bool { folderState != .ready || serverError != nil || secretStorageError != nil }
 
     var menuSymbol: String { needsAttention ? "exclamationmark.triangle" : "figure.indoor.cycle" }
 
@@ -200,7 +202,7 @@ final class BridgeController {
             let outbox = self.outbox
             let added = await Task.detached(priority: .utility) { () -> Int in
                 var added = 0
-                for file in ready {
+                for file in ready where file.size <= 50 * 1024 * 1024 {   // a ride file is 1–2 MB; skip anything absurd
                     guard let data = try? Data(contentsOf: file.url) else { continue }
                     if (try? outbox.add(fit: data)) != nil { added += 1 }
                 }
@@ -236,12 +238,13 @@ final class BridgeController {
     }
 
     private func storeSecret(_ secret: Data) {
-        if keychain.set(secret, for: .bridgeSecret) { return }
+        if keychain.set(secret, for: .bridgeSecret) { secretStorageError = nil; return }
         #if DEBUG
         defaults.set(secret, forKey: Key.debugSecret)
         Log.notice(.bridge, "Schlüsselbund nicht verfügbar (unsignierter Debug-Build) – Geheimnis in den Einstellungen")
         #else
         Log.error(.bridge, "Schlüsselbund nicht verfügbar – Geheimnis nur im Speicher")
+        secretStorageError = "Schlüsselbund nicht verfügbar – nach einem Neustart musst du dein iPhone neu koppeln."
         #endif
     }
 

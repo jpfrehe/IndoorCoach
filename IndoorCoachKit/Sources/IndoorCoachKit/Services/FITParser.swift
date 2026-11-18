@@ -5,6 +5,12 @@ import Foundation
 public enum FITParser {
     public enum Error: Swift.Error, Equatable { case notFIT, truncated, noData }
 
+    /// Longest 1 Hz series built from a file (24 h). FIT bytes can come from the network or another app: a hostile
+    /// timestamp span must not allocate gigabytes.
+    static let maxSeriesSeconds = 86_400
+    /// Most messages decoded from one file (a 24 h ride at 1 Hz has ~90 000).
+    static let maxMessages = 500_000
+
     /// Seconds between the Unix epoch and the FIT epoch (1989-12-31 00:00 UTC).
     static let fitEpoch: TimeInterval = 631_065_600
 
@@ -102,7 +108,8 @@ public enum FITParser {
             guard let t = r.uint(253), let p = r.uint(7) else { return nil }
             return (t, p)
         }
-        guard let first = samples.map(\.t).min(), let last = samples.map(\.t).max() else { return nil }
+        guard let first = samples.map(\.t).min(), let last = samples.map(\.t).max(),
+              last - first < UInt64(maxSeriesSeconds) else { return nil }
         var series = [Double](repeating: 0, count: Int(last - first) + 1)
         for s in samples { series[Int(s.t - first)] = s.p > maxPlausibleWatts ? 0 : Double(s.p) }
         return series
@@ -186,6 +193,7 @@ public enum FITParser {
                     lastTimestamp = ts
                 }
                 messages.append(message)
+                guard messages.count <= maxMessages else { throw Error.truncated }
             } else if header & 0x40 != 0 {               // definition message
                 guard i + 5 <= end else { throw Error.truncated }
                 let big = bytes[i + 1] == 1
@@ -209,6 +217,7 @@ public enum FITParser {
                 let message = try readData(def, bytes, &i, end)
                 if let ts = message.uint(253) { lastTimestamp = ts }
                 messages.append(message)
+                guard messages.count <= maxMessages else { throw Error.truncated }
             }
         }
         return messages
