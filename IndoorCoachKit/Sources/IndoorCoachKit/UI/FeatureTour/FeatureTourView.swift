@@ -41,6 +41,7 @@ struct FeatureTourView: View {
         }
         .font(.body.weight(.semibold))
         .foregroundStyle(Theme.accent)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .padding(.horizontal, 16)
         .padding(.top, 4)
     }
@@ -93,6 +94,7 @@ struct FeatureTourView: View {
             .accessibilityIdentifier(isLast ? "tour.finish" : "tour.next")
             TourPageIndicator(current: index, count: TourPage.allCases.count)
         }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 8)

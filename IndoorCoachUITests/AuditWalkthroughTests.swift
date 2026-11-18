@@ -1161,6 +1161,55 @@ final class AuditPerformanceTests: AuditCase {
         }
     }
 
+}
+
+/// Paket „Öffnung“ (docs/12): Onboarding-Journey, Feature-Tour, Feedback.
+final class AuditOpeningTests: AuditCase {
+    /// UX-Matrix für das Paket „Öffnung“: Onboarding (5 Schritte), Tour und Feedback bei L/Dark und AX5/Light.
+    func testMatrixOpening() {
+        let combos: [(size: String, tag: String, dark: Bool)] = [
+            ("UICTContentSizeCategoryL", "L-dark", true),
+            ("UICTContentSizeCategoryAccessibilityXXXL", "AX5", false)
+        ]
+        for combo in combos {
+            XCUIDevice.shared.appearance = combo.dark ? .dark : .light
+            launch(seed: "empty", extra: ["-UIPreferredContentSizeCategoryName", combo.size, "-uiOnboarding", "YES",
+                                          "-uiClaudeStub", "YES", "-uiMyWhooshStubLogin", "YES"])
+            route = "onboarding"
+            let steps: [(name: String, advance: String)] = [("1-willkommen", "onboarding.next"), ("2-training", "onboarding.next"),
+                                                            ("3-trainings-app", "onboarding.later"), ("4-coach", "onboarding.noClaude")]
+            for step in steps {
+                settle()
+                shot("\(combo.tag)-\(step.name)")
+                accessibilityAudit("Onboarding-\(step.name)@\(combo.tag)")
+                app.swipeUp()
+                shot("\(combo.tag)-\(step.name)-scrolled")
+                tap(app.buttons[step.advance], step.advance)
+            }
+            settle()
+            shot("\(combo.tag)-5-fertig")
+            accessibilityAudit("Onboarding-fertig@\(combo.tag)")
+            tap(app.buttons["onboarding.tour"], "Kurze Tour ansehen")
+            route = "tour"
+            _ = app.buttons["tour.skip"].waitForExistence(timeout: 6)
+            usleep(3_200_000)
+            shot("\(combo.tag)-seite-1")
+            accessibilityAudit("Tour@\(combo.tag)")
+            tap(app.buttons["tour.skip"], "Tour überspringen")
+            route = "feedback"
+            openTab("Profil")
+            let open = scrollUntilExists(app.descendants(matching: .any)["feedback.open"].firstMatch, maxSwipes: 20)
+            tap(open, "Feedback & Wünsche")
+            settle()
+            shot("\(combo.tag)-feedback")
+            accessibilityAudit("Feedback@\(combo.tag)")
+            app.swipeUp()
+            shot("\(combo.tag)-feedback-scrolled")
+            app.terminate()
+        }
+        XCUIDevice.shared.appearance = .light
+    }
+
     // ANCHOR-UITEST-O1 (Onboarding-Journey & Verbindungen)
 
     private func anyElement(_ identifier: String) -> XCUIElement {
@@ -1168,6 +1217,16 @@ final class AuditPerformanceTests: AuditCase {
     }
 
     /// Launch arguments for the onboarding journey: forced onboarding, stubbed MyWhoosh login and Claude key check.
+    /// iOS offers to save the MyWhoosh password in the Passwords app once the login form disappears.
+    private func dismissSavePasswordPrompt() {
+        // Not the onboarding's own "Später" (onboarding.later).
+        let notOurs = NSPredicate(format: "(label == 'Später' OR label == 'Not Now') AND identifier != 'onboarding.later'")
+        for candidate in [app.buttons.matching(notOurs).firstMatch,
+                          XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons.matching(notOurs).firstMatch] {
+            if candidate.waitForExistence(timeout: 1.5) { tap(candidate, "Passwort sichern? – Später"); return }
+        }
+    }
+
     private var journeyArguments: [String] {
         ["-uiOnboarding", "YES", "-uiMyWhooshStubLogin", "YES", "-uiClaudeStub", "YES"]
     }
@@ -1188,9 +1247,18 @@ final class AuditPerformanceTests: AuditCase {
         type(anyElement("whoosh.email"), "test@example.com", "MyWhoosh-E-Mail")
         type(anyElement("whoosh.password"), "irgendein-test-passwort", "MyWhoosh-Passwort")
         shot("3-login-ausgefuellt")
+        let password = anyElement("whoosh.password")
+        check(((password.value as? String) ?? "").count > 0, "Passwortfeld enthält Text (\((password.value as? String) ?? "nil"))")
+        check(app.buttons["whoosh.login"].isEnabled, "Anmelden-Button aktiv")
         tap(app.buttons["whoosh.login"], "Bei MyWhoosh anmelden")
         let status = anyElement("onboarding.myWhooshStatus")
-        check(waitFast(status, timeout: 15), "Erfolgsstatus nach dem Login")
+        let loginError = anyElement("whoosh.error")
+        let deadline = Date().addingTimeInterval(15)
+        while !status.exists && !loginError.exists && Date() < deadline { usleep(250_000) }
+        dismissSavePasswordPrompt()
+        shot("3-nach-login")
+        if loginError.exists { check(false, "Login-Fehler: \(loginError.label)") }
+        check(status.exists, "Erfolgsstatus nach dem Login")
         check(status.label.contains("Verbunden") && status.label.contains("Fahrten geladen"),
               "Status „Verbunden · N Fahrten geladen“ (\(status.label))")
         check(!anyElement("whoosh.password").exists, "Passwortfeld nach dem Login weg")
@@ -1301,6 +1369,9 @@ final class AuditPerformanceTests: AuditCase {
         tap(open, "Feedback & Wünsche")
         route = "feedback"
         settle()
+        // A draft from an earlier run survives in UserDefaults (by design); start clean.
+        let leftover = app.buttons["feedback.done"]
+        if leftover.exists { tap(leftover, "Alten Entwurf mit „Erledigt“ verwerfen") }
         let submit = app.buttons["feedback.submit"]
         check(waitFast(app.descendants(matching: .any)["feedback.kind"].firstMatch), "Art-Auswahl sichtbar")
         shot("feedback-leer")
@@ -1339,10 +1410,10 @@ final class AuditPerformanceTests: AuditCase {
         let tour = scrollUntilExists(app.descendants(matching: .any)["help.tour"].firstMatch, maxSwipes: 14)
         check(tour.exists, "Zeile „App-Einführung ansehen“")
         tap(tour, "App-Einführung ansehen")
-        let finish = app.buttons["tour.finish"]
-        check(finish.waitForExistence(timeout: 8), "Tour öffnet")
+        let skip = app.buttons["tour.skip"]
+        check(skip.waitForExistence(timeout: 8), "Tour öffnet")
         shot("tour-aus-hilfe")
-        tap(finish, "Tour beenden")
+        tap(skip, "Tour überspringen")
         check(app.navigationBars["Profil"].waitForExistence(timeout: 6), "Zurück im Profil")
     }
 }

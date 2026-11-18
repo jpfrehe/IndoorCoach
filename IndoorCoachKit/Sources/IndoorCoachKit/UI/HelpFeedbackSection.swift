@@ -44,11 +44,10 @@ struct HelpFeedbackSection: View {
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
             .accessibilityIdentifier("help.tour")
+            // Presented from the row itself: a presentation modifier on the Section is not reliable inside a Form.
+            .helpTourCover(isPresented: $showTour)
         } header: { Text("Hilfe & Feedback") } footer: {
             Text("Feedback wird als öffentliches Issue auf GitHub angelegt (kostenloses Konto nötig, bitte keine persönlichen Daten). Die Diagnose enthält die App-Protokolle der letzten 24 Stunden – ohne Schlüssel, Tokens, Fahrtnamen, Ziel oder Hinweise. Du entscheidest im Teilen-Menü, wohin sie geht.")
-        }
-        .sheet(isPresented: $showTour) {
-            FeatureTourView(context: .help) { showTour = false }
         }
     }
 
@@ -60,5 +59,19 @@ struct HelpFeedbackSection: View {
         } catch {
             model.show("Diagnose konnte nicht erstellt werden: \(error.localizedDescription)", error: true)
         }
+    }
+}
+
+private extension View {
+    func helpTourCover(isPresented: Binding<Bool>) -> some View {
+        #if os(iOS)
+        fullScreenCover(isPresented: isPresented) {
+            FeatureTourView(context: .help) { isPresented.wrappedValue = false }
+        }
+        #else
+        sheet(isPresented: isPresented) {
+            FeatureTourView(context: .help) { isPresented.wrappedValue = false }
+        }
+        #endif
     }
 }

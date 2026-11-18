@@ -8,6 +8,7 @@ import AppKit
 /// Profil → Hilfe → "Feedback & Wünsche" (O3): builds a prefilled GitHub issue-form link. No token, no backend.
 struct FeedbackView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var typeSize
 
     // The draft lives in UserDefaults so it survives the trip to Safari (and a killed app).
@@ -18,6 +19,7 @@ struct FeedbackView: View {
     @AppStorage("feedback.draft.awaitingGitHub") private var awaitingGitHub = false
 
     @State private var copied = false
+    private static let confirmationID = "feedback.confirmation"
     @FocusState private var focus: Field?
     private enum Field { case title, body }
 
@@ -31,14 +33,27 @@ struct FeedbackView: View {
     private var preview: String { draft.plainText(appInfo: appInfo, includeAppInfo: includeAppInfo) }
 
     var body: some View {
-        Form {
-            if awaitingGitHub { confirmationSection }
-            kindSection
-            textSection
-            appInfoSection
-            if draft.isValid { previewSection }
-            actionSection
-            linkSection
+        ScrollViewReader { proxy in
+            Form {
+                if awaitingGitHub { confirmationSection.id(Self.confirmationID) }
+                kindSection
+                textSection
+                appInfoSection
+                if draft.isValid { previewSection }
+                actionSection
+                linkSection
+            }
+            // Back from GitHub the form would still be scrolled to the buttons: show the last step at the top.
+            .onAppear { if awaitingGitHub { proxy.scrollTo(Self.confirmationID, anchor: .top) } }
+            .onChange(of: awaitingGitHub) { _, waiting in
+                guard waiting else { return }
+                withAnimation { proxy.scrollTo(Self.confirmationID, anchor: .top) }
+            }
+            // The scroll above can be swallowed while the app hands over to Safari; repeat it on the way back.
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active, awaitingGitHub else { return }
+                withAnimation { proxy.scrollTo(Self.confirmationID, anchor: .top) }
+            }
         }
         .navigationTitle("Feedback & Wünsche")
         .navigationBarTitleDisplayModeInline()

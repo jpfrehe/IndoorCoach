@@ -58,6 +58,8 @@ struct ClaudeKeyForm: View {
 
     @State private var input = ""
     @State private var phase: Phase = .idle
+    /// Closed on submit, so the result (and the onboarding's bottom bar) is visible right away.
+    @FocusState private var fieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -96,6 +98,7 @@ struct ClaudeKeyForm: View {
                 .credentialInput()
                 .connectionField()
                 .accessibilityIdentifier("claude.key.field")
+                .focused($fieldFocused)
                 .onChange(of: input) { if phase != .checking { phase = .idle } }
                 .onSubmit { check() }
             #if os(iOS)
@@ -144,6 +147,7 @@ struct ClaudeKeyForm: View {
 
     private func check() {
         guard canCheck else { return }
+        fieldFocused = false
         phase = .checking
         let key = input
         Task {
@@ -176,6 +180,8 @@ struct MyWhooshLoginForm: View {
     @State private var email = ""
     @State private var password = ""
     @State private var error: String?
+    private enum Field { case email, password }
+    @FocusState private var focus: Field?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -188,11 +194,16 @@ struct MyWhooshLoginForm: View {
                 #endif
                 .connectionField()
                 .accessibilityIdentifier("whoosh.email")
+                .focused($focus, equals: .email)
+                .submitLabel(.next)
+                .onSubmit { focus = .password }
             FieldLabel("Passwort")
             SecureField("Passwort", text: $password, prompt: Text("wird nicht gespeichert"))
                 .textContentType(.password)
                 .connectionField()
                 .accessibilityIdentifier("whoosh.password")
+                .focused($focus, equals: .password)
+                .submitLabel(.go)
                 .onSubmit { connect() }
             if let error {
                 FormError(message: error, identifier: "whoosh.error")
@@ -212,6 +223,7 @@ struct MyWhooshLoginForm: View {
 
     private func connect() {
         guard !busy, !email.isEmpty, !password.isEmpty else { return }
+        focus = nil
         busy = true
         error = nil
         Task {

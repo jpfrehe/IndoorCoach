@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 /// How the first-launch onboarding ended.
 public enum OnboardingChoice: Sendable {
@@ -23,6 +26,10 @@ struct OnboardingView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @AccessibilityFocusState private var titleFocused: Bool
     @State private var whooshBusy = false
+    /// While typing, the bottom bar ("Später", "Ohne Claude weiter") would sit right above the keyboard and cover the
+    /// form's own button ("Bei MyWhoosh anmelden", "Prüfen & speichern"); it steps aside until the keyboard is gone.
+    @State private var keyboardVisible = false
+    @ScaledMetric(relativeTo: .subheadline) private var guideBadge: CGFloat = 26
     var onFinish: (OnboardingChoice) -> Void
 
     private var step: OnboardingStep { OnboardingStep(rawValue: model.onboardingStep) ?? .welcome }
@@ -48,8 +55,18 @@ struct OnboardingView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(Theme.canvas)
         .safeAreaInset(edge: .top, spacing: 0) { topBar }
-        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !keyboardVisible { bottomBar }
+        }
         .onChange(of: step) { titleFocused = true }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
+        }
+        #endif
     }
 
     // MARK: Bars
@@ -58,7 +75,10 @@ struct OnboardingView: View {
         HStack {
             if step != .welcome {
                 Button { go(to: step.rawValue - 1) } label: {
+                    // At accessibility sizes "Zurück" and "Überspringen" no longer fit side by side ("Zu-rück"):
+                    // the chevron alone carries the back action (VoiceOver still reads "Zurück").
                     Label("Zurück", systemImage: "chevron.left")
+                        .labelStyle(typeSize.isAccessibilitySize ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
                         .frame(minWidth: 44, minHeight: 44, alignment: .leading)
                 }
                 .disabled(whooshBusy)
@@ -68,7 +88,10 @@ struct OnboardingView: View {
             // The last step has its own two ways out.
             if step != .done {
                 Button { onFinish(.skipped) } label: {
-                    Text("Überspringen").frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                    Text("Überspringen")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
                 }
                 .disabled(whooshBusy)
                 .accessibilityHint("Startet die App mit den Standardwerten. Alles lässt sich später im Profil ändern.")
@@ -77,6 +100,8 @@ struct OnboardingView: View {
         }
         .font(.body.weight(.semibold))
         .foregroundStyle(Theme.accent)
+        // Like a navigation bar: grows with Dynamic Type, but stops at AX2 so the content keeps its room.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .padding(.horizontal, 16)
         .padding(.top, 4)
         .background(Theme.canvas)
@@ -116,6 +141,8 @@ struct OnboardingView: View {
             PageIndicator(current: step.rawValue, count: OnboardingStep.allCases.count)
         }
         .multilineTextAlignment(.center)
+        // Buttons stay large but stop at AX3; at AX5 two of them filled half of an iPhone SE.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 8)
@@ -299,7 +326,8 @@ struct OnboardingView: View {
             Text("\(number)")
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(Theme.ink)
-                .frame(width: 26, height: 26)
+                // Grows with the text; a fixed 26 pt circle slid under the first word at AX sizes.
+                .frame(width: guideBadge, height: guideBadge)
                 .background(Theme.sunset, in: Circle())
                 .accessibilityHidden(true)
             Text(text).fixedSize(horizontal: false, vertical: true)
@@ -506,4 +534,11 @@ private struct StravaSectionScroller: ViewModifier {
             }
         }
     }
+}
+
+/// Type-erased label style, so the style can switch with the text size.
+struct AnyLabelStyle: LabelStyle {
+    private let make: (Configuration) -> AnyView
+    init<S: LabelStyle>(_ style: S) { make = { AnyView(style.makeBody(configuration: $0)) } }
+    func makeBody(configuration: Configuration) -> some View { make(configuration) }
 }

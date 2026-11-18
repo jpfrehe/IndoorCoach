@@ -8,28 +8,24 @@ struct TourStage<Content: View>: View {
     @ViewBuilder var content: (Double) -> Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var start: Date?
-    @State private var finished = false
+    @State private var progress: Double = 0
 
     var body: some View {
-        TimelineView(.animation(paused: reduceMotion || start == nil || finished)) { context in
-            content(progress(at: context.date))
-        }
-        .onChange(of: active, initial: true) { _, isActive in
-            finished = false
-            start = isActive ? .now : nil
-        }
-        .task(id: start) {
-            guard start != nil, !reduceMotion else { return }
-            try? await Task.sleep(for: .seconds(duration + 0.1))
-            finished = true
-        }
-    }
-
-    private func progress(at date: Date) -> Double {
-        if reduceMotion { return 1 }
-        guard let start else { return 0 }
-        return min(1, max(0, date.timeIntervalSince(start) / duration))
+        content(reduceMotion ? 1 : progress)
+            // A plain frame loop: a paused/unpaused TimelineView did not tick inside the paged TabView (iOS 27),
+            // so the art stayed at t = 0. Restarts every time the page becomes active.
+            .task(id: active) {
+                guard active else { progress = 0; return }
+                guard !reduceMotion else { progress = 1; return }
+                progress = 0
+                let start = Date.now
+                while !Task.isCancelled {
+                    let p = min(1, Date.now.timeIntervalSince(start) / duration)
+                    progress = p
+                    if p >= 1 { break }
+                    try? await Task.sleep(for: .milliseconds(16))
+                }
+            }
     }
 }
 
@@ -122,6 +118,21 @@ private struct MyWhooshArt: View {
             let tick = TourMath.pop(TourMath.segment(t, from: 0.72, to: 1))
 
             ZStack {
+                // Source: the IndoorCoach phone stays put, so the right half isn't the only thing left at the end.
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Theme.rowSecondary.opacity(0.5), lineWidth: 2)
+                    .frame(width: 104, height: 150)
+                    .overlay(alignment: .bottom) {
+                        Text("IndoorCoach").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.rowSecondary)
+                            .padding(.bottom, 10)
+                    }
+                    .position(start)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Theme.accent)
+                    .opacity(0.35 + 0.65 * move)
+                    .position(x: (start.x + 52 + cx - calW / 2) / 2, y: cy)
+
                 // Calendar
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Theme.canvas)
