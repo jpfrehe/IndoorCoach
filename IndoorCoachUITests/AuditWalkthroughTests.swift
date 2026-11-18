@@ -232,7 +232,7 @@ final class AuditWalkthroughTests: AuditCase {
     // MARK: Thread 5 – Profil einrichten (erster Abend)
 
     func test05_Thread5_ProfileSetup() {
-        launch()
+        launch(extra: ["-uiClaudeStub", "YES"]) // key check runs against the stub
         openTab("Profil")
         shot("default")
         accessibilityAudit("Profil")
@@ -254,16 +254,16 @@ final class AuditWalkthroughTests: AuditCase {
         if app.keyboards.firstMatch.exists { app.swipeDown(velocity: .fast) }
         let key = scrollUntilExists(app.secureTextFields.firstMatch, maxSwipes: 12)
         log("Keyboard after goal", app.keyboards.firstMatch.exists ? "offen" : "zu")
-        type(key, "sk-ant-short", "API-Key-Feld (zu kurz)")
-        let save = app.buttons["API-Key speichern"]
+        type(key, "sk-ant-test", "API-Key-Feld (zu kurz)")
+        let save = app.buttons["claude.key.save"]
         check(save.exists && !save.isEnabled, "Speichern bei zu kurzem Key deaktiviert")
         shot("key-short")
         let keyField = app.secureTextFields.firstMatch
         keyField.tap()
-        keyField.typeText("-TESTKEY-not-real-0000000000")
+        keyField.typeText("-0000000000000000")
         log("Typed more into API-Key-Feld", selector(keyField))
         check(save.isEnabled, "Speichern bei langem Key aktiv")
-        tap(save, "API-Key speichern")
+        tap(save, "Prüfen & speichern")
         check(text(containing: "Gespeichert").waitForExistence(timeout: 3), "„Gespeichert“ nach Key-Speichern")
         shot("key-saved")
         tap(app.buttons["API-Key entfernen"], "API-Key entfernen")
@@ -953,33 +953,53 @@ final class AuditWalkthroughTests: AuditCase {
         route = "onboarding"
         let indicator = app.otherElements["onboarding.pageIndicator"]
         check(waitFast(text(containing: "Willkommen bei IndoorCoach"), timeout: 8), "Schritt 1 „Willkommen“ beim ersten Start")
-        check(indicator.label == "Schritt 1 von 3", "Seitenanzeige „Schritt 1 von 3“")
+        check(indicator.label == "Schritt 1 von 5", "Seitenanzeige „Schritt 1 von 5“")
         check(app.buttons["onboarding.skip"].exists, "„Überspringen“ angeboten")
         shot("1-willkommen")
         accessibilityAudit("Onboarding-Willkommen")
 
         tap(app.buttons["onboarding.next"], "Los geht’s")
-        check(waitFast(text(containing: "Dein Profil")), "Schritt 2 „Dein Profil“")
-        check(indicator.label == "Schritt 2 von 3", "Seitenanzeige „Schritt 2 von 3“")
+        check(waitFast(text(containing: "Dein Training")), "Schritt 2 „Dein Training“")
+        check(indicator.label == "Schritt 2 von 5", "Seitenanzeige „Schritt 2 von 5“")
         check(text(containing: "250 W").exists, "FTP-Standard 250 W")
         let ftp = app.steppers["onboarding.ftp"]
+        // „Weiß ich nicht“: 2,5 W/kg × 75 kg = 187,5 → 190 W.
+        tap(app.buttons["onboarding.ftpUnknown"], "FTP „Weiß ich nicht“")
+        check(ftp.label.contains("190 W") || text(containing: "190 W").exists, "FTP wird auf 190 W geschätzt")
         tap(ftp.buttons.element(boundBy: 1), "FTP +5")
         tap(ftp.buttons.element(boundBy: 1), "FTP +5")
-        // The value lives in the stepper's label ("260 W, FTP"), not in a separate static text.
-        check(ftp.label.contains("260 W") || text(containing: "260 W").exists, "FTP steigt auf 260 W")
+        // The value lives in the stepper's label ("200 W, FTP"), not in a separate static text.
+        check(ftp.label.contains("200 W") || text(containing: "200 W").exists, "FTP steigt auf 200 W")
         tap(app.buttons["Montag"], "Trainingstag Montag")
         check(app.buttons["Montag"].isSelected, "Montag ist als gewählt markiert")
-        shot("2-profil")
-        accessibilityAudit("Onboarding-Profil")
+        shot("2-training")
+        accessibilityAudit("Onboarding-Training")
 
         tap(app.buttons["onboarding.next"], "Weiter")
-        check(waitFast(text(containing: "Deine Fahrten")), "Schritt 3 „Daten“")
-        check(indicator.label == "Schritt 3 von 3", "Seitenanzeige „Schritt 3 von 3“")
-        check(app.buttons["onboarding.strava"].exists, "Wahl „Mit Strava verbinden“")
-        shot("3-daten")
-        accessibilityAudit("Onboarding-Daten")
+        check(waitFast(text(containing: "Deine Trainings-App")), "Schritt 3 „Trainings-App“")
+        check(indicator.label == "Schritt 3 von 5", "Seitenanzeige „Schritt 3 von 5“")
+        check(app.buttons["whoosh.login"].exists, "MyWhoosh-Anmeldung angeboten")
+        check(app.buttons["onboarding.strava"].exists, "Link „Strava oder FIT-Dateien?“")
+        shot("3-trainings-app")
+        accessibilityAudit("Onboarding-Trainings-App")
 
-        tap(app.buttons["onboarding.demo"], "Erst mit Demo-Daten ansehen")
+        tap(app.buttons["onboarding.later"], "Später")
+        check(waitFast(text(containing: "Dein Coach")), "Schritt 4 „Coach“")
+        check(indicator.label == "Schritt 4 von 5", "Seitenanzeige „Schritt 4 von 5“")
+        check(app.buttons["claude.key.save"].exists && !app.buttons["claude.key.save"].isEnabled,
+              "„Prüfen & speichern“ ohne Key deaktiviert")
+        shot("4-coach")
+        accessibilityAudit("Onboarding-Coach")
+
+        tap(app.buttons["onboarding.noClaude"], "Ohne Claude weiter")
+        check(waitFast(text(containing: "Alles bereit")), "Schritt 5 „Fertig“")
+        check(indicator.label == "Schritt 5 von 5", "Seitenanzeige „Schritt 5 von 5“")
+        check(app.descendants(matching: .any)["onboarding.status.mywhoosh"].exists, "Status-Checkliste sichtbar")
+        check(app.buttons["onboarding.tour"].exists, "„Kurze Tour ansehen“ angeboten")
+        shot("5-fertig")
+        accessibilityAudit("Onboarding-Fertig")
+
+        tap(app.buttons["onboarding.start"], "Direkt starten")
         route = "heute"
         check(waitFast(app.navigationBars["Heute"], timeout: 6), "Onboarding endet auf Heute")
         check(!text(containing: "Willkommen bei IndoorCoach").exists, "Onboarding geschlossen")
@@ -988,7 +1008,7 @@ final class AuditWalkthroughTests: AuditCase {
               "Demo-Daten geladen: Heute zeigt eine Einheit")
         shot("nach-onboarding")
         openTab("Profil")
-        check(text(containing: "260 W").exists, "FTP aus dem Onboarding im Profil")
+        check(text(containing: "200 W").exists, "FTP aus dem Onboarding im Profil")
 
         // Zweiter Start: kein Onboarding mehr.
         app.terminate()
@@ -1005,9 +1025,9 @@ final class AuditWalkthroughTests: AuditCase {
         route = "onboarding"
         tap(app.buttons["onboarding.next"], "Los geht’s")
         tap(app.buttons["onboarding.next"], "Weiter")
-        tap(app.buttons["onboarding.strava"], "Mit Strava verbinden")
+        tap(app.buttons["onboarding.strava"], "Strava oder FIT-Dateien? Im Profil einrichten")
         route = "profil"
-        check(waitFast(app.navigationBars["Profil"], timeout: 6), "„Mit Strava verbinden“ öffnet den Profil-Tab")
+        check(waitFast(app.navigationBars["Profil"], timeout: 6), "Der Link öffnet den Profil-Tab")
         let clientID = input(placeholder: "Client-ID")
         let end = Date().addingTimeInterval(4)
         while !clientID.isHittable && Date() < end { usleep(200_000) }
@@ -1142,6 +1162,100 @@ final class AuditPerformanceTests: AuditCase {
     }
 
     // ANCHOR-UITEST-O1 (Onboarding-Journey & Verbindungen)
+
+    private func anyElement(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    /// Launch arguments for the onboarding journey: forced onboarding, stubbed MyWhoosh login and Claude key check.
+    private var journeyArguments: [String] {
+        ["-uiOnboarding", "YES", "-uiMyWhooshStubLogin", "YES", "-uiClaudeStub", "YES"]
+    }
+
+    /// Komplette Journey: Stub-Login, geprüfter Test-Key, Fertig → Tour → Heute.
+    func test29_OnboardingJourneyWithConnections() {
+        launch(seed: "empty", extra: journeyArguments)
+        route = "onboarding"
+        let indicator = app.otherElements["onboarding.pageIndicator"]
+        check(waitFast(text(containing: "Willkommen bei IndoorCoach"), timeout: 8), "Willkommen")
+        tap(app.buttons["onboarding.next"], "Los geht’s")
+        check(waitFast(text(containing: "Dein Training")), "Dein Training")
+        tap(app.buttons["Montag"], "Trainingstag Montag")
+        tap(app.buttons["onboarding.next"], "Weiter")
+
+        check(waitFast(text(containing: "Deine Trainings-App")), "Trainings-App")
+        check(indicator.label == "Schritt 3 von 5", "Seitenanzeige „Schritt 3 von 5“")
+        type(anyElement("whoosh.email"), "test@example.com", "MyWhoosh-E-Mail")
+        type(anyElement("whoosh.password"), "irgendein-test-passwort", "MyWhoosh-Passwort")
+        shot("3-login-ausgefuellt")
+        tap(app.buttons["whoosh.login"], "Bei MyWhoosh anmelden")
+        let status = anyElement("onboarding.myWhooshStatus")
+        check(waitFast(status, timeout: 15), "Erfolgsstatus nach dem Login")
+        check(status.label.contains("Verbunden") && status.label.contains("Fahrten geladen"),
+              "Status „Verbunden · N Fahrten geladen“ (\(status.label))")
+        check(!anyElement("whoosh.password").exists, "Passwortfeld nach dem Login weg")
+        shot("3-verbunden")
+        accessibilityAudit("Onboarding-Verbunden")
+        tap(app.buttons["onboarding.next"], "Weiter")
+
+        check(waitFast(text(containing: "Dein Coach")), "Coach")
+        type(anyElement("claude.key.field"), "sk-ant-test-0000000000000000000000", "Claude-Test-Key")
+        tap(app.buttons["claude.key.save"], "Prüfen & speichern")
+        check(waitFast(anyElement("claude.key.saved"), timeout: 10), "Key geprüft und gespeichert")
+        shot("4-key-gespeichert")
+        tap(app.buttons["onboarding.next"], "Weiter")
+
+        check(waitFast(text(containing: "Alles bereit")), "Fertig")
+        check(anyElement("onboarding.status.mywhoosh").label.contains("verbunden"), "MyWhoosh in der Checkliste verbunden")
+        check(anyElement("onboarding.status.coach").label.contains("Claude-Key gespeichert"), "Coach in der Checkliste eingerichtet")
+        shot("5-fertig")
+        accessibilityAudit("Onboarding-Fertig-verbunden")
+
+        tap(app.buttons["onboarding.tour"], "Kurze Tour ansehen")
+        route = "tour"
+        // The tour's own buttons belong to package O2: leave it through "Überspringen" or its finish button.
+        let skip = button(containing: "Überspringen")
+        let finish = app.buttons["tour.finish"]
+        let end = Date().addingTimeInterval(10)
+        while !skip.exists && !finish.exists && Date() < end { usleep(200_000) }
+        check(skip.exists || finish.exists, "Feature-Tour erscheint")
+        shot("tour")
+        if skip.exists { tap(skip, "Tour überspringen") } else { tap(finish, "Tour beenden") }
+        route = "heute"
+        check(waitFast(app.navigationBars["Heute"], timeout: 8), "Nach der Tour: Heute")
+        check(app.tabBars.buttons["Heute"].isSelected, "Tab „Heute“ aktiv")
+        check(!text(containing: "Alles bereit").exists, "Onboarding geschlossen")
+    }
+
+    /// Falscher Key zeigt einen Fehler und wird nicht gespeichert; nach Abbruch macht der nächste Start am selben Schritt weiter.
+    func test30_OnboardingWrongKeyAndResume() {
+        launch(seed: "empty", extra: journeyArguments)
+        route = "onboarding"
+        let indicator = app.otherElements["onboarding.pageIndicator"]
+        tap(app.buttons["onboarding.next"], "Los geht’s")
+        tap(app.buttons["onboarding.next"], "Weiter")
+        tap(app.buttons["onboarding.later"], "Später")
+        check(waitFast(text(containing: "Dein Coach")), "Coach")
+
+        type(anyElement("claude.key.field"), "sk-ant-wrong-0000000000000000", "falscher Claude-Key")
+        tap(app.buttons["claude.key.save"], "Prüfen & speichern")
+        check(waitFast(anyElement("claude.key.error"), timeout: 10), "Fehlertext bei falschem Key")
+        check(!anyElement("claude.key.saved").exists, "Falscher Key wird nicht gespeichert")
+        check(app.buttons["onboarding.noClaude"].exists, "„Ohne Claude weiter“ bleibt möglich")
+        shot("4-falscher-key")
+        accessibilityAudit("Onboarding-Falscher-Key")
+        check(indicator.label == "Schritt 4 von 5", "Seitenanzeige „Schritt 4 von 5“")
+
+        // Abbruch mitten im Onboarding, dann normaler Start (ohne -uiOnboarding): gleicher Schritt.
+        app.terminate()
+        log("Terminated app mid-onboarding")
+        launch(seed: nil, extra: ["-uiClaudeStub", "YES"])
+        route = "onboarding"
+        check(waitFast(text(containing: "Dein Coach"), timeout: 8), "Wiederaufnahme beim Schritt „Coach“")
+        check(app.otherElements["onboarding.pageIndicator"].label == "Schritt 4 von 5", "Seitenanzeige weiter „Schritt 4 von 5“")
+        check(!text(containing: "Willkommen bei IndoorCoach").exists, "Nicht wieder von vorn")
+        shot("4-wiederaufnahme")
+    }
 
     // ANCHOR-UITEST-O2 (Feature-Tour & Tipps)
 
