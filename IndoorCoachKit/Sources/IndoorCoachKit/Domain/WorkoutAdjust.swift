@@ -35,7 +35,7 @@ public enum WorkoutAdjust {
         }
         if let percent, percent > 0 {
             result = easier(result, by: percent)
-            parts.append("−\(percent) % Intensität")
+            parts.append("−\(percent)\u{00A0}% Intensität")   // no line break between number and %
         }
         guard !parts.isEmpty else { return nil }
         return WorkoutAdjustment(definition: result, description: parts.joined(separator: " · "), isExact: exact)

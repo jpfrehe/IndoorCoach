@@ -89,7 +89,7 @@ struct WorkoutAdjustTests {
         #expect(abs((r.definition.segments[0].powerLow ?? 0) - 0.405) < 0.0001)
         #expect(abs((r.definition.segments[0].powerHigh ?? 0) - 0.675) < 0.0001)
         #expect(r.definition.segments[1].offPower == 0.55)
-        #expect(r.description == "−10 % Intensität")
+        #expect(r.description == "−10\u{00A0}% Intensität")
         #expect(r.definition.estimatedTSS < sweetSpot.estimatedTSS)
         let s = try #require(WorkoutAdjust.apply(to: tempo, minutes: nil, easierBy: 5))
         #expect(abs((s.definition.segments[1].power ?? 0) - 0.779) < 0.0001)
@@ -97,7 +97,7 @@ struct WorkoutAdjustTests {
 
     @Test func combined() throws {
         let r = try #require(WorkoutAdjust.apply(to: sweetSpot, minutes: 45, easierBy: 5))
-        #expect(r.description == "45 min statt 70 min · −5 % Intensität")
+        #expect(r.description == "45 min statt 70 min · −5\u{00A0}% Intensität")
         assertValid(r.definition)
     }
 

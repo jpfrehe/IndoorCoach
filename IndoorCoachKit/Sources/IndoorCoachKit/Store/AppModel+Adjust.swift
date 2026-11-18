@@ -36,8 +36,13 @@ extension AppModel {
             let request = (title: "🚴 \(workout.title)", start: startDate(for: workout),
                            duration: workout.definition.totalDuration, notes: calendarNotes(for: workout))
             do {
-                _ = try await calendarService.upsert(eventID: eventID, title: request.title, start: request.start,
-                                                     durationSeconds: request.duration, notes: request.notes)
+                let newID = try await calendarService.upsert(eventID: eventID, title: request.title, start: request.start,
+                                                             durationSeconds: request.duration, notes: request.notes)
+                // upsert re-creates an event deleted outside the app: keep the new id.
+                if let w = context.model(for: id) as? StoredWorkout, !w.isDeleted, w.calendarEventID != newID {
+                    w.calendarEventID = newID
+                    try? context.save()
+                }
             } catch {
                 Log.error(.calendar, "Anpassung nicht im Kalender: \(type(of: error))")
                 show(error.localizedDescription, error: true)

@@ -37,8 +37,8 @@ struct AppModelAdjustTests {
         await model.adjust(w, minutes: 45, easierBy: 5)
         #expect(w.originalSegmentsData == originalData)
         #expect(abs(w.definition.totalDuration - 45 * 60) <= 60)
-        #expect(w.adjustmentNote == "45 min statt 70 min · −5 % Intensität")
-        #expect(model.banner?.message == "Einheit angepasst: 45 min statt 70 min · −5 % Intensität")
+        #expect(w.adjustmentNote == "45 min statt 70 min · −5\u{00A0}% Intensität")
+        #expect(model.banner?.message == "Einheit angepasst: 45 min statt 70 min · −5\u{00A0}% Intensität")
         // Adjusting again starts from the original, not from the already shortened version.
         await model.adjust(w, minutes: 60, easierBy: nil)
         #expect(w.originalSegmentsData == originalData)
