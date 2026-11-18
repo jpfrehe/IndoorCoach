@@ -76,7 +76,7 @@ IndoorCoach (iOS)                                                               
 **Protokoll v1:** Nachrichten mit 8-Byte-Header (Typ UInt32, Länge UInt32) über `NWProtocolFramer`, JSON-Nutzlast bzw. Rohbytes für FIT. Ablauf: `hello` → `welcome` → `listRides(since)` → `rides([…])` → je fehlende Fahrt `fetchRide(id)` → `rideData`. Kopplung: separater Listener nur während der Code angezeigt wird, `hello` → `pairingSecret`. Höchstens 20 MB pro Nachricht.
 
 **Sicherheit:**
-- Im Normalbetrieb nur TLS 1.3 mit 32-Byte-PSK. Der Kopplungs-Listener läuft nur, solange der Code sichtbar ist (höchstens 5 min, einmalig).
+- Im Normalbetrieb nur TLS mit 32-Byte-PSK (Cipher `TLS_PSK_WITH_AES_128_GCM_SHA256`, ausgehandelt als TLS 1.2 – wie in Apples Beispiel). Der Kopplungs-Listener läuft nur, solange der Code sichtbar ist (höchstens 5 min, einmalig).
 - Der Code hat 6 Ziffern. Ein Angreifer im selben WLAN, der den Handshake mitschneidet, könnte ihn offline erraten. Er bekäme dann nur Fahrtdaten, kein Konto. Gegenmaßnahmen: Kopplungsfenster kurz und einmalig, und das Geheimnis lässt sich auf dem Mac jederzeit erneuern. Apple verwendet dasselbe Muster im Beispielprojekt *TicTacToe – Building a custom peer-to-peer protocol*.
 - Keine Ride-Namen oder Geheimnisse im Log, nur Zahlen.
 

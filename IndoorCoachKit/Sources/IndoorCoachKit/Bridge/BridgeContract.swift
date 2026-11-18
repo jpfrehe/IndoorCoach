@@ -163,7 +163,7 @@ public enum BridgeCrypto {
                                          outputByteCount: 32)
         return key.withUnsafeBytes { Data($0) }
     }
-    /// TCP + TLS 1.3 (PSK) + bridge framer. `identity` distinguishes pairing ("indoorcoach-pair") and main ("indoorcoach-bridge").
+    /// TCP + TLS-PSK (TLS_PSK_WITH_AES_128_GCM_SHA256, negotiates TLS 1.2) + bridge framer. `identity` distinguishes pairing ("indoorcoach-pair") and main ("indoorcoach-bridge").
     public static func parameters(psk: Data, identity: String) -> NWParameters {
         let tlsOptions = NWProtocolTLS.Options()
         let options = tlsOptions.securityProtocolOptions
