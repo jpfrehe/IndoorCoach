@@ -66,9 +66,21 @@ struct DiagnosticsTests {
         let report = await model.diagnosticsReport(since: .now.addingTimeInterval(-86_400)) { _ in [] }
         for field in ["App-Version:", "Betriebssystem:", "Gerät:", "FTP: 250 W", "Trainingstage:",
                       "Fahrten: 1 (Strava 0, Demo 1)", "Einheiten: 0", "Strava verbunden: ja",
-                      "Claude-Key hinterlegt: ja", "== Protokoll ==", "(keine Einträge)"] {
+                      "Claude-Key hinterlegt: ja", "== Protokoll ==", "(keine Einträge)",
+                      "Mac-Brücke gekoppelt: nein", "Fahrten mit Sekundendaten: 0 von 1"] {
             #expect(report.contains(field), "fehlt: \(field)")
         }
+    }
+
+    /// The Mac's name is personal ("Lenas MacBook Air") and must not appear in the export.
+    @Test func reportShowsBridgeStateWithoutTheMacName() async throws {
+        let (container, model) = try makeModel()
+        defer { withExtendedLifetime(container) {} }
+        model.bridge.macName = "Lenas MacBook Air"
+        model.secrets.setSecret(Data(count: 32).base64EncodedString(), for: .bridgeSecret)
+        let report = await model.diagnosticsReport(since: .now.addingTimeInterval(-86_400)) { _ in ["paired with Lenas MacBook Air"] }
+        #expect(report.contains("Mac-Brücke gekoppelt: ja"))
+        #expect(!report.contains("Lenas MacBook Air"))
     }
 
     @Test func reportHandlesUnavailableLogStore() async throws {

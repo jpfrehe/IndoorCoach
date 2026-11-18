@@ -65,6 +65,8 @@ extension AppModel {
         Strava Client-ID eingetragen: \(yesNo(!stravaClientID.isEmpty))
         Strava Client-Secret hinterlegt: \(yesNo(hasStravaSecret))
         Claude-Key hinterlegt: \(yesNo(hasClaudeKey))
+        MyWhoosh verbunden: \(yesNo(isMyWhooshConnected))
+        Mac-Brücke gekoppelt: \(yesNo(isBridgePaired)), letzter Abgleich: \(lastBridgeSync.map { iso.string(from: $0) } ?? "–"), bekannte Brücken-Fahrten: \(bridge.knownIDs.count)
         Demo-Modus: \(yesNo(isDemoMode))
         Letzter Sync: \(lastSync.map { iso.string(from: $0) } ?? "–")
 
@@ -78,6 +80,7 @@ extension AppModel {
 
         == Daten ==
         Fahrten: \(rides.count) (Strava \(rides.filter { !$0.isDemo }.count), Demo \(rides.filter(\.isDemo).count))
+        Fahrten mit Sekundendaten: \(rides.filter { $0.secondsData != nil }.count) von \(rides.count)
         Einheiten: \(workouts.count) (geplant \(workouts.filter { $0.status == .planned }.count), erledigt \(workouts.filter { $0.status == .done }.count), im Kalender \(workouts.filter { $0.calendarEventID != nil }.count))
         """
     }
@@ -87,7 +90,7 @@ extension AppModel {
         let tokens = secrets.tokenStore.loadTokens()
         return [secrets.secret(.claudeAPIKey), secrets.secret(.stravaClientSecret),
                 tokens?.accessToken, tokens?.refreshToken, stravaAthleteName,
-                profile.goal, profile.notes, profile.name]
+                profile.goal, profile.notes, profile.name, bridge.macName]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
