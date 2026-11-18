@@ -74,6 +74,7 @@ public struct RootView: View {
             model.bootstrap()
             #if DEBUG
             model.applyBridgeStubSeed()
+            model.applyComplianceSeed()   // -uiComplianceSeed YES (after bootstrap: needs the demo rides)
             #endif
             await model.rescheduleWorkoutReminders()
             await model.syncRides()
