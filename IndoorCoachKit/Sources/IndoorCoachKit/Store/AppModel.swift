@@ -870,6 +870,9 @@ public final class AppModel {
         seriesCache = nil
         onboardingStep = 0
         for key in Keys.all { defaults.removeObject(forKey: key) }
+        // Feedback draft (FeedbackView keeps it in @AppStorage so it survives the trip to GitHub).
+        for key in ["feedback.draft.kind", "feedback.draft.title", "feedback.draft.body", "feedback.draft.appInfo",
+                    "feedback.draft.awaitingGitHub"] { defaults.removeObject(forKey: key) }
         try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent("zwo"))
         refreshCredentialState()
         show("Alle Daten gelöscht.", error: false)
