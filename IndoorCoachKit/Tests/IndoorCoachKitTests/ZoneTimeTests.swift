@@ -130,7 +130,7 @@ struct ZoneTimeTests {
             let r = model.trainingDistribution(rides: rides, weeks: 12, now: zNow)
             #expect(r.measuredRides == 60)
         }
-        #expect(t < .milliseconds(500))
+        #expect(t < .milliseconds(1_500))   // ~0.1 s idle; generous so parallel builds on the machine do not flake it
         let first = try #require(model.zoneTimes(for: rides[0]))
         #expect(first.powerTotal > 3000)
         #expect(model.zoneTimes(for: rides[0]) == first)

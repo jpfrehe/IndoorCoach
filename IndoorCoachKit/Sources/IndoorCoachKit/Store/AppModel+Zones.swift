@@ -16,7 +16,8 @@ private enum ZoneDigestCache {
         var maxHR: Int
         var threshold: Int
     }
-    static var entries: [Key: RideSecondsDigest] = [:]
+    /// nil = the ride has no stored seconds (cached too; `invalidateSecondsDigests` runs on every import).
+    static var entries: [Key: RideSecondsDigest?] = [:]
 }
 
 extension AppModel {
@@ -24,19 +25,26 @@ extension AppModel {
         HeartRateZones(maxHeartRate: profile.heartRateProfile.max, thresholdHeartRate: profile.thresholdHeartRate)
     }
 
-    /// Digest of the ride's seconds for the current FTP and HR profile; nil when the ride has no stored seconds
-    /// (those lookups are not cached, so an import that adds seconds later shows up at once).
+    /// Digest of the ride's seconds for the current FTP and HR profile; nil when the ride has no stored seconds.
     func secondsDigest(for ride: RideSummary) -> RideSecondsDigest? {
         let hr = profile.heartRateProfile
         let key = ZoneDigestCache.Key(model: ObjectIdentifier(self), rideID: ride.id, ftp: profile.ftp, resting: hr.resting,
                                       maxHR: hr.max, threshold: profile.thresholdHeartRate ?? 0)
         if let cached = ZoneDigestCache.entries[key] { return cached }
-        guard let seconds = rideSeconds(id: ride.id) else { return nil }
+        if ZoneDigestCache.entries.count > 2_000 { ZoneDigestCache.entries.removeAll() }
+        guard let seconds = rideSeconds(id: ride.id) else {
+            ZoneDigestCache.entries[key] = .some(nil)
+            return nil
+        }
         let digest = RideSecondsDigest(zones: ZoneTime.compute(seconds, ftp: profile.ftp, heartRate: heartRateZones()),
                                        trimp: RelativeEffort.trimp(seconds: seconds, heartRate: hr))
-        if ZoneDigestCache.entries.count > 2_000 { ZoneDigestCache.entries.removeAll() }
         ZoneDigestCache.entries[key] = digest
         return digest
+    }
+
+    /// Imports add or replace seconds data: forget every digest.
+    func invalidateSecondsDigests() {
+        ZoneDigestCache.entries.removeAll()
     }
 
     /// Time per power and heart-rate zone of a ride with stored seconds.

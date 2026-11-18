@@ -628,6 +628,7 @@ public final class AppModel {
         }
         linkCompletedWorkouts()
         try? context.save()
+        invalidateSecondsDigests()
         hasImportedRides = true
         defaults.set(true, forKey: Keys.ridesImported)
         return result
