@@ -36,7 +36,7 @@ Legende: **Agent** = im Repo umsetzbar und an Subagenten vergeben · **Nutzer** 
 
 | ID | Aufgabe |
 |---|---|
-| B16 | Strava-Streams → Relative Effort aus HF-Zeit in Zonen, echte NP, Soll/Ist je Intervall. **Ergänzung (Leistung):** Streams würden auch die volle Leistungskurve für Strava-Fahrten liefern (Sekundenleistung statt Mindestwerte aus Ø-Leistung und `max_watts`). |
+| B16 | ✅ **ohne Strava gelöst** über Sekundendaten aus Brücke/FIT ([Paket](15-PAKET-SEKUNDENDATEN-AUSWERTUNG.md)): Zeit in Zonen, Relative Effort aus Pulssekunden, Soll/Ist je Intervall. Offen bleibt nur der Strava-Weg selbst. Ursprünglich: Strava-Streams → Relative Effort aus HF-Zeit in Zonen, echte NP, Soll/Ist je Intervall. **Ergänzung (Leistung):** Streams würden auch die volle Leistungskurve für Strava-Fahrten liefern (Sekundenleistung statt Mindestwerte aus Ø-Leistung und `max_watts`). |
 | B17 | Apple Health als zweite Datenquelle (MyWhoosh/Wahoo schreiben dorthin) |
 | B18 | intervals.icu-Brücke für automatischen MyWhoosh-Upload |
 | B23 | ✅ **gelöst über die IndoorCoach Brücke** ([Konzept](14-SEKUNDENDATEN-MAC-BRUECKE.md)): Die Mac-App liest die FIT-Dateien lokal aus dem MyWhoosh-Ordner und bietet sie im WLAN an, das iPhone ergänzt damit die Fahrten. Der Cloud-Download bleibt gesperrt. Ursprünglich: **MyWhoosh-FIT-Datei (S3 verweigert):** Der Download der FIT-Datei über MyWhoosh scheitert mit „Access Denied“ (S3). Deshalb haben MyWhoosh-Fahrten aus der Liste keine Sekundendaten und liefern der Leistungskurve nur Mindestwerte; die volle Kurve gibt es nur über den FIT-Import aus der Dateien-App. Zu klären: anderer Endpunkt/Signatur oder Export-Weg. |

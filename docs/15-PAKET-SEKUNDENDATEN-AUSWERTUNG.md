@@ -73,3 +73,20 @@ Regeln wie in den Paketen davor:
 - Zuerst die Tests.
 - Keine fremden Dateien ändern. Fehlt etwas, kommt es additiv mit `// ANCHOR-SECONDS` dazu.
 - Commits ohne Push.
+
+## Umsetzung und Prüfung (18.11.2026)
+
+| Paket | Ergebnis | Abweichungen und Nacharbeit |
+|---|---|---|
+| S0 | `RideSeconds`, Speicherung beim Import (FIT, Brücke), Demo-Sekundendaten; 5 Tests | – |
+| Z | `ZoneTime` (Leistungszonen der App, neue Pulszonen: mit Schwellenpuls 81/89/94/100 %, sonst 60/70/80/90 % der Max-HF), Relative Effort „Puls (Sekunden)“ (TRIMP je Sekunde, nur wenn ≥ 50 % der Sekunden Puls haben), gemessene Trainingsverteilung („X von Y Fahrten mit Sekundendaten gemessen“), Karte „Zeit in Zonen“ im Fahrt-Detail; 10 Tests, test36 | Bänder der Verteilung direkt nach IF-Schwellen 0,75/0,95 je Sekunde, weil Zone 4 die Grenze 0,95 schneidet. **Nacharbeit:** Der Cache merkt sich jetzt auch „keine Sekundendaten“ (vorher eine Datenbankabfrage pro Fahrt und Darstellung) und wird bei jedem Import geleert. Die Zeitgrenze im Leistungstest liegt bei 1,5 s, weil der Test unter paralleler Last (Load > 900) gewackelt hat. |
+| S | `IntervalCompliance` (Soll-Profil je Sekunde, Versatzsuche 0–600 s über 30-s-geglättete Ist-Leistung, Arbeitsintervalle ≥ 75 % FTP, getroffen ±5 %, verpasst bei < 50 % Abdeckung), Karte „Soll/Ist“ mit Diagramm und Intervallliste, Seed `-uiComplianceSeed`; 10 Tests, test37 | Die Ausrichtung nutzt die ersten 90 min des Plans statt 10 min, weil das Einfahren allein ein schwacher Anker ist |
+| A | `WorkoutAdjust` (kürzer auf 30/45/60 min in fester Reihenfolge, leichter um −5/−10 %, Erholungen bleiben), Original wird einmal gespeichert und lässt sich wiederherstellen, Kalender und MyWhoosh ziehen nach; 13 Tests, test35/test35b | Auswahl „Unverändert“ zusätzlich. **Nacharbeit:** Erzeugt `upsert` einen extern gelöschten Termin neu, wird die neue Kalender-ID jetzt übernommen. Im Banner bricht „−5 %“ nicht mehr um. |
+| Hauptsession | Karte S in der Einheit, Seed in `RootView`, Brückenstatus im Diagnose-Export (Mac-Name geschwärzt), [Gerätetest-Protokoll](16-GERAETETEST.md) | – |
+
+**Tests:**
+- 455 Unit-Tests grün.
+- 13 UI-Tests gemeinsam auf einem Simulator grün: test35, test35b, test36, test37, Brücke test33/test34, Regression test01–04 und test19. Nur die drei bekannten Soft-Fails aus dem Stand davor (`.zwo`-Menü, Teilen-Sheet, TSS-Metrik).
+- Screens visuell geprüft: Zeit in Zonen (Leistung/Puls), Soll/Ist „2 von 2 Intervallen getroffen · Ø 98 %“, Anpassen-Blatt mit Vorschau „69 → 45 min, TSS 72 → 43“, Hinweis „Angepasst · vorher 69 min“.
+
+**Bekannt, bewusst so gelassen:** Eine gekürzte Einheit behält ihren Titel (z. B. „Sweet Spot 3×12“ mit zwei Blöcken). Die Zeile „Angepasst · vorher 69 min“ erklärt es, und der Titel bleibt so in MyWhoosh und im Kalender wiedererkennbar.

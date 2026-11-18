@@ -17,11 +17,12 @@ Stand: v0.1 (Pilot-Vorbereitung) · 18.11.2026 · öffentlich auf [GitHub](https
 | Winter-Paket 2: Ziel-Prognose mit Was-wäre-wenn, Trainingsverteilung, eFTP-Verlauf, Fähigkeitslevel, Ermüdungsresistenz, Vorjahres-Schatten, Saisonrückblick zum Teilen, Winter-Reise, Erinnerung vor Einheiten | ✅ | [Feature-Dokument](11-WINTER-PAKET-2.md) |
 | Paket „Öffnung“: Onboarding mit MyWhoosh-Login und Claude-Key-Prüfung, animierte Feature-Tour + Tipps, Feedback als GitHub-Issue, CI/CD für den App Store | ✅ | [Paket-Dokument](12-PAKET-OEFFNUNG.md), [Release](13-APP-STORE-RELEASE.md) |
 | Sekundendaten aus MyWhoosh: Mac-App „IndoorCoach Brücke“ (Menüleiste, liest den MyWhoosh-Ordner, WLAN-Übertragung mit TLS-PSK nach Kopplung per Code), iPhone-Kopplung und Auto-Abgleich, FIT-Import ergänzt vorhandene Fahrten, `.fit` öffnen | ✅ End-to-End mit Simulator ↔ laufender Brücke getestet | [Konzept & User Journey](14-SEKUNDENDATEN-MAC-BRUECKE.md); offen: signierter Gerätetest (B25) |
+| Sekundendaten-Auswertung: Zeit in Leistungs- und Pulszonen je Fahrt, Relative Effort aus Pulssekunden, gemessene Trainingsverteilung, Soll/Ist je Intervall, „Einheit anpassen“ (kürzer/leichter, mit MyWhoosh und Kalender) | ✅ | [Paket-Dokument](15-PAKET-SEKUNDENDATEN-AUSWERTUNG.md), [Gerätetest](16-GERAETETEST.md) |
 | UX-Audit 2 der erweiterten Version | ✅ 6 Befunde behoben | [Bericht](ux-audit-2026-11-17-b.md); formal offen: automatisch gemeldete Kontrast-Knoten (Gerät, B13) |
 
 **Tests:**
-- 416 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
-- 39 UI-Tests (Walkthrough, Onboarding-Journey, Tour, Feedback, Mac-Brücke, Größen- und Dark-Mode-Matrix, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
+- 455 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
+- 43 UI-Tests (Walkthrough, Onboarding-Journey, Tour, Feedback, Mac-Brücke, Zonen, Soll/Ist, Anpassen, Größen- und Dark-Mode-Matrix, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
 - 7 Unit-Tests der Mac-App (`IndoorCoachBridgeTests`).
 - GitHub Actions: `ci.yml` (Unit-Tests + Simulator-Build + Build der Mac-Brücke) bei jedem Push, `release.yml` für TestFlight.
 
@@ -60,7 +61,7 @@ Stand: v0.1 (Pilot-Vorbereitung) · 18.11.2026 · öffentlich auf [GitHub](https
 
 | Idee | Status |
 |---|---|
-| „Einheit anpassen“ (kürzer/leichter) per Claude in der Detailansicht | offen |
+| „Einheit anpassen“ (kürzer/leichter) in der Detailansicht | ✅ ohne Claude, regelbasiert ([Paket](15-PAKET-SEKUNDENDATEN-AUSWERTUNG.md)) |
 | FTP-Vorschlag aus den Daten | ✅ als eFTP in „Leistung“ |
 | Apple Health als Datenquelle (B17) | offen |
 | Leistungsstreams (Strava) für echte NP und Soll/Ist je Intervall (B16) | offen, Strava-Abo nötig |
