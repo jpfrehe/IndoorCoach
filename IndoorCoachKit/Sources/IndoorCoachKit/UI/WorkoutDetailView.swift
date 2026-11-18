@@ -114,7 +114,8 @@ struct WorkoutDetailContent: View {
                 AdjustSection(workout: workout) { showAdjust = true }
             }
 
-            // ANCHOR-SECONDS: IntervalComplianceCard (done workouts with a linked ride, shown after profile/summary)
+            // Soll/Ist je Intervall: renders only for done workouts whose linked ride has seconds data.
+            IntervalComplianceCard(workout: workout)
 
             Card(title: "Zeit in Zonen", systemImage: "square.stack.3d.up") {
                 ZoneDistributionBar(definition: d)
