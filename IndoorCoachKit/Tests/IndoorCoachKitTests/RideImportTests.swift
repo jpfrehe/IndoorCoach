@@ -171,8 +171,10 @@ struct MyWhooshHistoryTests {
     }
 
     /// Regression: a 401/403 from the undocumented history endpoint signed the user out right after login.
-    @Test func historyRefusalKeepsTheSession() async {
-        let transport = RoutingTransport { _ in (403, Data("<html>403 Forbidden</html>".utf8)) }
+    /// Also for 401: `case 401, 403 where …` applied the condition to 403 only (compiler warning in CI).
+    @Test(arguments: [401, 403])
+    func historyRefusalKeepsTheSession(status: Int) async {
+        let transport = RoutingTransport { _ in (status, Data("<html>\(status)</html>".utf8)) }
         let store = signedIn()
         let client = MyWhooshClient(store: store, transport: transport)
         await #expect(throws: MyWhooshError.historyUnavailable) { try await client.activities() }

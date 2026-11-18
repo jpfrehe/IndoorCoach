@@ -558,7 +558,7 @@ public actor MyWhooshClient {
         }
         switch response.statusCode {
         case 200..<300: return data
-        case 401, 403 where endsSessionOnAuthError:
+        case 401 where endsSessionOnAuthError, 403 where endsSessionOnAuthError:
             store.saveSession(nil)
             throw MyWhooshError.sessionExpired
         default: throw MyWhooshError.http(response.statusCode)
