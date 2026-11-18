@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 struct ProfileView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.webAuthenticationSession) private var webAuth
-    @State private var claudeKeyInput = ""
     @State private var stravaSecretInput = ""
     @State private var confirmDisconnect = false
     @State private var confirmDeleteAll = false
@@ -158,24 +157,7 @@ struct ProfileView: View {
     private func coachSection(_ model: AppModel) -> some View {
         @Bindable var model = model
         return Section {
-            if model.hasClaudeKey {
-                LabeledContent("API-Key") {
-                    Label { Text("Gespeichert") } icon: { Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.done) }
-                }
-                Button("API-Key entfernen", role: .destructive) { model.setClaudeAPIKey("") }
-            } else {
-                LabeledContent("API-Key") {
-                    SecureField("Claude-API-Key", text: $claudeKeyInput, prompt: Text("sk-ant-…"))
-                        .plainTextInput()
-                        .credentialInput()
-                        .multilineTextAlignment(.trailing)
-                }
-                Button("API-Key speichern") {
-                    model.setClaudeAPIKey(claudeKeyInput)
-                    claudeKeyInput = ""
-                }
-                .disabled(claudeKeyInput.trimmingCharacters(in: .whitespaces).count < 20)
-            }
+            ClaudeKeyForm(showsRemove: true)
             Picker("Modell", selection: $model.profile.model) {
                 ForEach(ClaudeModel.allCases) { Text($0.label).tag($0.rawValue) }
             }
@@ -248,8 +230,6 @@ struct ProfileView: View {
         }
     }
 
-    @State private var whooshEmail = ""
-    @State private var whooshPassword = ""
     @State private var whooshBusy = false
 
     private func myWhooshSection(_ model: AppModel) -> some View {
@@ -272,33 +252,7 @@ struct ProfileView: View {
                 }
                 Button("Bei MyWhoosh abmelden", role: .destructive) { Task { await model.disconnectMyWhoosh() } }
             } else {
-                LabeledContent("E-Mail") {
-                    TextField("E-Mail", text: $whooshEmail, prompt: Text("MyWhoosh-Konto"))
-                        .textContentType(.username)
-                        .plainTextInput()
-                        .multilineTextAlignment(.trailing)
-                        #if os(iOS)
-                        .keyboardType(.emailAddress)
-                        #endif
-                }
-                LabeledContent("Passwort") {
-                    SecureField("Passwort", text: $whooshPassword, prompt: Text("wird nicht gespeichert"))
-                        .textContentType(.password)
-                        .multilineTextAlignment(.trailing)
-                }
-                Button {
-                    whooshBusy = true
-                    Task {
-                        if await model.connectMyWhoosh(username: whooshEmail, password: whooshPassword) { whooshPassword = "" }
-                        whooshBusy = false
-                    }
-                } label: {
-                    HStack {
-                        Label("Bei MyWhoosh anmelden", systemImage: "figure.indoor.cycle")
-                        if whooshBusy { Spacer(); ProgressView() }
-                    }
-                }
-                .disabled(whooshBusy || whooshEmail.isEmpty || whooshPassword.isEmpty)
+                MyWhooshLoginForm(busy: $whooshBusy)
             }
             Button { showFITImporter = true } label: {
                 Label("FIT-Dateien importieren …", systemImage: "doc.badge.plus")
