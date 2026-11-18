@@ -72,8 +72,12 @@ public struct RootView: View {
         .tourCover(isPresented: $showTour)
         .task {
             model.bootstrap()
+            #if DEBUG
+            model.applyBridgeStubSeed()
+            #endif
             await model.rescheduleWorkoutReminders()
             await model.syncRides()
+            await model.syncFromBridge(announce: false)
         }
     }
 }
@@ -187,6 +191,13 @@ public enum AppEnvironment {
             store.saveSession(MyWhooshSession(username: "test@example.com", whooshId: "stub", accessToken: "stub", refreshToken: ""))
             return AppModel(context: container.mainContext, secrets: KeychainSecretStore(),
                             transport: StubTransport(), myWhooshStore: store)
+        }
+        // UI-test hook for the Mac bridge: `-uiBridgeStub YES` pairs with a fake Mac "Lenas MacBook Air" (code 482913).
+        if UserDefaults.standard.bool(forKey: "uiBridgeStub") {
+            let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), transport: StubTransport(),
+                                 myWhooshStore: InMemoryMyWhooshSessionStore())
+            model.installBridgeStub()
+            return model
         }
         // UI-test hooks for the onboarding journey: `-uiMyWhooshStubLogin YES` (not signed in, any login works) and
         // `-uiClaudeStub YES` (`/v1/models`: 200 for keys containing "sk-ant-test", else 401). Both keep secrets

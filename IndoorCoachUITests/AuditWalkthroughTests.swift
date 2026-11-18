@@ -1421,3 +1421,105 @@ final class AuditOpeningTests: AuditCase {
         check(app.navigationBars["Profil"].waitForExistence(timeout: 6), "Zurück im Profil")
     }
 }
+
+/// Paket „Brücke“ (docs/14): Mac koppeln und Fahrten mit Sekundendaten anreichern. Alle Tests laufen mit
+/// `-uiBridgeStub YES` (ein Stub-Mac „Lenas MacBook Air“, Code 482913, die acht neuesten Fahrten ohne Sekundendaten).
+final class AuditBridgeTests: AuditCase {
+    private func anyElement(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    /// Leistung → Karte „Sekundendaten vom Mac“ → Einrichtung (Schritte, Mac suchen).
+    private func openBridgeSetup() {
+        launch(extra: ["-uiBridgeStub", "YES"])
+        openTab("Verlauf")
+        tap(anyElement("performance.open"), "Leistung öffnen")
+        route = "leistung"
+        check(waitFast(app.navigationBars["Leistung"]), "Leistung-Screen öffnet")
+        let cta = scrollUntilExists(anyElement("performance.bridgeCTA"), maxSwipes: 6)
+        check(cta.exists, "Karte „Volle Leistungskurve für jede Fahrt“ mit [Einrichten]")
+        check(text(containing: "0 von 8 Fahrten mit Sekundendaten").exists, "Abdeckung „0 von 8 Fahrten mit Sekundendaten“")
+        shot("cta")
+        tap(cta, "Einrichten")
+        route = "bruecke"
+        check(waitFast(app.navigationBars["Mac-Brücke"]), "Einrichtung öffnet")
+    }
+
+    private func enterCode(_ code: String) {
+        let field = anyElement("bridge.code")
+        check(waitFast(field, timeout: 6), "Code-Feld")
+        type(field, code, "Code \(code)")
+    }
+
+    func test33_MacBridgePairing() {
+        openBridgeSetup()
+        check(anyElement("bridge.steps").exists, "Drei Schritte sichtbar")
+        check(text(containing: "IndoorCoach Brücke auf dem Mac öffnen").exists, "Schritt 1")
+        check(text(containing: "MyWhoosh-Ordner freigeben").exists, "Schritt 2")
+        check(text(containing: "Code eingeben").exists, "Schritt 3")
+        check(button(containing: "FIT-Datei importieren").exists, "Fußzeile „Kein Mac? FIT-Datei importieren“")
+        let mac = anyElement("bridge.mac.0")
+        check(waitFast(mac, timeout: 10), "Stub-Mac „Lenas MacBook Air“ gefunden")
+        check(mac.label.contains("Lenas MacBook Air"), "Mac-Name im Label (\(mac.label))")
+        shot("einrichtung")
+        accessibilityAudit("Mac-Brücke-Einrichtung")
+
+        tap(mac, "Mac wählen")
+        enterCode("111111")
+        check(waitFast(anyElement("bridge.error"), timeout: 8), "Fehlertext bei falschem Code")
+        check(!anyElement("bridge.paired").exists, "Falscher Code koppelt nicht")
+        shot("falscher-code")
+        accessibilityAudit("Mac-Brücke-Falscher-Code")
+
+        enterCode("482913")
+        check(waitFast(anyElement("bridge.paired"), timeout: 12), "Gekoppelt")
+        check(anyElement("bridge.paired").label.contains("Lenas MacBook Air"), "Gekoppelt mit „Lenas MacBook Air“ (\(anyElement("bridge.paired").label))")
+        let coverage = anyElement("bridge.coverage")
+        check(waitFast(coverage), "Abdeckungstext")
+        check(coverage.label.contains("von") && coverage.label.contains("Fahrten mit Sekundendaten"),
+              "Abdeckung „X von Y Fahrten mit Sekundendaten“ (\(coverage.label))")
+        check(coverage.label.hasPrefix("3 von 10"), "Drei Fahrten angereichert bzw. neu (\(coverage.label))")
+        check(anyElement("bridge.syncNow").exists && anyElement("bridge.unpair").exists, "„Jetzt abholen“ und „Kopplung lösen“")
+        shot("gekoppelt")
+        accessibilityAudit("Mac-Brücke-Gekoppelt")
+
+        tap(anyElement("bridge.unpair"), "Kopplung lösen")
+        let confirm = app.buttons.matching(NSPredicate(format: "label == 'Kopplung lösen' AND identifier != 'bridge.unpair'")).firstMatch
+        tap(confirm, "Kopplung lösen bestätigen")
+        check(waitFast(anyElement("bridge.steps"), timeout: 6), "Nach dem Lösen wieder die Einrichtung")
+    }
+
+    func test34_BridgeSyncEnrichesRides() {
+        openBridgeSetup()
+        tap(anyElement("bridge.mac.0"), "Mac wählen", timeout: 10)
+        enterCode("482913")
+        check(waitFast(anyElement("bridge.paired"), timeout: 12), "Gekoppelt")
+        check(waitForBanner(containing: "Vom Mac: 2 neu, 1 ergänzt", timeout: 4), "Banner nach der Kopplung")
+
+        tap(anyElement("bridge.syncNow"), "Jetzt abholen")
+        check(waitForBanner(containing: "Neue Fahrt vom Mac: 52 min · NP 214 W", timeout: 10), "Banner „Neue Fahrt vom Mac“")
+        shot("banner")
+        check(anyElement("bridge.coverage").label.hasPrefix("4 von 11"), "Abdeckung wächst auf 4 von 11 (\(anyElement("bridge.coverage").label))")
+
+        // The banner covers the navigation bar for a few seconds.
+        let gone = Date().addingTimeInterval(8)
+        while text(containing: "Neue Fahrt vom Mac").exists && Date() < gone { usleep(250_000) }
+        back()                                         // Leistung
+        check(waitFast(app.navigationBars["Leistung"]), "Zurück in Leistung")
+        settle()
+        check(!anyElement("performance.bridgeCTA").exists, "Karte verschwindet nach der Kopplung")
+        back()
+        route = "verlauf"
+        check(waitFast(app.navigationBars["Verlauf"]), "Zurück im Verlauf")
+        let badged = button(containing: "Sekundendaten")
+        check(scrollUntilExists(badged, maxSwipes: 4).exists, "Verlauf: Fahrt mit Abzeichen „Sekundendaten“")
+        shot("abzeichen")
+        accessibilityAudit("Verlauf-Abzeichen")
+
+        openTab("Profil")
+        let row = scrollUntilExists(anyElement("profile.bridge"), maxSwipes: 14)
+        check(row.exists, "Profil: Zeile „Sekundendaten vom Mac“")
+        check(row.label.contains("Lenas MacBook Air"), "Zeile zeigt den Mac (\(row.label))")
+        shot("profil")
+    }
+}

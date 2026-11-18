@@ -262,8 +262,8 @@ final class StubBridgeTransport: BridgeTransport, @unchecked Sendable {
         let t0 = UInt64(start.timeIntervalSince1970 - FITParser.fitEpoch)
         let seconds = minutes * 60
         define(global: 18, fields: [(2, 4), (8, 4), (9, 4), (20, 2), (34, 2), (16, 1), (17, 1), (48, 4)])
-        data([(4, t0), (4, UInt64(seconds * 1000)), (4, UInt64(minutes * 52_000)), (2, UInt64(watts)),
-              (2, UInt64(Double(watts) * 1.07)), (1, 138), (1, 171), (4, UInt64(watts * seconds))])
+        data([(4, t0), (4, UInt64(seconds * 1000)), (4, UInt64(minutes * 52_000)), (2, UInt64(Double(watts) * 0.95)),
+              (2, UInt64(watts)), (1, 138), (1, 171), (4, UInt64(watts * seconds))])
         define(global: 20, fields: [(253, 4), (7, 2), (3, 1)])
         for s in 0..<seconds {
             let block = (s / 300) % 2 == 0 ? 0.88 : 1.12

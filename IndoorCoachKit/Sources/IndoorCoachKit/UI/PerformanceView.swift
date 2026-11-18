@@ -54,6 +54,7 @@ struct PerformanceView: View {
                     bestEffortsCard(current)
                 }
                 coverageNote(current)
+                bridgeCallToAction(rides: rides)
                 if current.estimatedFTP != nil { eftpCard(current) }
                 VO2maxCard(rides: rides, showTrend: true, range: range)
                 // ANCHOR-K4-LEISTUNG (Aerobe Effizienz)
@@ -204,10 +205,35 @@ struct PerformanceView: View {
         if agg.totalRides > 0 {
             let text = agg.measuredRides >= agg.totalRides
                 ? "Alle \(agg.totalRides) Fahrten mit Sekundendaten."
-                : "\(agg.measuredRides) von \(agg.totalRides) Fahrten mit Sekundendaten – importiere FIT-Dateien (Profil → MyWhoosh) für die volle Kurve."
+                : "\(agg.measuredRides) von \(agg.totalRides) Fahrten mit Sekundendaten\(model.isBridgePaired ? " – neue Fahrten kommen automatisch vom Mac." : ".")"
             Label(text, systemImage: "info.circle")
                 .font(.footnote).foregroundStyle(Theme.rowSecondary)
                 .accessibilityIdentifier("performance.coverage")
+        }
+    }
+
+    /// Entry to the Mac bridge (docs/14): only when rides without seconds data exist and no Mac is paired.
+    @ViewBuilder
+    private func bridgeCallToAction(rides: [RideSummary]) -> some View {
+        if !model.isBridgePaired, rides.contains(where: { ($0.powerCurve ?? [:]).isEmpty }) {
+            NavigationLink { MacBridgeView() } label: {
+                Card(title: "Sekundendaten vom Mac", systemImage: "macbook.and.iphone") {
+                    Text("Volle Leistungskurve für jede Fahrt: Fährst du MyWhoosh auf dem Mac? IndoorCoach Brücke holt die Daten automatisch.")
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Einrichten")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .frame(minHeight: 44)
+                        .background(Theme.sunset, in: Capsule())
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Öffnet die Einrichtung der Mac-Brücke")
+            .accessibilityIdentifier("performance.bridgeCTA")
         }
     }
 

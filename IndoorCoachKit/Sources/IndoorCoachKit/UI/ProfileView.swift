@@ -254,6 +254,16 @@ struct ProfileView: View {
             } else {
                 MyWhooshLoginForm(busy: $whooshBusy)
             }
+            // ANCHOR-BRIDGE: IndoorCoach Brücke (Mac) – Sekundendaten
+            NavigationLink { MacBridgeView() } label: {
+                LabeledContent {
+                    Text(model.isBridgePaired ? (model.bridgeMacName ?? "Gekoppelt") : "Einrichten")
+                } label: {
+                    Label("Sekundendaten vom Mac", systemImage: "macbook.and.iphone")
+                }
+                .frame(minHeight: 44)
+            }
+            .accessibilityIdentifier("profile.bridge")
             Button { showFITImporter = true } label: {
                 Label("FIT-Dateien importieren …", systemImage: "doc.badge.plus")
             }

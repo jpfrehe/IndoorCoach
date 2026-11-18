@@ -22,11 +22,18 @@ struct IndoorCoachApp: App {
             RootView()
                 .environment(model)
                 .featureTourDebugCover()
+                .onOpenURL { url in
+                    // "Öffnen in IndoorCoach" / Teilen-Menü for .fit files (OAuth callbacks never arrive here).
+                    if url.isFileURL, url.pathExtension.lowercased() == "fit" { model.importFITFiles([url]) }
+                }
                 .onChange(of: model.needsOnboarding) { _, pending in AppTips.setOnboardingComplete(!pending) }
         }
         .modelContainer(container)
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await model.syncStrava() } }
+            if phase == .active {
+                Task { await model.syncStrava() }
+                Task { await model.syncFromBridge(announce: false) }   // no-op unless a Mac is paired; at most every 2 min
+            }
         }
     }
 }

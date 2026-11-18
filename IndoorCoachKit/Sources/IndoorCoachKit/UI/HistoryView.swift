@@ -59,8 +59,13 @@ struct HistoryView: View {
                 ForEach(groups(rides), id: \.start) { group in
                     Section {
                         ForEach(group.rides) { ride in
-                            NavigationLink(value: ride) { RideRow(ride: ride, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate,
-                                                                    heartRate: model.profile.heartRateProfile) }
+                            NavigationLink(value: ride) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    RideRow(ride: ride, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate,
+                                            heartRate: model.profile.heartRateProfile)
+                                    if !(ride.powerCurve ?? [:]).isEmpty { SecondsDataBadge() }
+                                }
+                            }
                         }
                     } header: {
                         HStack {
@@ -94,6 +99,18 @@ struct HistoryView: View {
         cal.firstWeekday = 2
         let grouped = Dictionary(grouping: rides) { cal.dateInterval(of: .weekOfYear, for: $0.startDate)?.start ?? $0.startDate }
         return grouped.keys.sorted(by: >).map { Group(start: $0, rides: grouped[$0]!.sorted { $0.startDate > $1.startDate }) }
+    }
+}
+
+/// "Sekundendaten": the ride has a measured 1 Hz power curve (FIT file, Mac bridge).
+struct SecondsDataBadge: View {
+    var body: some View {
+        Label("Sekundendaten", systemImage: "waveform.path.ecg")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Theme.rowSecondary)
+            .padding(.leading, 52)
+            .accessibilityLabel("Mit Sekundendaten")
+            .accessibilityIdentifier("history.secondsBadge")
     }
 }
 
