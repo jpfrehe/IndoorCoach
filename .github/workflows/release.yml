@@ -1,0 +1,120 @@
+name: Release
+
+# Tag v1.2.3 pushen (oder manuell starten) -> Archiv, Signierung per API-Key, Upload zu App Store Connect (TestFlight).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Marketing-Version (x.y.z); nötig, wenn nicht von einem v*-Tag gestartet"
+        type: string
+        required: false
+      upload:
+        description: "Nach App Store Connect hochladen (aus = nur exportieren)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Archiv und Upload
+    runs-on: xcode-27
+    environment: app-store
+    timeout-minutes: 60
+    env:
+      XCODE_APP: /Applications/Xcode_27.2.app
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+      BUNDLE_ID: ${{ vars.BUNDLE_ID || 'app.indoorcoach.personal' }}
+      BUILD_OFFSET: ${{ vars.BUILD_NUMBER_OFFSET || '0' }}
+      REF_NAME: ${{ github.ref_name }}
+      REF_TYPE: ${{ github.ref_type }}
+      INPUT_VERSION: ${{ inputs.version }}
+      UPLOAD: ${{ github.event_name == 'workflow_dispatch' && (inputs.upload && '1' || '0') || '1' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Secrets prüfen
+        run: |
+          missing=0
+          for name in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error title=Secret fehlt::Das Secret $name ist nicht gesetzt (Environment 'app-store', siehe docs/13-APP-STORE-RELEASE.md)."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Version und Build-Nummer bestimmen
+        run: |
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            version="${REF_NAME#v}"
+          else
+            version="$INPUT_VERSION"
+          fi
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error title=Version ungültig::'$version' ist keine Version x.y[.z]. Tag als v1.2.3 pushen oder beim manuellen Start 'version' angeben."
+            exit 1
+          fi
+          if [[ ! "$BUILD_OFFSET" =~ ^[0-9]+$ ]]; then
+            echo "::error title=Variable ungültig::BUILD_NUMBER_OFFSET muss eine ganze Zahl sein."
+            exit 1
+          fi
+          echo "MARKETING_VERSION=$version" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_OFFSET))" >> "$GITHUB_ENV"
+
+      - name: Xcode auswählen
+        run: |
+          sudo xcode-select -s "$XCODE_APP"
+          xcodebuild -version
+
+      - name: API-Key bereitstellen
+        run: |
+          umask 077
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$key_path"
+          if ! grep -q 'BEGIN PRIVATE KEY' "$key_path"; then
+            echo "::error title=API-Key ungültig::ASC_KEY_P8_BASE64 ist keine Base64-kodierte .p8-Datei."
+            exit 1
+          fi
+          echo "ASC_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+
+      - name: Unit-Tests
+        working-directory: IndoorCoachKit
+        run: swift test
+
+      - name: Build-Nummer setzen
+        run: scripts/bump-build.sh "$BUILD_NUMBER"
+
+      - name: Archivieren, exportieren, hochladen
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          mkdir -p build
+          echo "Version $MARKETING_VERSION ($BUILD_NUMBER), Bundle-ID $BUNDLE_ID, Upload=$UPLOAD"
+          scripts/archive.sh 2>&1 | tee build/release.log
+
+      - name: Artefakte sichern
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ github.run_number }}
+          path: |
+            build/release.log
+            build/export
+            build/IndoorCoach.xcarchive/dSYMs
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: API-Key löschen
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8
