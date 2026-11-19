@@ -28,6 +28,8 @@ struct DeleteAllDataTests {
         defaults.set("Lenas MacBook Air", forKey: AppModel.Keys.bridgeMacName)
         defaults.set(Date.now, forKey: AppModel.Keys.bridgeLastSync)
         defaults.set(["fit-1"], forKey: AppModel.Keys.bridgeKnownIDs)
+        defaults.set(Data([1]), forKey: AppModel.Keys.recordingPending)  // ANCHOR-REC
+        defaults.set(Data([1]), forKey: AppModel.Keys.recordingAttached)
         model.bridge.load(defaults: defaults)
         model.onboardingStep = 2
         model.setClaudeAPIKey("placeholder-claude-key")
