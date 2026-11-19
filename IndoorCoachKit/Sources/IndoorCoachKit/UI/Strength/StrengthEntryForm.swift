@@ -68,10 +68,12 @@ struct StrengthEntryForm: View {
             }
             if kind == .strength {
                 Section {
-                    DisclosureGroup("Übungen (optional)", isExpanded: $showExercises) {
+                    // Die Kennung hängt am Titel: Am ganzen Block überdeckte sie die der Übungszeilen darin.
+                    DisclosureGroup(isExpanded: $showExercises) {
                         StrengthExerciseChecklist(exercises: $exercises)
+                    } label: {
+                        Text("Übungen (optional)").accessibilityIdentifier("strength.entry.exercises")
                     }
-                    .accessibilityIdentifier("strength.entry.exercises")
                 }
             }
             Section("Notiz") {

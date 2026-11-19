@@ -68,7 +68,7 @@ class AuditCase: XCTestCase {
     @discardableResult
     func tap(_ element: XCUIElement, _ description: String, timeout: TimeInterval = 6) -> Bool {
         // Träge Listen/Formulare halten Zeilen außerhalb des Bildschirms nicht bereit: erst kurz warten, dann bis dahin scrollen.
-        if !element.waitForExistence(timeout: min(timeout, 3)) { _ = scrollUntilExists(element, maxSwipes: 6) }
+        if !element.waitForExistence(timeout: min(timeout, 3)) { _ = scrollFinding(element) }
         guard element.exists else {
             check(false, "Element nicht gefunden: \(description)")
             return false
@@ -136,6 +136,20 @@ class AuditCase: XCTestCase {
         var n = 0
         while !element.exists && n < maxSwipes {
             app.swipeUp(velocity: .slow)
+            n += 1
+        }
+        return element
+    }
+
+    /// Wie `scrollUntilExists`, aber in kleinen Schritten (ca. ein Drittel Bildschirm): Eine volle Wischgeste überspringt
+    /// kleine Zeilen träger Listen, die nur im Baum stehen, solange sie sichtbar sind.
+    @discardableResult
+    func scrollFinding(_ element: XCUIElement, maxSteps: Int = 16) -> XCUIElement {
+        var n = 0
+        while !element.exists && n < maxSteps {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
+            let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+            from.press(forDuration: 0.05, thenDragTo: to)
             n += 1
         }
         return element

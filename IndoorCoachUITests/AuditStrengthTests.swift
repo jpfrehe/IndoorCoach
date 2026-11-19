@@ -17,9 +17,12 @@ final class AuditStrengthTests: AuditCase {
         tap(element("strength.start.manual"), "Nachtragen")
         route = "nachtragen"
         tap(element("strength.exertion.6"), "Härte 6")
+        // Die Accessibility-Prüfung gehört nicht zur Bedienzeit des Fahrers.
+        let auditStart = Date()
         accessibilityAudit("Kraft nachtragen")
+        let auditTime = Date().timeIntervalSince(auditStart)
         tap(element("strength.entry.save"), "Speichern")
-        let elapsed = Date().timeIntervalSince(started)
+        let elapsed = Date().timeIntervalSince(started) - auditTime
         check(waitForBanner(containing: "Krafteinheit gespeichert"), "Bestätigung erscheint")
         check(elapsed < 15, "Nachtragen in unter 15 s (\(Int(elapsed)) s)")
         timing("kraft-nachtragen", Int(elapsed * 1000))
