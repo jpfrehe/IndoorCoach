@@ -256,26 +256,10 @@ public enum PlanPrompt {
             lines.append("- " + parts.joined(separator: ", "))
         }
 
-        if (ctx.strength.map { !$0.sessions.isEmpty || !$0.studioDays.isEmpty } ?? false) || !ctx.otherSports.isEmpty {
+        let trainingLines = strengthAndOtherSection(strength: ctx.strength, otherSports: ctx.otherSports, day: day)
+        if !trainingLines.isEmpty {
             lines.append("")
-            lines.append("## Kraft & andere Sportarten")
-            if let strength = ctx.strength {
-                if !strength.sessions.isEmpty { lines.append("Krafteinheiten der letzten 7 Tage (neueste zuerst):") }
-                for e in strength.sessions.sorted(by: { $0.date > $1.date }) {
-                    let hardness = e.exertion.map { "Härte \($0) × \(e.minutes) min = \($0 * e.minutes)" } ?? "Härte unbekannt, \(e.minutes) min"
-                    lines.append("- \(day.string(from: e.date)): \(hardness), Beine \(e.legs.label)")
-                }
-                if !strength.studioDays.isEmpty {
-                    let days = strength.studioDays.sorted().map { day.string(from: $0) }.joined(separator: ", ")
-                    lines.append("Geplante Studio-Tage im Zeitraum: \(days)")
-                }
-            }
-            if !ctx.otherSports.isEmpty {
-                lines.append("Andere Sportarten der letzten 14 Tage (neueste zuerst):")
-                for o in ctx.otherSports.sorted(by: { $0.date > $1.date }).prefix(10) {
-                    lines.append("- \(day.string(from: o.date)): \(o.sport), \(o.minutes) min, TSS \(o.estimatedTSS) (geschätzt)")
-                }
-            }
+            lines.append(contentsOf: trainingLines)
         }
 
         if let recovery = ctx.recovery, !recovery.isEmpty {
@@ -297,6 +281,31 @@ public enum PlanPrompt {
         let wish = ctx.wish.trimmingCharacters(in: .whitespacesAndNewlines)
         if !wish.isEmpty { lines.append("Wunsch des Athleten: \(wish)") }
         return lines.joined(separator: "\n")
+    }
+
+    /// Abschnitt „Kraft & andere Sportarten“ samt Überschrift (leer, wenn es nichts zu sagen gibt); die Einwilligungs-Vorschau zeigt genau diese Zeilen.
+    public static func strengthAndOtherSection(strength: StrengthWeekSummary?, otherSports: [OtherSportSummary],
+                                               day: DateFormatter = Formatters.isoDay) -> [String] {
+        guard (strength.map { !$0.sessions.isEmpty || !$0.studioDays.isEmpty } ?? false) || !otherSports.isEmpty else { return [] }
+        var lines = ["## Kraft & andere Sportarten"]
+        if let strength {
+            if !strength.sessions.isEmpty { lines.append("Krafteinheiten der letzten 7 Tage (neueste zuerst):") }
+            for e in strength.sessions.sorted(by: { $0.date > $1.date }) {
+                let hardness = e.exertion.map { "Härte \($0) × \(e.minutes) min = \($0 * e.minutes)" } ?? "Härte unbekannt, \(e.minutes) min"
+                lines.append("- \(day.string(from: e.date)): \(hardness), Beine \(e.legs.label)")
+            }
+            if !strength.studioDays.isEmpty {
+                let days = strength.studioDays.sorted().map { day.string(from: $0) }.joined(separator: ", ")
+                lines.append("Geplante Studio-Tage im Zeitraum: \(days)")
+            }
+        }
+        if !otherSports.isEmpty {
+            lines.append("Andere Sportarten der letzten 14 Tage (neueste zuerst):")
+            for o in otherSports.sorted(by: { $0.date > $1.date }).prefix(10) {
+                lines.append("- \(day.string(from: o.date)): \(o.sport), \(o.minutes) min, TSS \(o.estimatedTSS) (geschätzt)")
+            }
+        }
+        return lines
     }
 
     /// Abschnitt „Erholung“ samt Überschrift; auch die Vorschau in Profil und Einwilligung zeigt genau diese Zeilen.

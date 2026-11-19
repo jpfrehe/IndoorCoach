@@ -807,21 +807,27 @@ public final class AppModel {
         let today = calendar.startOfDay(for: now)
         let start = startToday ? today : calendar.date(byAdding: .day, value: 1, to: today)!
         let end = calendar.date(byAdding: .day, value: max(profile.planHorizonDays, 1) - 1, to: start)!
-        let rides = allRides()
+        // PO-Entscheidung: Ohne Claude-Einwilligung geht nichts aus Apple Health, kein Kraft-/Fremdsport-Abschnitt und kein
+        // Check-in an Claude – nur Rad-Daten (MyWhoosh/Brücke/FIT/Strava).
+        let consented = claudeConsent != nil
+        let rides = consented ? allRides() : Self.withoutHealthData(allRides())
         let series = loadSeries(rides: rides, now: now)
         let weeks = TrainingLoad.weeks(rides: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
                                        from: calendar.date(byAdding: .day, value: -42, to: today)!, to: today)
-        let recent = rides.filter { $0.startDate >= calendar.date(byAdding: .day, value: -21, to: today)! }
+        // Fremdsport steht im Abschnitt „Andere Sportarten“, nicht nochmals unter den letzten Einheiten.
+        let recent = rides.filter { $0.startDate >= calendar.date(byAdding: .day, value: -21, to: today)! && !$0.isForeignSport }
         let planned = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? [])
             .filter { $0.status == .planned && $0.date >= start && $0.date <= end }
             .map(\.proposal)
         var result = PlanContext(profile: profile, today: today, horizonStart: start, horizonEnd: end,
                                  load: series.last, weeks: weeks, recentRides: recent, alreadyPlanned: planned, wish: wish)
         result.winterArc = winterArc(rides: rides, now: now)
-        result.strength = strengthWeekSummary(now: now, horizonStart: start, horizonEnd: end, calendar: calendar) // ANCHOR-W3C
-        result.otherSports = OtherSportSummary.summaries(from: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
-                                                         today: today, calendar: calendar) // ANCHOR-W3C
-        result.recovery = consentedRecoverySummary(now: now) // ANCHOR-W4C (nur mit Einwilligung)
+        if consented {
+            result.strength = strengthWeekSummary(now: now, horizonStart: start, horizonEnd: end, calendar: calendar) // ANCHOR-W3C
+            result.otherSports = OtherSportSummary.summaries(from: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
+                                                             today: today, calendar: calendar) // ANCHOR-W3C
+            result.recovery = recoverySummary(now: now) // ANCHOR-W4C
+        }
         return result
     }
 
@@ -970,6 +976,7 @@ public final class AppModel {
         let eventIDs = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? []).compactMap(\.calendarEventID)
         try? context.delete(model: StoredRide.self)
         try? context.delete(model: StoredWorkout.self)
+        try? context.delete(model: StoredCheckIn.self)
         try? context.save()
         deleteAllStrengthData() // ANCHOR-STRENGTH
         resetHealthState() // ANCHOR-W3B

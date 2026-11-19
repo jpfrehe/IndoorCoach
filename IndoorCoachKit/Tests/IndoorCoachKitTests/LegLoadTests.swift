@@ -146,6 +146,7 @@ struct LegLoadTests {
         model.saveStrengthManual(start: now.addingTimeInterval(-10 * 86400), durationMinutes: 60, exertion: 5, legShare: .light, exercises: [])
         let target = day(2)
         model.strengthDays = [cal.component(.weekday, from: target)]
+        model.grantClaudeConsent(now: now)   // Kraft geht nur mit Einwilligung an Claude
         let ctx = model.planContext(wish: "", startToday: false, now: now)
         let s = try #require(ctx.strength)
         #expect(s.sessions.count == 1)                 // nur die letzten 7 Tage

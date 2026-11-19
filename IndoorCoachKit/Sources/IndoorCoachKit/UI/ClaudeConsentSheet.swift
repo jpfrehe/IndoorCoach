@@ -17,7 +17,7 @@ struct ClaudeConsentSheet: View {
                 .padding()
             }
             .background(Theme.canvas)
-            .navigationTitle("Erholung an Claude?")
+            .navigationTitle("Training an Claude?")
             .inlineNavigationTitle()
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
@@ -46,12 +46,15 @@ struct ClaudeConsentSheet: View {
 struct ClaudeConsentExplainer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Damit dein Plan zu deiner Erholung passt, kann IndoorCoach eine kurze, relative Zusammenfassung der letzten 14 Tage mit an Claude senden. Claude wird von Anthropic betrieben.")
+            Text("Damit dein Plan zu deiner Erholung und deiner gesamten Belastung passt, kann IndoorCoach eine kurze, zusammengefasste Übersicht der letzten Wochen mit an Claude senden. Claude wird von Anthropic betrieben. Ohne Einwilligung gehen nur deine Radfahrten (MyWhoosh, Brücke, FIT-Dateien, Strava) und Profil-Angaben an Claude, nichts aus Apple Health.")
             block("Das geht an Claude", [
                 "Schlaf und Ruhepuls als Abweichung von deiner eigenen Basis, gerundet",
                 "HRV als Trend (unter, im oder über deiner Basis)",
                 "Zusammenfassung deiner Check-ins, zum Beispiel „2× Beine schwer“",
-                "Trend des Aufwärm-Checks und ob der Trend-Wächter aktiv ist"
+                "Trend des Aufwärm-Checks und ob der Trend-Wächter aktiv ist",
+                "Krafteinheiten der letzten 7 Tage (Datum, Dauer, Härte, Beinanteil) und deine Studio-Tage",
+                "andere Sportarten wie Laufen oder Schwimmen der letzten 14 Tage (Datum, Dauer, geschätzte TSS)",
+                "Workouts und Radfahrten aus Apple Health, zusammengefasst als Belastung und mit Durchschnittspuls"
             ])
             block("Das geht nicht an Claude", [
                 "keine Rohwerte, keine Zeitreihen, keine Gerätenamen",
@@ -103,7 +106,7 @@ struct ClaudePrivacySection: View {
 
     var body: some View {
         Section {
-            Toggle("Erholung an Claude senden", isOn: Binding(
+            Toggle("Training und Erholung an Claude senden", isOn: Binding(
                 get: { consent != nil },
                 set: { on in
                     if on { model.grantClaudeConsent() } else { model.revokeClaudeConsent() }
@@ -119,7 +122,7 @@ struct ClaudePrivacySection: View {
                 .frame(minHeight: 44)
                 .accessibilityIdentifier("privacy.preview")
         } header: { Text("Datenschutz") } footer: {
-            Text("Nur eine relative Zusammenfassung der letzten 14 Tage, nie Rohwerte oder Gerätenamen. Widerruf wirkt sofort.")
+            Text("Nur eine Zusammenfassung (Erholung, Kraft, andere Sportarten, Health-Workouts), nie Rohwerte oder Gerätenamen. Ohne Erlaubnis geht nichts aus Apple Health an Claude. Widerruf wirkt sofort.")
         }
         .onAppear { consent = model.claudeConsent }
         .sheet(isPresented: $showPreview) {

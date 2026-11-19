@@ -81,4 +81,17 @@ struct DeleteAllDataTests {
         let reopened = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), defaults: defaults)
         #expect(reopened.profile == AthleteProfile())
     }
+
+    @Test func deleteAllDataRemovesCheckIns() async throws {
+        let container = try AppEnvironment.makeContainer(inMemory: true)
+        let suite = "delete-all-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), defaults: defaults)
+        container.mainContext.insert(StoredCheckIn(day: Calendar.current.startOfDay(for: .now), answers: CheckIn.Answers(), offered: []))
+        try container.mainContext.save()
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<StoredCheckIn>()) == 1)
+        await model.deleteAllData()
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<StoredCheckIn>()) == 0)
+    }
 }
