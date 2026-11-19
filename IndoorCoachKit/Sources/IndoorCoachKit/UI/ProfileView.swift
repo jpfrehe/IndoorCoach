@@ -21,6 +21,13 @@ struct ProfileView: View {
                 coachSection(model)
                 stravaSection(model).id(ProfileView.stravaSectionID)
                 myWhooshSection(model)
+                // ANCHOR-STRAP (Geräte → Brustgurt)
+                Section("Geräte") {
+                    NavigationLink { DevicesView() } label: {
+                        Label("Brustgurt", systemImage: "heart.circle").frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("profile.strap")
+                }
                 // ANCHOR-K2-PROFIL (Erinnerungen)
                 ReminderSection()
 
