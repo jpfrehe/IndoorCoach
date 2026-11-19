@@ -63,7 +63,7 @@ Stand: v0.1 (Pilot-Vorbereitung) · 18.11.2026 · öffentlich auf [GitHub](https
 |---|---|
 | „Einheit anpassen“ (kürzer/leichter) in der Detailansicht | ✅ ohne Claude, regelbasiert ([Paket](15-PAKET-SEKUNDENDATEN-AUSWERTUNG.md)) |
 | FTP-Vorschlag aus den Daten | ✅ als eFTP in „Leistung“ |
-| Apple Health als Datenquelle (B17) | offen |
+| Apple Health als Datenquelle (B17) | ✅ umgesetzt (Gerätetest und Signierung offen): Roadmap R0–R5 mit Brustgurt in der App, Krafttraining (Muskel-Spur), Check-in, Aufwärm-Check, Apple Health und Erholungsdaten ([Brainstorming & Backlog B26–B60](17-BRAINSTORM-DATENQUELLEN-ALLTAG.md)); MyWhoosh schreibt nicht nach Apple Health (geprüft 19.11.2026) |
 | Leistungsstreams (Strava) für echte NP und Soll/Ist je Intervall (B16) | offen, Strava-Abo nötig |
 | intervals.icu-Brücke (B18) | nicht mehr nötig für den Upload (B21), evtl. für FIT-Dateien |
 | Wöchentlicher Auto-Plan (Backend + Push) | offen |

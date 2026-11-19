@@ -8,7 +8,7 @@
   <img alt="SwiftUI · SwiftData · Swift Charts" src="https://img.shields.io/badge/SwiftUI-SwiftData%20%C2%B7%20Charts-FFB38A">
   <img alt="Claude API" src="https://img.shields.io/badge/Planung-Claude%20API-B5175A">
   <img alt="Kein Backend" src="https://img.shields.io/badge/Backend-keins-24131D">
-  <img alt="455 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-455-5EDBB8">
+  <img alt="939 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-939-5EDBB8">
   <a href="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
@@ -22,6 +22,7 @@ Im Winter sinkt das Radvolumen bei vielen um ein Drittel. IndoorCoach setzt gena
 - **Fortschritt sichtbar machen:** Leistungskurve, VO₂max, Fähigkeitslevel und Fitness-Prognose zeigen, dass die Arbeit ankommt. Nach jeder Fahrt siehst du, ob du deine Intervalle getroffen hast.
 - **Ein Grund für die nächste Einheit:** Winter Arc mit 10 Leveln, Alpenüberquerung als Etappenreise, Challenges und Trophäen.
 - **Jede MyWhoosh-Fahrt sekundengenau, ohne Handgriff:** Die kleine Mac-App „IndoorCoach Brücke“ holt die Daten aus MyWhoosh und bringt sie im WLAN aufs iPhone.
+- **Die ganze Woche im Blick:** Brustgurt direkt am iPhone (Puls auch ohne Mac-Brücke, Live Activity), Krafttraining im Studio mit Übungsliste und eigener Muskel-Spur, Check-in vor der Einheit, Aufwärm-Check und – auf Wunsch – Apple Health mit Ruhepuls, Schlaf und anderen Sportarten. Details: [Brainstorming & Roadmap](docs/17-BRAINSTORM-DATENQUELLEN-ALLTAG.md).
 
 Alles läuft auf deinen Geräten: auf dem iPhone und auf Wunsch zusätzlich auf dem Mac. Es gibt kein Backend und kein Konto bei IndoorCoach; Schlüssel und Sitzungen liegen im Schlüsselbund. Die Brücke überträgt Fahrten nur im eigenen WLAN, und an Claude gehen nur zusammengefasste Trainingsdaten, wenn du planst.
 
@@ -136,7 +137,7 @@ Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im
 cd IndoorCoach/IndoorCoachKit && swift test
 ```
 
-Dazu kommen 43 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
+Dazu kommen 56 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
 
 **CI/CD:** GitHub Actions baut iPhone-App und Mac-Brücke und testet jeden Push ([ci.yml](.github/workflows/ci.yml)). Ein Tag `v1.2.3` startet [release.yml](.github/workflows/release.yml): Archiv, Signierung per App-Store-Connect-API-Key, Upload zu TestFlight. Einrichtung in [docs/13-APP-STORE-RELEASE.md](docs/13-APP-STORE-RELEASE.md).
 
@@ -187,6 +188,7 @@ docs/                   Konzept, Feature-Pakete, Audits, Screenshots
 15. [Sekundendaten aus MyWhoosh: Alternativen, User Journey, Mac-Brücke](docs/14-SEKUNDENDATEN-MAC-BRUECKE.md)
 16. [Sekundendaten-Auswertung: Zeit in Zonen, Soll/Ist je Intervall, Einheit anpassen](docs/15-PAKET-SEKUNDENDATEN-AUSWERTUNG.md)
 17. [Gerätetest iPhone + Mac](docs/16-GERAETETEST.md)
+18. [Brainstorming & Roadmap: Daten über das Workout hinaus (Brustgurt, Krafttraining, Apple Health, Check-in, Aufwärm-Check)](docs/17-BRAINSTORM-DATENQUELLEN-ALLTAG.md)
 
 ## Roadmap
 
