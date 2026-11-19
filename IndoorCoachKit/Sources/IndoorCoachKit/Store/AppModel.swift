@@ -755,6 +755,7 @@ public final class AppModel {
     // MARK: - Planning
 
     public func planContext(wish: String, startToday: Bool, now: Date = .now) -> PlanContext {
+        ensureWarmupReference()   // pin the Aufwärm-Check reference before the plan carries it
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: now)
         let start = startToday ? today : calendar.date(byAdding: .day, value: 1, to: today)!

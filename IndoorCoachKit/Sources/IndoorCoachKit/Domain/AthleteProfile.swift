@@ -30,13 +30,22 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
     public var weeklyReviewReminder: Bool = false
     /// Local notification 30 minutes before each planned workout of the next 14 days (opt-in, G7).
     public var workoutReminder: Bool = false
+    /// Reference power of the Aufwärm-Check block in watts (B30); nil → derived from FTP and persisted on first use
+    /// (`AppModel.warmupReferenceWatts`) so later FTP changes do not move the baseline.
+    public var warmupCheckWatts: Int? = nil
+    /// Day the current Aufwärm-Check baseline started; older measurements are ignored in the trend.
+    public var warmupCheckBaseSince: Date? = nil
 
     public init() {}
+
+    /// Reference watts of the Aufwärm-Check: the stored value, else the default from the current FTP.
+    public var effectiveWarmupCheckWatts: Int { warmupCheckWatts ?? WarmupCheck.defaultWatts(ftp: ftp) }
 
     private enum CodingKeys: String, CodingKey {
         case name, ftp, weightKg, thresholdHeartRate, goal, goalDate, weeklyHours, trainingDays, longestSessionMinutes,
              preferredStartHour, preferredStartMinute, notes, planHorizonDays, model,
-             restingHeartRate, maxHeartRate, arcStart, targetCTL, autoSendToMyWhoosh, weeklyReviewReminder, workoutReminder
+             restingHeartRate, maxHeartRate, arcStart, targetCTL, autoSendToMyWhoosh, weeklyReviewReminder, workoutReminder,
+             warmupCheckWatts, warmupCheckBaseSince
     }
 
     /// Tolerant decoding: keys added in later versions fall back to their defaults instead of failing –
@@ -65,6 +74,8 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
         autoSendToMyWhoosh = try c.decodeIfPresent(Bool.self, forKey: .autoSendToMyWhoosh) ?? d.autoSendToMyWhoosh
         weeklyReviewReminder = try c.decodeIfPresent(Bool.self, forKey: .weeklyReviewReminder) ?? d.weeklyReviewReminder
         workoutReminder = try c.decodeIfPresent(Bool.self, forKey: .workoutReminder) ?? d.workoutReminder
+        warmupCheckWatts = try c.decodeIfPresent(Int.self, forKey: .warmupCheckWatts)
+        warmupCheckBaseSince = try c.decodeIfPresent(Date.self, forKey: .warmupCheckBaseSince)
     }
 
     /// Heart-rate anchors for Relative Effort. Max HR falls back to LTHR / 0.9, then 190.

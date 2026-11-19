@@ -68,6 +68,9 @@ public enum PlanPrompt {
     - Indoor-Einheiten eher kompakt: 45–90 Minuten, lange Grundlage nur am Wochenende, falls Zeit vorhanden.
     - Berücksichtige bereits geplante Einheiten (nicht doppelt planen) und den Freitext-Wunsch des Athleten.
     - Schreibe alle Texte auf Deutsch, knapp und motivierend. "summary": 1 Satz zum Ablauf. "rationale": 1–2 Sätze, warum diese Einheit an diesem Tag.
+    - Aufwärm-Check: Direkt nach dem Einfahren (warmup) steht in jeder Einheit ein Block kind "steady", 360 Sekunden, \
+    power = Referenzleistung des Athleten als Anteil der FTP (siehe Abschnitt Athlet), cadence 90, text "Aufwärm-Check". \
+    Ändere diese Leistung nie und lass den Block nicht weg; er ist ein fester Vergleichspunkt, kein Training.
     - Optional "text" in Segmenten für kurze Hinweise, die während der Fahrt eingeblendet werden (max. 60 Zeichen).
     """
 
@@ -135,6 +138,11 @@ public enum PlanPrompt {
         let available = p.trainingDays.sorted().compactMap { AthleteProfile.weekdayLongNames[$0] }.joined(separator: ", ")
         lines.append("- Verfügbare Tage: \(available.isEmpty ? "keine Angabe" : available)")
         lines.append("- Zeitbudget: \(Formatters.decimal(p.weeklyHours, digits: 1)) h/Woche, maximal \(p.longestSessionMinutes) min pro Einheit")
+        if p.ftp > 0 {
+            let ref = p.effectiveWarmupCheckWatts
+            let fraction = WarmupCheck.fraction(refWatts: ref, ftp: p.ftp)
+            lines.append("- Aufwärm-Check: \(ref) W = \(Int((fraction * 100).rounded())) % FTP (power \(String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), fraction)))")
+        }
         if !p.notes.isEmpty { lines.append("- Hinweise: \(p.notes)") }
 
         lines.append("")
@@ -222,7 +230,8 @@ public enum PlanPrompt {
             guard !usedDays.contains(date) else {
                 rejected.append("\(w.title): am \(w.date) ist schon eine Einheit geplant"); continue
             }
-            let segments = w.segments.prefix(60).compactMap(sanitize)
+            let segments = WarmupCheck.ensuringBlock(in: w.segments.prefix(60).compactMap(sanitize),
+                                                     refWatts: ctx.profile.effectiveWarmupCheckWatts, ftp: ctx.profile.ftp)
             let definition = WorkoutDefinition(title: clean(w.title, max: 80), type: WorkoutType(rawValue: w.type) ?? .mixed,
                                                summary: clean(w.summary, max: 400), segments: segments)
             guard definition.totalDuration >= 10 * 60, definition.totalDuration <= 5 * 3600 else {

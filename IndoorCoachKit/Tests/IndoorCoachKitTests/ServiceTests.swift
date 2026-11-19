@@ -187,7 +187,7 @@ struct ClaudeTests {
         """
         let plan = try PlanPrompt.parse(json, context: context())
         #expect(plan.workouts.map(\.definition.title) == ["Sweet Spot 3×12", "Zu hart"])
-        #expect(plan.workouts[0].definition.totalDuration == 69 * 60)
+        #expect(plan.workouts[0].definition.totalDuration == 75 * 60, "69 min + 6 min Aufwärm-Check")
         #expect(plan.workouts[1].definition.segments[0].power == 2.5, "power is clamped")
         #expect(plan.workouts[1].definition.type == .mixed, "unknown type falls back to mixed")
         #expect(plan.rejected.count == 3)
