@@ -47,6 +47,15 @@ enum LegacySchemaV1: VersionedSchema {
 @Suite("SwiftData migration")
 @MainActor
 struct MigrationTests {
+    @Test func appContainerUsesTheSharedSchema() throws {
+        // Regression: makeContainer(inMemory:) had its own entity list and dropped StoredCheckIn → crash on fetch.
+        let container = try AppEnvironment.makeContainer(inMemory: true)
+        let names = Set(container.schema.entities.map(\.name))
+        #expect(names == Set(AppEnvironment.schema.entities.map(\.name)))
+        #expect(names.contains("StoredCheckIn"))
+        _ = try container.mainContext.fetch(FetchDescriptor<StoredCheckIn>())
+    }
+
     @Test func storeWithoutRelativeEffortFieldsOpensWithCurrentSchema() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("migration-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

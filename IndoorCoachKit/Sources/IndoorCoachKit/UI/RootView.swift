@@ -161,7 +161,7 @@ struct JourneyStubTransport: HTTPTransport {
 @MainActor
 public enum AppEnvironment {
     public static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
-        let schema = Schema([StoredRide.self, StoredWorkout.self])
+        // One schema for app, tests and previews (Persistence.swift); a second list here once dropped StoredCheckIn.
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
         return try ModelContainer(for: schema, configurations: [config])
     }
