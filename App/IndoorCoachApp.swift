@@ -13,6 +13,9 @@ struct IndoorCoachApp: App {
         self.container = container
         let model = AppEnvironment.makeModel(container: container)
         _model = State(initialValue: model)
+        #if os(iOS)
+        RecordingLive.presenter = LiveActivityPresenter.make()
+        #endif
         AppTips.configure()
         AppTips.setOnboardingComplete(!model.needsOnboarding)
     }
