@@ -20,9 +20,12 @@ public struct SeasonSummary: Equatable, Sendable {
     /// Zone of the calendar the season dates come from; the dates are midnights there, so the text must use it too
     /// (on a UTC machine "1. Nov." 00:00 Berlin would otherwise read "31. Okt.").
     public var timeZone: TimeZone = .current
+    /// „Dein Herz im Winter Arc“ (B57): je verfügbarer Kennzahl eine Zeile („Ruhepuls 58 → 53“); leer ohne Daten.
+    public var heartLines: [String] = []
 
     public static func make(status: WinterArc.Status, challenges: [Challenges.Challenge], rides: [RideSummary],
-                            name: String, now: Date = .now, calendar: Calendar = .current) -> SeasonSummary {
+                            name: String, now: Date = .now, calendar: Calendar = .current,
+                            heartLines: [String] = []) -> SeasonSummary {
         let best = PowerCurve.aggregate(rides: rides, from: status.start, to: now).best(1200)
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return SeasonSummary(levelNumber: status.level.number, levelName: status.level.name, levelSymbol: status.level.symbol,
@@ -30,7 +33,7 @@ public struct SeasonSummary: Equatable, Sendable {
                              challengesCompleted: challenges.filter(\.isCompleted).count, challengesTotal: challenges.count,
                              best20MinWatts: best.map { Int($0.watts.rounded()) },
                              seasonStart: status.start, seasonEnd: status.goal, name: trimmed.isEmpty ? nil : trimmed,
-                             timeZone: calendar.timeZone)
+                             timeZone: calendar.timeZone, heartLines: heartLines)
     }
 
     /// "1. Nov. – 21. März"

@@ -81,6 +81,7 @@ struct LevelBadge: View {
 struct WinterArcView: View {
     @Environment(AppModel.self) private var model
     @Query(sort: \StoredRide.startDate) private var storedRides: [StoredRide]
+    @State private var heart: HeartInWinterArc?
 
     var body: some View {
         let rides = storedRides.map(\.summary)
@@ -97,6 +98,8 @@ struct WinterArcView: View {
                     TrophiesCard(rides: rides, arc: status)
                     // ANCHOR-P4-WINTERARC (Winter-Reise)
                     WinterJourneyCard(level: status.level.number, levelProgress: status.levelProgress)
+                    // ANCHOR-W5 (Dein Herz im Winter Arc)
+                    if let heart { HeartInWinterArcCard(heart: heart) }
 
                     Card(title: "Fitness auf dem Weg zum Ziel", systemImage: "chart.line.uptrend.xyaxis") {
                         let points = model.fitnessSeries(rides: rides).points
@@ -120,7 +123,8 @@ struct WinterArcView: View {
                     // ANCHOR-P3-WINTERARC (Saisonrückblick teilen)
                     SeasonShareSection(summary: SeasonSummary.make(status: status,
                                                                    challenges: model.seasonChallenges(rides: rides),
-                                                                   rides: rides, name: model.profile.name))
+                                                                   rides: rides, name: model.profile.name,
+                                                                   heartLines: heart?.seasonLines ?? []))
 
                     Card(title: "So funktioniert der Winter Arc", systemImage: "info.circle") {
                         Text("Der Arc misst, wie viel Fitness du vom Saisonstart bis zu deinem Ziel-Tag aufbaust. Jedes Zehntel des Wegs zur Ziel-Fitness ist ein Level. Ein Level bleibt dir auch nach einer Pause – nur der Kurs zeigt ehrlich, ob du gerade vorne oder hinten liegst.")
@@ -134,6 +138,10 @@ struct WinterArcView: View {
                 }
             }
             .padding()
+        }
+        .task(id: storedRides.count) {
+            guard let status = model.winterArc(rides: rides) else { return }
+            heart = await model.heartInWinterArc(rides: rides, status: status)
         }
         .background(Theme.canvas)
         .navigationTitle("Winter Arc")

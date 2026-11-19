@@ -9,6 +9,8 @@ struct SeasonShareCard: View {
     var summary: SeasonSummary
 
     private var inkSoft: Color { Theme.ink.opacity(0.8) }
+    /// Mit Herz-Zeilen (B57) wird das Bild etwas kompakter, damit alles in 1080 × 1350 passt.
+    private var compact: Bool { !summary.heartLines.isEmpty }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,17 +23,17 @@ struct SeasonShareCard: View {
                 }
             }
             .foregroundStyle(Theme.ink)
-            .padding(.top, 88)
+            .padding(.top, compact ? 56 : 88)
 
-            Spacer(minLength: 24)
+            Spacer(minLength: 16)
 
             VStack(spacing: 20) {
                 Image(systemName: summary.levelSymbol)
                     .font(.system(size: 120, weight: .semibold))
                     .foregroundStyle(Theme.ink)
-                    .frame(width: 260, height: 260)
+                    .frame(width: compact ? 190 : 260, height: compact ? 190 : 260)
                     .background(Color.white.opacity(0.55), in: Circle())
-                Text("Level \(summary.levelNumber)").font(.system(size: 132, weight: .heavy))
+                Text("Level \(summary.levelNumber)").font(.system(size: compact ? 104 : 132, weight: .heavy))
                 Text(summary.levelName)
                     .font(.system(size: 60, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
             }
@@ -51,6 +53,17 @@ struct SeasonShareCard: View {
             }
             .padding(.horizontal, 72)
 
+            // ANCHOR-W5 (Herz-Zeilen): nur verfügbare Kennzahlen, höchstens drei.
+            if compact {
+                VStack(spacing: 6) {
+                    ForEach(Array(summary.heartLines.prefix(3).enumerated()), id: \.offset) { _, line in
+                        Text(line).font(.system(size: 38, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
+                    }
+                }
+                .foregroundStyle(Theme.ink)
+                .padding(.top, 28).padding(.horizontal, 72)
+            }
+
             Text("IndoorCoach")
                 .font(.system(size: 36, weight: .bold)).tracking(2)
                 .foregroundStyle(Theme.ink)
@@ -68,7 +81,7 @@ struct SeasonShareCard: View {
         }
         .foregroundStyle(Theme.ink)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
+        .padding(.vertical, compact ? 22 : 32)
         .background(Color.white.opacity(0.82), in: RoundedRectangle(cornerRadius: 44, style: .continuous))
     }
 }
@@ -100,7 +113,7 @@ struct SeasonShareSection: View {
 
     var body: some View {
         Card(title: "Saisonrückblick", systemImage: "square.and.arrow.up") {
-            Text("Dein Winter Arc als Bild: Level, Fitness, Serie, Challenges und deine beste 20-Minuten-Leistung.")
+            Text("Dein Winter Arc als Bild: Level, Fitness, Serie, Challenges und deine beste 20-Minuten-Leistung – dazu, was sich an deinem Herzen getan hat, soweit Daten da sind.")
                 .font(.subheadline)
             if let rendered {
                 ShareLink(item: rendered.url, message: Text(summary.caption),

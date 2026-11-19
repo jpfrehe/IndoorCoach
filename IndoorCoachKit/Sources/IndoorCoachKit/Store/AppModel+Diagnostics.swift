@@ -16,7 +16,7 @@ extension AppModel {
 
     /// `entries` is injectable for tests; it runs off the main actor because reading the log store is slow.
     func diagnosticsReport(since: Date, entries: @escaping @Sendable (Date) throws -> [String]) async -> String {
-        let header = diagnosticsHeader(since: since)
+        let header = diagnosticsHeader(since: since) + "\n\n" + pilotMetrics().lines.joined(separator: "\n")   // ANCHOR-W5-PILOT
         let known = knownSecrets()
         let logLines: [String]
         do {
@@ -84,6 +84,30 @@ extension AppModel {
         Einheiten: \(workouts.count) (geplant \(workouts.filter { $0.status == .planned }.count), erledigt \(workouts.filter { $0.status == .done }.count), im Kalender \(workouts.filter { $0.calendarEventID != nil }.count))
         Trend-Wächter Schattenmodus: \(trendGuardShadowSummary)
         """
+    }
+
+    /// Pilot-Zähler (B58): Eingabe aus dem Store, Berechnung in `PilotMetrics`. Nur Zähler, nie Werte oder Namen.
+    func pilotMetrics() -> PilotMetrics {
+        var input = PilotMetrics.Input()
+        let checkIns = (try? context.fetch(FetchDescriptor<StoredCheckIn>())) ?? []
+        input.checkIns = checkIns.filter { !$0.isDeleted }
+            .map { PilotMetrics.CheckInRecord(skipped: $0.skipped, offered: $0.offered, chosen: $0.chosen) }
+        let workouts = (try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? []
+        input.workouts = workouts.filter { !$0.isDeleted }.map {
+            PilotMetrics.WorkoutRecord(status: $0.status, adjusted: $0.originalSegmentsData != nil || $0.adjustmentNote != nil || $0.originalTitle != nil)
+        }
+        let rides = allRides()
+        input.warmupChecks = rides.filter(\.trainer).sorted { $0.startDate > $1.startDate }.prefix(120).compactMap { warmupCheck(for: $0) }
+        input.recordingGapSeconds = recordingAttachments.values.map(\.gapSeconds) + pendingRecordings.map(\.gapSeconds)
+        input.strength = storedStrengthRows().filter { $0.sportName == nil }
+            .map { PilotMetrics.StrengthRecord(hasExertion: $0.exertion != nil, hasLegShare: $0.legShareRaw != nil) }
+        let stored = (try? context.fetch(FetchDescriptor<StoredRide>())) ?? []
+        input.healthImported = stored.filter { $0.sourceRaw == StoredRide.healthSource }.count
+        input.healthMerged = stored.filter { $0.mergedHealthUUID != nil }.count
+        input.guardShadowHits = trendGuardShadowStats.hits
+        input.guardShadowDays = trendGuardShadowStats.days
+        input.claudeConsent = claudeConsent != nil
+        return PilotMetrics.compute(input)
     }
 
     /// Literal values that must never leave the device, replaced in addition to the pattern rules.
