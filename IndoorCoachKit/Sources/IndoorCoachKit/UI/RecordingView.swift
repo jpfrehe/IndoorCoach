@@ -129,7 +129,10 @@ public struct RecordingView<Content: View>: View {
 
     private func finish() {
         guard let stopped = service.stop() else { return }
-        outcome = model.finishRecording(stopped)
+        let handed = model.finishRecording(stopped)
+        outcome = handed
+        // Rad: erst nach erfolgreichem Zuordnen/Ablegen die Zwischendatei löschen. Kraft/Andere: das Abschluss-Sheet bestätigt.
+        if kind == .ride, handed != .failed { service.confirmHandled(stopped) }
         result = stopped
         onFinish?(stopped)
     }
@@ -214,6 +217,8 @@ public struct RecordingResultCard: View {
     var result: RecordingResult
     var outcome: RecordingOutcome?
     @Environment(AppModel.self) private var model
+    /// Die angehängte Fahrt, einmal gezielt geladen (nicht bei jedem Neuzeichnen alle Fahrten lesen).
+    @State private var attachedRide: RideSummary?
 
     public init(result: RecordingResult, outcome: RecordingOutcome?) {
         self.result = result
@@ -224,7 +229,7 @@ public struct RecordingResultCard: View {
         let zones = ZoneTime.compute(result.seconds, ftp: model.profile.ftp, heartRate: model.heartRateZones())
         let trimp = RelativeEffort.trimp(seconds: result.seconds, heartRate: model.profile.heartRateProfile)
         VStack(alignment: .leading, spacing: 16) {
-            Text(result.kind == .ride ? "Aufzeichnung gespeichert" : "Aufzeichnung beendet").font(.largeTitle.weight(.bold))
+            Text(result.kind == .ride && outcome != .failed ? "Aufzeichnung gespeichert" : "Aufzeichnung beendet").font(.largeTitle.weight(.bold))
             Text(Formatters.duration(Int(result.duration)) + (result.reconnects > 0 ? " · \(result.reconnects)× neu verbunden" : "")
                  + (result.gapSeconds > 0 ? " · \(result.gapSeconds) s ohne Puls" : ""))
                 .font(.headline).foregroundStyle(.secondary)
@@ -248,14 +253,17 @@ public struct RecordingResultCard: View {
         }
         .padding(.top, 8)
         .accessibilityElement(children: .contain) // sonst überdeckt die Kennung die der Unterelemente (source, pending, powerHint)
+        .task(id: outcome) {
+            if case .attached(let rideID) = outcome { attachedRide = model.ride(id: rideID) } else { attachedRide = nil }
+        }
         .accessibilityIdentifier("recording.result")
     }
 
     @ViewBuilder
     private var rideStatus: some View {
         switch outcome {
-        case .attached(let rideID):
-            let ride = model.allRides().first { $0.id == rideID }
+        case .attached:
+            let ride = attachedRide
             Card(title: "Zur Fahrt gehängt", systemImage: "link") {
                 Text("Der Puls liegt jetzt an deiner Fahrt „\(ride?.name ?? "Fahrt")“.").font(.subheadline)
                 if let ride, let source = model.recordingSource(for: ride) {
@@ -268,6 +276,12 @@ public struct RecordingResultCard: View {
                     if source == .assumedERG { powerHint }
                 }
             }
+        case .failed:
+            Card(title: "Speichern fehlgeschlagen", systemImage: "exclamationmark.triangle") {
+                Text("Die Aufzeichnung ist nicht verloren: Sie bleibt gesichert und wird beim nächsten Start der App zum Speichern angeboten.")
+                    .font(.subheadline)
+            }
+            .accessibilityIdentifier("recording.failed")
         case .pending:
             Card(title: "Wartet auf die Fahrt", systemImage: "hourglass") {
                 Text("Die Fahrt ist noch nicht in der App. Die Aufzeichnung wartet und wird beim nächsten Import (MyWhoosh, FIT, Strava) automatisch zugeordnet.")
@@ -383,7 +397,11 @@ struct InterruptedRecordingPrompt: ViewModifier {
                     let state = service.interrupted?.strength
                     guard let r = service.finishInterrupted() else { return }
                     // Rad: vorhandener Merge-Weg. Kraft / Andere Einheit: erst das Abschluss-Sheet (Härte, Beine).
-                    if model.handOff(r) == .finishSheet { finishingState = state; finishing = r }
+                    // Die Zwischendatei fällt erst nach erfolgreichem Speichern (Rad hier, Kraft im Sheet).
+                    switch model.handOff(r) {
+                    case .finishSheet: finishingState = state; finishing = r
+                    case .merged(let outcome): if outcome != .failed { service.confirmHandled(r) }
+                    }
                 }
                 Button("Verwerfen", role: .destructive) { service.discardInterrupted() }
             } message: {
@@ -398,7 +416,7 @@ struct InterruptedRecordingPrompt: ViewModifier {
             }
             .sheet(item: $finishing) { result in
                 RecordedSessionFinish(result: result, templateName: finishingState?.templateName,
-                                      exercises: finishingState?.exercises ?? []) { finishing = nil; finishingState = nil }
+                                      exercises: finishingState?.exercises ?? [], service: service) { finishing = nil; finishingState = nil }
             }
     }
 }

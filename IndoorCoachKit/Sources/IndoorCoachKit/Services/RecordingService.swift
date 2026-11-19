@@ -83,10 +83,10 @@ public struct RecordingStore: Sendable {
 
     public func save(_ recording: StoredRecording) {
         do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
-            try encoder.encode(recording).write(to: fileURL, options: .atomic)
+            // Läuft auch bei gesperrtem Bildschirm: Schutz „bis zur ersten Entsperrung“, nicht im Backup.
+            try ProtectedFile.write(try encoder.encode(recording), to: fileURL, protection: .untilFirstUnlock)
         } catch {
             Log.error(.strap, "Zwischenspeicherung der Aufzeichnung fehlgeschlagen: \(type(of: error))")
         }
@@ -204,7 +204,9 @@ public final class RecordingService {
         startTicker()
     }
 
-    /// Ends the recording and returns its result; nil when none is running.
+    /// Ends the recording and returns its result; nil when none is running. Die Zwischendatei bleibt (mit der vollen Spur
+    /// bis zum Stopp) liegen, bis der Aufrufer das Speichern mit `confirmHandled(_:)` bestätigt: scheitert das Speichern
+    /// oder endet die App davor, findet der nächste Start die Aufzeichnung noch.
     @discardableResult
     public func stop() -> RecordingResult? {
         guard isRunning, let startedAt else { return nil }
@@ -213,10 +215,28 @@ public final class RecordingService {
         isRunning = false
         ticker?.cancel()
         ticker = nil
-        store.clear()
+        store.save(snapshot(startedAt: startedAt, end: end))
         presenter().end(liveState())
         lastResult = result
         return result
+    }
+
+    /// Das Ergebnis ist sicher gespeichert (oder bewusst verworfen): die Zwischendatei darf weg. Eine Datei einer anderen
+    /// (neueren) Aufzeichnung bleibt unberührt.
+    public func confirmHandled(_ result: RecordingResult) {
+        if store.load()?.id == result.id { store.clear() }
+    }
+
+    /// Bricht eine laufende Aufzeichnung ohne Speichern ab (Verwerfen, „Alle Daten löschen“): Datei und Live-Anzeige weg.
+    public func cancel() {
+        guard isRunning else { return }
+        isRunning = false
+        ticker?.cancel()
+        ticker = nil
+        let state = liveState()
+        store.clear()
+        presenter().end(state)
+        lastResult = nil
     }
 
     // MARK: Input
@@ -300,12 +320,11 @@ public final class RecordingService {
               startedAt: saved.startedAt, track: saved.heartRateSeconds, reconnects: saved.reconnects, id: saved.id, strength: saved.strength)
     }
 
-    /// Ends the left-behind recording at the time of its last interim save.
+    /// Ends the left-behind recording at the time of its last interim save. Die Datei bleibt bis `confirmHandled(_:)`.
     public func finishInterrupted() -> RecordingResult? {
         guard let saved = interrupted else { return nil }
         interrupted = nil
-        store.clear()
-        guard !saved.heartRate.isEmpty else { return nil }
+        guard !saved.heartRate.isEmpty else { store.clear(); return nil }
         let result = saved.result
         lastResult = result
         return result

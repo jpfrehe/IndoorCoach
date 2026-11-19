@@ -32,6 +32,12 @@ public struct RideSeconds: Equatable, Sendable {
     public var watts: [Double] { power.map(Double.init) }
     public var beatsPerMinute: [Double]? { heartRate.map { $0.map(Double.init) } }
 
+    /// Echte Leistung liegt vor (nicht nur die Nullen einer reinen Puls-Aufzeichnung): mindestens `min(10, count/10)`
+    /// Sekunden mit Watt. Die eine Regel für Zusammenführung, Quellenangabe und Aufwärm-Check.
+    public var hasPower: Bool {
+        power.reduce(0) { $0 + ($1 > 0 ? 1 : 0) } >= max(1, min(10, count / 10))
+    }
+
     public func encoded() -> Data {
         var data = Data(capacity: 6 + power.count * 3)
         data.append(Self.formatVersion)

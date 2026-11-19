@@ -15,6 +15,42 @@ final class FakeActivityBackend: RecordingActivityBackend {
     }
     func update(_ state: RecordingLiveState, staleDate: Date) async { calls.append("update"); stale.append(staleDate) }
     func end(_ state: RecordingLiveState, dismissAfter: TimeInterval) async { calls.append("end"); dismiss.append(dismissAfter) }
+    func endAll() async { calls.append("endAll") }
+}
+
+@MainActor
+@Suite("Verwaiste Live Activities")
+struct OrphanedLiveActivityTests {
+    let state = RecordingLiveState(kind: .ride, title: "Rolle", startedAt: Date(timeIntervalSince1970: 1_800_000_000))
+
+    @Test("Beim Start ohne laufende Aufzeichnung werden übrig gebliebene Aktivitäten beendet")
+    func endsOrphansWhenIdle() async {
+        let backend = FakeActivityBackend()
+        let controller = RecordingLiveController(backend: backend)
+        await controller.endOrphans()
+        #expect(backend.calls == ["endAll"])
+    }
+
+    @Test("Läuft eine Aufzeichnung, bleibt ihre Aktivität unangetastet")
+    func keepsRunningRecording() async {
+        let backend = FakeActivityBackend()
+        let controller = RecordingLiveController(backend: backend)
+        controller.start(state)
+        await controller.waitUntilIdle()
+        await controller.endOrphans()
+        #expect(backend.calls == ["request"])
+    }
+
+    @Test("Nach dem Ende einer Aufzeichnung dürfen Reste beendet werden")
+    func endsAfterRecordingEnded() async {
+        let backend = FakeActivityBackend()
+        let controller = RecordingLiveController(backend: backend)
+        controller.start(state)
+        controller.end(state)
+        await controller.waitUntilIdle()
+        await controller.endOrphans()
+        #expect(backend.calls == ["request", "end", "endAll"])
+    }
 }
 
 @Suite("Live-Activity-Anzeige")

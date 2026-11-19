@@ -26,13 +26,15 @@ public struct HealthWorkout: Identifiable, Equatable, Sendable {
     public var avgHR: Double?
     public var maxHR: Double?
     public var energyKcal: Double?
+    /// Indoor-Kennzeichen des Workouts (`HKMetadataKeyIndoorWorkout`); `false` ohne Angabe.
+    public var isIndoor: Bool
 
     public var id: UUID { uuid }
     public var source: HealthSourceRef { HealthSourceRef(name: sourceName, bundleID: sourceBundleID) }
     public var category: SportCategory { SportClassification.category(for: activityTypeName) }
 
     public init(uuid: UUID, start: Date, end: Date, activityTypeName: String, sourceName: String, sourceBundleID: String,
-                isOwnSource: Bool, avgHR: Double?, maxHR: Double?, energyKcal: Double?) {
+                isOwnSource: Bool, avgHR: Double?, maxHR: Double?, energyKcal: Double?, isIndoor: Bool = false) {
         self.uuid = uuid
         self.start = start
         self.end = end
@@ -43,6 +45,12 @@ public struct HealthWorkout: Identifiable, Equatable, Sendable {
         self.avgHR = avgHR
         self.maxHR = maxHR
         self.energyKcal = energyKcal
+        self.isIndoor = isIndoor
+    }
+
+    /// Rad auf der Rolle: Indoor-Kennzeichen oder der Typname `indoorCycling`.
+    public var isIndoorCycling: Bool {
+        category == .cycling && (isIndoor || SportClassification.normalize(activityTypeName) == "indoorcycling")
     }
 }
 

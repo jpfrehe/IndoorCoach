@@ -129,7 +129,27 @@ struct IntegrationW3Tests {
         _ = model.saveStrength(from: recording(), draft: StrengthDraft(exertion: 6))
         await model.healthExportTask?.value
         #expect(writer.saved.isEmpty)
-        #expect(source.workoutCalls >= 1)
+        // Befund 11: gezielte Abfrage mit Zeitfenster ±1 Tag, kein Lesen aller Workouts.
+        #expect(source.workoutCalls == 0)
+        let range = try #require(source.rangeRequests.first)
+        #expect(range.lowerBound == now.addingTimeInterval(-7200 - 86_400))
+        #expect(range.upperBound == now.addingTimeInterval(-7200 + 900 + 86_400))
+    }
+
+    @Test("Verbundene Quellen fragen die letzten 28 Tage gezielt ab, nicht alle Workouts")
+    func connectedSourcesUsesTimeWindow() async throws {
+        let recent = HealthWorkout(uuid: UUID(), start: Date.now.addingTimeInterval(-7200), end: Date.now.addingTimeInterval(-4800),
+                                   activityTypeName: "running", sourceName: "Apple Watch", sourceBundleID: "com.apple.health",
+                                   isOwnSource: false, avgHR: 140, maxHR: 160, energyKcal: nil)
+        let source = FakeHealthSource([recent])
+        let (model, _, _) = try makeModel(source: source)
+        model.healthEnabled = true
+        let usage = await model.connectedSources()
+        #expect(source.workoutCalls == 0)
+        let range = try #require(source.rangeRequests.first)
+        #expect(source.rangeRequests.count == 1)
+        #expect(range.upperBound.timeIntervalSince(range.lowerBound) >= 27 * 86_400 && range.upperBound.timeIntervalSince(range.lowerBound) <= 29 * 86_400)
+        #expect(usage.contains { $0.metric == nil })   // Workouts-Quelle (Apple Watch) bleibt sichtbar
     }
 
     @Test("Ein Schreibfehler blockiert nicht und bricht nichts ab")
@@ -280,7 +300,8 @@ struct IntegrationW3Tests {
         #expect(request.restored?.templateName == "Push")
         second.resumeInterrupted()
         #expect(second.strength == state)
-        _ = second.stop()
+        let result = try #require(second.stop())
+        second.confirmHandled(result)   // erst nach erfolgreichem Speichern fällt die Zwischendatei
         #expect(store.load() == nil)
     }
 

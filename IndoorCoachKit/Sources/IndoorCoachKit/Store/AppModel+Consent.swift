@@ -1,11 +1,12 @@
 import Foundation
 import SwiftData
 
-/// Einwilligung des Fahrers, dass ein relativer Erholungskontext an Claude (Anthropic) geht
-/// (docs/17 §2.3, §9.1 Prinzip 5; Apple-Richtlinie 5.1.2(i)). Ohne gültige Einwilligung bleibt `PlanContext.recovery` leer.
+/// Einwilligung des Fahrers, dass Erholungskontext, Kraft-/Fremdsport-Einheiten und Health-Workouts (aggregiert) an Claude (Anthropic) gehen
+/// (docs/17 §2.3, §9.1 Prinzip 5; Apple-Richtlinie 5.1.2(i)). Ohne gültige Einwilligung geht nichts aus Apple Health, kein Kraft-/Fremdsport-Abschnitt und kein Check-in an Claude.
+/// Version 2: Kraft, andere Sportarten und Health-Workouts kamen dazu, ältere Einwilligungen gelten nicht mehr.
 public struct ClaudeConsent: Codable, Equatable, Sendable {
     /// Erhöhen, wenn sich ändert, was an Claude geht: bestehende Einwilligungen gelten dann nicht mehr.
-    public static let currentVersion = 1
+    public static let currentVersion = 2
 
     public var grantedAt: Date
     public var version: Int
@@ -74,22 +75,49 @@ extension AppModel {
         return RecoverySummary.make(.init(wellness: wellness, checkIns: answers, warmup: warmup))
     }
 
-    /// Nur mit Einwilligung; sonst `nil` (zentrale Stelle für `planContext`).
-    func consentedRecoverySummary(now: Date = .now) -> RecoverySummary? {
-        claudeConsent == nil ? nil : recoverySummary(now: now)
+    /// Ohne Einwilligung bleibt alles aus Apple Health draußen: Fahrten aus Health fallen weg, bei zusammengeführten Fahrten
+    /// auch der Puls (er kann aus Health stammen).
+    static func withoutHealthData(_ rides: [RideSummary]) -> [RideSummary] {
+        rides.filter { $0.healthUUID == nil && !$0.isForeignSport }.map { ride in
+            guard ride.healthNote != nil else { return ride }
+            var copy = ride
+            copy.averageHeartrate = nil
+            copy.maxHeartrate = nil
+            return copy
+        }
     }
 
     /// Genau die Zeilen, die an Claude gehen würden (Vorschau, auch ohne Einwilligung).
     public func recoveryPreviewText(now: Date = .now) -> String {
-        guard let summary = recoverySummary(now: now) else {
-            return "Aktuell gibt es nichts zu senden: Es liegen keine Check-ins oder Erholungswerte vor."
+        var lines: [String] = []
+        if let summary = recoverySummary(now: now) { lines += PlanPrompt.recoverySection(summary) }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let strength = strengthWeekSummary(now: now, horizonStart: today, horizonEnd: today, calendar: calendar)
+        let other = OtherSportSummary.summaries(from: allRides(), ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
+                                                today: today, calendar: calendar)
+        let training = PlanPrompt.strengthAndOtherSection(strength: strength, otherSports: other)
+        if !training.isEmpty { lines += (lines.isEmpty ? [] : [""]) + training }
+        guard !lines.isEmpty else {
+            return "Aktuell gibt es nichts zu senden: Es liegen keine Check-ins, Erholungswerte, Kraft- oder Fremdsport-Einheiten vor."
         }
-        return PlanPrompt.recoverySection(summary).joined(separator: "\n")
+        return lines.joined(separator: "\n")
     }
 
     /// Beim ersten Planen fragen, sobald es Erholungsdaten gibt (Health aktiv oder Check-ins) und noch nicht entschieden wurde.
     public func needsClaudeConsentPrompt(now: Date = .now) -> Bool {
-        guard claudeConsent == nil, !defaults.bool(forKey: ConsentKeys.asked) else { return false }
-        return healthEnabled || recoverySummary(now: now) != nil
+        guard claudeConsent == nil else { return false }
+        // Eine Einwilligung älterer Version gilt nicht mehr: neu fragen, auch wenn schon einmal entschieden wurde.
+        let outdated = defaults.data(forKey: ConsentKeys.consent) != nil
+        guard outdated || !defaults.bool(forKey: ConsentKeys.asked) else { return false }
+        return outdated || healthEnabled || recoverySummary(now: now) != nil || hasTrainingDataForClaude(now: now)
+    }
+
+    /// Gibt es Kraft- oder Fremdsport-Einheiten, die mit Einwilligung an Claude gingen?
+    private func hasTrainingDataForClaude(now: Date) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        if strengthWeekSummary(now: now, horizonStart: today, horizonEnd: today, calendar: calendar) != nil { return true }
+        return allRides().contains { $0.isForeignSport }
     }
 }

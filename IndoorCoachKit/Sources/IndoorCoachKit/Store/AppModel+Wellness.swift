@@ -3,7 +3,7 @@ import SwiftData
 
 /// Erholungswerte (Ruhepuls, HRV, Schlaf, Atemfrequenz, Handgelenktemperatur) als Trend und der Trend-Wächter
 /// (docs/17 §2.1, §2.2, §9.7; B52, B53, B55). Tageswerte kommen nur mit aktiviertem Health, nur aus der gepinnten
-/// Quelle und liegen als JSON im lokalen Application Support (kein iCloud, nie im Protokoll: nur Zähler).
+/// Quelle und liegen als JSON im lokalen Application Support (vom iCloud-/Geräte-Backup ausgenommen, mit Dateischutz; nie im Protokoll: nur Zähler).
 @MainActor
 private enum WellnessStore {
     struct State {
@@ -83,12 +83,9 @@ extension AppModel {
         let dir = state.directory ?? Self.defaultWellnessDirectory
         let rows = state.dailies.map { CachedDaily(date: $0.date, metric: $0.metric.rawValue, value: $0.value, source: $0.source.name, bundleID: $0.source.bundleID) }
         do {
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            var options: Data.WritingOptions = [.atomic]
-            #if os(iOS)
-            options.insert(.completeFileProtection)
-            #endif
-            try JSONEncoder().encode(rows).write(to: dir.appendingPathComponent(Self.wellnessCacheFile), options: options)
+            // Der Abgleich kann bei gesperrtem Gerät laufen (Hintergrund-Zustellung): Schutz „bis zur ersten Entsperrung“.
+            try ProtectedFile.write(try JSONEncoder().encode(rows), to: dir.appendingPathComponent(Self.wellnessCacheFile),
+                                    protection: .untilFirstUnlock)
         } catch {
             Log.error(.sync, "Erholungswerte nicht gespeichert: \(type(of: error))")
         }
@@ -174,7 +171,7 @@ extension AppModel {
         let since = profile.warmupCheckBaseSince
         let rides = allRides().filter { $0.trainer && $0.startDate >= (since ?? .distantPast) && $0.startDate <= now }
             .sorted { $0.startDate > $1.startDate }.prefix(60)
-        let checks = rides.compactMap { warmupCheck(for: $0) }.filter(\.valid)
+        let checks = rides.compactMap { warmupCheck(for: $0) }.filter { $0.valid && $0.source == .measured }
         guard let newest = checks.map(\.date).max(), newest >= from else { return nil }
         return TrendGuard.warmupDelta(checks: checks, refWatts: profile.effectiveWarmupCheckWatts)
     }

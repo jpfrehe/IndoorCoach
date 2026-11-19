@@ -108,9 +108,9 @@ public enum TrendGuard {
     }
 
     /// Letzter gültiger Aufwärm-Puls (bei `refWatts`) minus Median der früheren; nil ohne mindestens
-    /// `WarmupCheck.minChecksForTrend` frühere Messungen.
+    /// `WarmupCheck.minChecksForTrend` frühere Messungen. Nur gemessene Werte: „angenommen (ERG)“ ist keine Messung.
     public static func warmupDelta(checks: [WarmupCheck], refWatts: Int) -> Double? {
-        let used = checks.filter { $0.valid && $0.hrMean != nil && $0.refWatts == refWatts }.sorted { $0.date < $1.date }
+        let used = checks.filter { $0.valid && $0.hrMean != nil && $0.refWatts == refWatts && $0.source == .measured }.sorted { $0.date < $1.date }
         guard let last = used.last?.hrMean else { return nil }
         let earlier = used.dropLast().compactMap(\.hrMean)
         guard earlier.count >= WarmupCheck.minChecksForTrend, let median = Wellness.median(earlier) else { return nil }

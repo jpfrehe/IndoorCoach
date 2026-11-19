@@ -15,6 +15,11 @@ struct IndoorCoachApp: App {
         _model = State(initialValue: model)
         #if os(iOS)
         RecordingLive.presenter = LiveActivityPresenter.make()
+        // Reste eines Absturzes/Neustarts vom Sperrbildschirm räumen, aber nur ohne laufende Aufzeichnung.
+        Task { @MainActor in
+            guard !RecordingService.shared.isRunning else { return }
+            await (RecordingLive.presenter as? RecordingLiveController)?.endOrphans()
+        }
         #endif
         AppTips.configure()
         AppTips.setOnboardingComplete(!model.needsOnboarding)

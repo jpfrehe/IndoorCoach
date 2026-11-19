@@ -14,7 +14,10 @@ struct WarmupCheckCard: View {
     }
 
     var body: some View {
-        let trend = model.warmupTrend(rides: rides)
+        let measured = model.warmupTrend(rides: rides)
+        // Angenommene Werte (ERG, nur Puls) bleiben ein eigener Trend: sie fließen nie in den gemessenen ein.
+        let assumed = model.warmupTrend(rides: rides, source: .assumedERG)
+        let trend = measured.count == 0 && assumed.count > 0 ? assumed : measured
         let check = ride.flatMap { model.warmupCheck(for: $0) }
         if check != nil || trend.count > 0 {
             Card(title: "Aufwärm-Check", systemImage: "heart.text.square") {
@@ -28,6 +31,12 @@ struct WarmupCheckCard: View {
                             .font(.subheadline).foregroundStyle(Theme.rowSecondary)
                     }
                     if let check { rideLine(check) }
+                    if measured.count > 0, assumed.count > 0 {
+                        Text("Getrennt davon, mit angenommener Leistung (ERG): \(Self.headline(assumed))")
+                            .font(.subheadline).foregroundStyle(Theme.rowSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("warmup.assumed")
+                    }
                     Text(Self.sourceLabel(trend, check: check))
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 8).padding(.vertical, 3)

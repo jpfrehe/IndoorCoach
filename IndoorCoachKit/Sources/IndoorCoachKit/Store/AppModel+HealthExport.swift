@@ -38,7 +38,7 @@ extension AppModel {
         let existing: [HealthWorkout]
         do {
             let low = candidate.start.addingTimeInterval(-86_400), high = candidate.end.addingTimeInterval(86_400)
-            existing = try await healthSource.workouts(since: nil).added.filter { $0.end >= low && $0.start <= high }
+            existing = try await healthSource.workouts(in: low...high)
         } catch {
             Log.error(.sync, "Health-Export ohne Überlappungsprüfung übersprungen: \(type(of: error))")
             return

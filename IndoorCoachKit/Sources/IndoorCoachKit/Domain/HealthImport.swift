@@ -245,6 +245,8 @@ public struct HealthLedgerEntry: Codable, Equatable, Identifiable, Sendable {
     public var targetRideID: Int?
     /// Krafteinheit, in die es zusammengeführt wurde.
     public var targetStrengthID: UUID?
+    /// Indoor-Kennzeichen des Workouts; `nil` bei älteren Einträgen.
+    public var indoor: Bool?
 
     public var id: UUID { uuid }
 
@@ -258,6 +260,7 @@ public struct HealthLedgerEntry: Codable, Equatable, Identifiable, Sendable {
         avgHR = workout.avgHR
         maxHR = workout.maxHR
         energyKcal = workout.energyKcal
+        indoor = workout.isIndoor ? true : nil
         self.outcome = outcome
         self.targetRideID = targetRideID
         self.targetStrengthID = targetStrengthID
@@ -265,7 +268,8 @@ public struct HealthLedgerEntry: Codable, Equatable, Identifiable, Sendable {
 
     public var workout: HealthWorkout {
         HealthWorkout(uuid: uuid, start: start, end: end, activityTypeName: activityTypeName, sourceName: sourceName,
-                      sourceBundleID: sourceBundleID, isOwnSource: false, avgHR: avgHR, maxHR: maxHR, energyKcal: energyKcal)
+                      sourceBundleID: sourceBundleID, isOwnSource: false, avgHR: avgHR, maxHR: maxHR, energyKcal: energyKcal,
+                      isIndoor: indoor ?? false)
     }
 
     public var durationMinutes: Int { Int((end.timeIntervalSince(start) / 60).rounded()) }

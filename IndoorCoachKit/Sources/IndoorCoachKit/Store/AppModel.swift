@@ -89,6 +89,16 @@ public final class AppModel {
     public internal(set) var healthPins = HealthSourcePins()
     /// Ort der Morgen-HRV-Messungen (Tests setzen einen temporären).
     @ObservationIgnored var morningHRVStoreURL = MorningHRVStore.defaultURL
+    /// Datei der wartenden Aufzeichnungen (Application Support, nicht im Backup). Nur in der App selbst am echten Ort,
+    /// sonst (Tests, Vorschau) eine eigene temporäre Datei je Modell; Tests mit gemeinsamem „Neustart“ setzen denselben Pfad.
+    @ObservationIgnored var pendingRecordingsURL = AppModel.defaultPendingRecordingsURL()
+    /// Laufende Dienste, die „Alle Daten löschen“ beenden muss; Standard sind die gemeinsamen Instanzen (Tests setzen Stubs).
+    @ObservationIgnored var recordingServiceOverride: RecordingService?
+    @ObservationIgnored var strapSessionOverride: StrapSession?
+    /// Ersetzt das Speichern des Kontexts (nur Tests: Speicherfehler auslösen).
+    @ObservationIgnored var saveOverride: (() throws -> Void)?
+    /// Zählt gescheiterte Speichervorgänge (`saveReportingErrors`): Abläufe, die Zeiger vorrücken, prüfen, ob unterwegs einer scheiterte.
+    @ObservationIgnored private(set) var saveFailureCount = 0
     /// Health-Quelle; Tests und `-uiHealthStub` setzen einen Stub. Standard: HealthKit auf iOS, sonst nicht verfügbar.
     @ObservationIgnored public var healthSource: any HealthDataSource = HealthDataSourceFactory.make()
     /// Schreibzugriff für den Export eigener Einheiten (opt-in je Sportart); Tests und `-uiHealthStub` setzen einen Stub.
@@ -674,7 +684,7 @@ public final class AppModel {
             }
         }
         linkCompletedWorkouts()
-        try? context.save()
+        guard saveReportingErrors("Der Import") else { return ImportResult() }   // nichts davon ist gespeichert
         matchPendingRecordings() // ANCHOR-REC: recordings that waited for a ride
         invalidateSecondsDigests()
         hasImportedRides = true
@@ -712,6 +722,13 @@ public final class AppModel {
     }
 
     // MARK: - Data access
+
+    /// Eine Fahrt gezielt laden (statt `allRides()` in Views).
+    public func ride(id: Int) -> RideSummary? {
+        var descriptor = FetchDescriptor<StoredRide>(predicate: #Predicate { $0.stravaID == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first?.summary
+    }
 
     public func allRides() -> [RideSummary] {
         let descriptor = FetchDescriptor<StoredRide>(sortBy: [SortDescriptor(\.startDate)])
@@ -809,21 +826,27 @@ public final class AppModel {
         let today = calendar.startOfDay(for: now)
         let start = startToday ? today : calendar.date(byAdding: .day, value: 1, to: today)!
         let end = calendar.date(byAdding: .day, value: max(profile.planHorizonDays, 1) - 1, to: start)!
-        let rides = allRides()
+        // PO-Entscheidung: Ohne Claude-Einwilligung geht nichts aus Apple Health, kein Kraft-/Fremdsport-Abschnitt und kein
+        // Check-in an Claude – nur Rad-Daten (MyWhoosh/Brücke/FIT/Strava).
+        let consented = claudeConsent != nil
+        let rides = consented ? allRides() : Self.withoutHealthData(allRides())
         let series = loadSeries(rides: rides, now: now)
         let weeks = TrainingLoad.weeks(rides: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
                                        from: calendar.date(byAdding: .day, value: -42, to: today)!, to: today)
-        let recent = rides.filter { $0.startDate >= calendar.date(byAdding: .day, value: -21, to: today)! }
+        // Fremdsport steht im Abschnitt „Andere Sportarten“, nicht nochmals unter den letzten Einheiten.
+        let recent = rides.filter { $0.startDate >= calendar.date(byAdding: .day, value: -21, to: today)! && !$0.isForeignSport }
         let planned = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? [])
             .filter { $0.status == .planned && $0.date >= start && $0.date <= end }
             .map(\.proposal)
         var result = PlanContext(profile: profile, today: today, horizonStart: start, horizonEnd: end,
                                  load: series.last, weeks: weeks, recentRides: recent, alreadyPlanned: planned, wish: wish)
         result.winterArc = winterArc(rides: rides, now: now)
-        result.strength = strengthWeekSummary(now: now, horizonStart: start, horizonEnd: end, calendar: calendar) // ANCHOR-W3C
-        result.otherSports = OtherSportSummary.summaries(from: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
-                                                         today: today, calendar: calendar) // ANCHOR-W3C
-        result.recovery = consentedRecoverySummary(now: now) // ANCHOR-W4C (nur mit Einwilligung)
+        if consented {
+            result.strength = strengthWeekSummary(now: now, horizonStart: start, horizonEnd: end, calendar: calendar) // ANCHOR-W3C
+            result.otherSports = OtherSportSummary.summaries(from: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
+                                                             today: today, calendar: calendar) // ANCHOR-W3C
+            result.recovery = recoverySummary(now: now) // ANCHOR-W4C
+        }
         return result
     }
 
@@ -969,9 +992,19 @@ public final class AppModel {
     /// "Alle Daten löschen" (Profil → Daten): rides, workouts, the app's calendar entries and calendar,
     /// all Keychain items and the app's UserDefaults. Data on Strava and at Anthropic is not touched.
     public func deleteAllData() async {
+        // Zuerst laufende Dienste stoppen, sonst schreiben sie nach dem Löschen weiter: Aufzeichnung abbrechen (ohne zu
+        // speichern, samt Zwischendatei und Live Activity), Gurt trennen und vergessen, Health-Export beenden.
+        let recorder = recordingServiceOverride ?? RecordingService.shared
+        recorder.cancel()
+        recorder.discardInterrupted()
+        (strapSessionOverride ?? StrapSession.shared).forget()
+        healthExportTask?.cancel()
+        healthExportTask = nil
+        savePendingRecordings([])
         let eventIDs = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? []).compactMap(\.calendarEventID)
         try? context.delete(model: StoredRide.self)
         try? context.delete(model: StoredWorkout.self)
+        try? context.delete(model: StoredCheckIn.self)
         try? context.save()
         deleteAllStrengthData() // ANCHOR-STRENGTH
         resetHealthState() // ANCHOR-W3B
@@ -1013,6 +1046,22 @@ public final class AppModel {
     }
 
     // MARK: - Helpers
+
+    /// Speichert den Kontext und meldet einen Fehler an die UI (Banner), statt ihn zu verschlucken. Bei einem Fehler
+    /// werden die ungespeicherten Änderungen verworfen, damit nichts Halbes im Speicher bleibt.
+    @discardableResult
+    func saveReportingErrors(_ what: String, hint: String? = nil) -> Bool {
+        do {
+            if let saveOverride { try saveOverride() } else { try context.save() }
+            return true
+        } catch {
+            context.rollback()
+            saveFailureCount += 1
+            Log.error(.app, "\(what): Speichern fehlgeschlagen: \(type(of: error))")
+            show("\(what) konnte nicht gespeichert werden." + (hint.map { " " + $0 } ?? ""), error: true)
+            return false
+        }
+    }
 
     public func show(_ message: String, error: Bool) {
         if error { Log.error(.app, "Banner: \(message)") }
