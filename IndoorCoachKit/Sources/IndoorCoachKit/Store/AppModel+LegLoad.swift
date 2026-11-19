@@ -22,7 +22,7 @@ public struct LegLoadHint {
 }
 
 extension AppModel {
-    static let legLoadKeptKey = "legload.kept.v1"
+    static let legLoadKeptKey = Keys.legLoadKept
 
     private static let keyTypes: [WorkoutType: MuscleLoad.KeyIntensity] = [
         .vo2max: .vo2, .threshold: .threshold, .anaerobic: .anaerobic

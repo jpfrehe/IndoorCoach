@@ -24,6 +24,8 @@ public final class StoredStrengthSession {
     @Attribute(.externalStorage) public var heartRateSeconds: Data?
     /// Sportart bei „Andere Einheit“ (nil = Krafttraining).
     public var sportName: String?
+    /// Hinweis, wenn ein Health-Workout mit dieser Einheit zusammengeführt wurde (nur Anzeige).
+    public var healthNote: String?
     public var isDemo: Bool = false
 
     public init(session: StrengthSession, healthUUID: String? = nil, heartRate: [UInt8]? = nil,

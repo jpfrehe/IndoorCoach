@@ -85,8 +85,14 @@ public final class AppModel {
     public internal(set) var healthCandidates: [HealthLedgerEntry] = []
     /// 7-Tage-Mittel des Körpergewichts aus Health (zuletzt gelesen); nil ohne Wert.
     public internal(set) var healthWeightKg: Double?
+    /// Gepinnte Quelle je Kennzahl (Profil → Datenquellen); Teil des einen Health-Zustands.
+    public internal(set) var healthPins = HealthSourcePins()
     /// Health-Quelle; Tests und `-uiHealthStub` setzen einen Stub. Standard: HealthKit auf iOS, sonst nicht verfügbar.
     @ObservationIgnored public var healthSource: any HealthDataSource = HealthDataSourceFactory.make()
+    /// Schreibzugriff für den Export eigener Einheiten (opt-in je Sportart); Tests und `-uiHealthStub` setzen einen Stub.
+    @ObservationIgnored public var healthWriter: any HealthWorkoutWriting = HealthWorkoutWriterFactory.make()
+    /// Läuft gerade ein Export nach dem Speichern? Tests warten darauf (`await model.healthExportTask?.value`).
+    @ObservationIgnored var healthExportTask: Task<Void, Never>?
     @ObservationIgnored var healthSyncing = false
     @ObservationIgnored var healthSyncPending = false
     @ObservationIgnored var healthObserverStarted = false
@@ -122,11 +128,26 @@ public final class AppModel {
         static let bridgeKnownIDs = "bridge.knownIDs.v1"
         static let recordingPending = "recording.pending.v1" // ANCHOR-REC: recordings waiting for their ride
         static let recordingAttached = "recording.attached.v1" // ANCHOR-REC: which ride carries which recording
-        /// Everything "Alle Daten löschen" removes – add every new persisted key here.
+        /// Everything "Alle Daten löschen" removes – add every new persisted key here. (Health-Zustand und Anker räumt
+        /// `resetHealthState()` auf, die Strava-/MyWhoosh-Geheimnisse liegen im Keychain.)
         static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport,
                           weeklyReviewDismissed, onboardingStep, bridgeMacName, bridgeLastSync, bridgeKnownIDs,
-                          recordingPending, recordingAttached] // ANCHOR-REC
+                          recordingPending, recordingAttached, // ANCHOR-REC
+                          legLoadKept, manualJokerWeeks, strengthTemplates, strengthDays, strapPeripheral,
+                          healthExportSettings, healthExportLedger]
+        /// Hinweis „Achtung Leistung“ je Einheit behalten (LegLoad), Joker-Wochen (Konstanz), Kraft-Vorlagen und Studio-Tage,
+        /// gekoppelter Gurt, Health-Export (Einstellung und Protokoll).
+        static let legLoadKept = "legload.kept.v1"
+        static let manualJokerWeeks = "consistency.manualJokerWeeks.v1"
+        static let strengthTemplates = "strength.templates.v1"
+        static let strengthDays = "strength.days.v1"
+        static let strapPeripheral = StrapStore.key
+        static let healthExportSettings = HealthExportService.settingsKey
+        static let healthExportLedger = HealthExportService.ledgerKey
     }
+
+    /// Reine Anzeige-Merker in @AppStorage (z. B. „Gurt-Erklärung gesehen“): fallen mit „Alle Daten löschen“ ebenfalls.
+    static let uiFlagKeys = ["strapExplainerSeen"]
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
                 transport: HTTPTransport = URLSessionTransport(),
@@ -975,6 +996,7 @@ public final class AppModel {
         for key in Keys.all { defaults.removeObject(forKey: key) }
         RecordingStore().clear() // ANCHOR-REC: interim file of an unfinished recording
         // Feedback draft (FeedbackView keeps it in @AppStorage so it survives the trip to GitHub).
+        for key in AppModel.uiFlagKeys { defaults.removeObject(forKey: key) }
         for key in ["feedback.draft.kind", "feedback.draft.title", "feedback.draft.body", "feedback.draft.appInfo",
                     "feedback.draft.awaitingGitHub"] { defaults.removeObject(forKey: key) }
         try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent("zwo"))

@@ -34,6 +34,8 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
     public var foreignSport: String? = nil
     /// Geschätzte TSS einer Fremdsportart (O6, `HealthImport.estimate`).
     public var estimatedTSS: Double? = nil
+    /// Hinweis zur Zusammenführung mit einem Health-Workout (nur Anzeige).
+    public var healthNote: String? = nil
 
     public init(id: Int, name: String, sportType: String, startDate: Date, movingTime: Int, distance: Double,
                 averageWatts: Double? = nil, weightedAverageWatts: Double? = nil, kilojoules: Double? = nil,

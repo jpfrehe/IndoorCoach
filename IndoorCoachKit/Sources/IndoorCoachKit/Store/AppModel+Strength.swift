@@ -31,8 +31,8 @@ public struct StrengthDraft: Equatable, Sendable {
 /// räumt sie auf). Einheiten liegen in SwiftData (`StoredStrengthSession`).
 extension AppModel {
     enum StrengthKeys {
-        static let templates = "strength.templates.v1"
-        static let days = "strength.days.v1"
+        static let templates = Keys.strengthTemplates
+        static let days = Keys.strengthDays
     }
 
     // MARK: Lesen
@@ -91,6 +91,7 @@ extension AppModel {
         let row = StoredStrengthSession(session: session, heartRate: result.seconds.heartRate, sportName: draft.sportName)
         context.insert(row)
         try? context.save()
+        exportToHealth(row)   // nur wenn für die Sportart eingeschaltet (Profil → Datenquellen)
         return row
     }
 

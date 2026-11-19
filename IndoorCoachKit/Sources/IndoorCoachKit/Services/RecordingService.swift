@@ -137,6 +137,8 @@ public final class RecordingService {
     private let autoTick: Bool
     private var track: [UInt8] = []
     private var definition: WorkoutDefinition?
+    /// Häkchen und Vorlage der laufenden Krafteinheit; gehen mit in die Zwischenspeicherung.
+    public private(set) var strength: StoredStrengthState?
     private var lastSample: Date?
     private var lastSaved = Date.distantPast
     private var lastPresented = Date.distantPast
@@ -176,7 +178,8 @@ public final class RecordingService {
     }
 
     private func begin(kind: RecordingKind, title: String, plannedWorkoutID: UUID?, definition: WorkoutDefinition?,
-                       startedAt: Date, track: [UInt8], reconnects: Int, id: UUID) {
+                       startedAt: Date, track: [UInt8], reconnects: Int, id: UUID, strength: StoredStrengthState? = nil) {
+        self.strength = strength
         runID = id
         self.kind = kind
         self.title = title
@@ -246,6 +249,15 @@ public final class RecordingService {
         }
     }
 
+    /// Merkt sich Häkchen und Vorlage der Krafteinheit und sichert sie sofort mit der Pulsspur (ein Häkchen darf bei einem
+    /// App-Abbruch nicht verloren gehen). Ohne laufende Aufzeichnung passiert nichts.
+    public func updateStrength(_ state: StoredStrengthState?) {
+        guard isRunning, let startedAt, strength != state else { return }
+        strength = state
+        store.save(snapshot(startedAt: startedAt, end: now()))
+        lastSaved = now()
+    }
+
     // MARK: Timer work
 
     /// Once per second: elapsed time, interim save (30 s), lock-screen update (5 s or block change).
@@ -285,7 +297,7 @@ public final class RecordingService {
         guard !isRunning, let saved = interrupted else { return }
         interrupted = nil
         begin(kind: saved.kind, title: saved.title, plannedWorkoutID: saved.plannedWorkoutID, definition: saved.definition,
-              startedAt: saved.startedAt, track: saved.heartRateSeconds, reconnects: saved.reconnects, id: saved.id)
+              startedAt: saved.startedAt, track: saved.heartRateSeconds, reconnects: saved.reconnects, id: saved.id, strength: saved.strength)
     }
 
     /// Ends the left-behind recording at the time of its last interim save.
@@ -314,7 +326,7 @@ public final class RecordingService {
         let seconds = padded(to: max(0, Int(end.timeIntervalSince(startedAt))))
         return StoredRecording(id: runID, kind: kind, title: title, startedAt: startedAt, endedAt: end,
                                heartRate: Data(seconds), gapSeconds: seconds.filter { $0 == 0 }.count, reconnects: reconnects,
-                               plannedWorkoutID: plannedWorkoutID, definition: definition)
+                               plannedWorkoutID: plannedWorkoutID, definition: definition, strength: strength)
     }
 
 

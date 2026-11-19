@@ -12,7 +12,7 @@ enum RideFilter: String, CaseIterable, Identifiable {
         switch self {
         case .all: true
         case .indoor: ride.isIndoor
-        case .outdoor: !ride.isIndoor
+        case .outdoor: !ride.isIndoor && !ride.isForeignSport   // „Outdoor“ nur für echte Radfahrten
         case .strength, .other: false
         }
     }
@@ -91,6 +91,12 @@ struct HistoryView: View {
                                     RideRow(ride: ride, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate,
                                             heartRate: model.profile.heartRateProfile)
                                     if !(ride.powerCurve ?? [:]).isEmpty { SecondsDataBadge() }
+                                    if ride.healthNote != nil {
+                                        Label("Mit Health-Workout zusammengeführt", systemImage: "heart.text.square")
+                                            .font(.caption2.weight(.semibold)).foregroundStyle(Theme.rowSecondary)
+                                            .padding(.leading, 52)
+                                            .accessibilityIdentifier("history.healthNote")
+                                    }
                                 }
                             }
                         }
@@ -221,9 +227,14 @@ struct RideDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
-                    JellyChip(text: ride.isIndoor ? "Indoor" : "Outdoor",
-                              systemImage: ride.isIndoor ? "figure.indoor.cycle" : "figure.outdoor.cycle",
-                              fill: ride.isIndoor ? Theme.indoor : Theme.outdoor)
+                    if let sport = ride.foreignSport {
+                        JellyChip(text: HealthImport.germanName(for: sport), systemImage: SportClassification.symbol(for: sport),
+                                  fill: Theme.softFill)
+                    } else {
+                        JellyChip(text: ride.isIndoor ? "Indoor" : "Outdoor",
+                                  systemImage: ride.isIndoor ? "figure.indoor.cycle" : "figure.outdoor.cycle",
+                                  fill: ride.isIndoor ? Theme.indoor : Theme.outdoor)
+                    }
                     Text(ride.name).font(.largeTitle.weight(.bold))
                     Text(ride.startDate.formatted(.dateTime.weekday(.wide).day().month(.wide).year().hour().minute().locale(Locale(identifier: "de_DE"))))
                         .foregroundStyle(.secondary)
@@ -233,7 +244,7 @@ struct RideDetailView: View {
                         GridRow {
                             StatTile(title: "Zeit", value: Formatters.duration(ride.movingTime))
                             StatTile(title: "Distanz", value: Formatters.distanceKm(ride.distance))
-                            StatTile(title: "TSS", value: "\(Int(est.tss.rounded()))")
+                            StatTile(title: ride.isForeignSport ? "TSS (geschätzt)" : "TSS", value: "\(Int(est.tss.rounded()))")
                         }
                         GridRow {
                             StatTile(title: "NP", value: ride.weightedAverageWatts.map { "\(Int($0))" } ?? "–", unit: "W")
@@ -274,7 +285,17 @@ struct RideDetailView: View {
                 // ANCHOR-P2-FAHRT (Ermüdungsresistenz)
                 RideDurabilityRow(ride: ride)
 
-                if est.source != .power {
+                if ride.isForeignSport {
+                    Label("TSS geschätzt aus Dauer und Puls. Zählt nur in der Belastung, nie in Leistungsanalysen.", systemImage: "info.circle")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("ride.foreignNote")
+                }
+                if let note = ride.healthNote {
+                    Label(note, systemImage: "heart.text.square")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("ride.healthNote")
+                }
+                if est.source != .power, !ride.isForeignSport {
                     Label(est.source == .heartRate ? "TSS aus Herzfrequenz geschätzt." : "TSS aus der Dauer geschätzt (keine Leistungsdaten).",
                           systemImage: "info.circle")
                         .font(.caption).foregroundStyle(.secondary)

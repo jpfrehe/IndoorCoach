@@ -66,7 +66,7 @@ struct PerformanceView: View {
                 FTPHistoryCard(rides: rides, ftp: model.profile.ftp)
 
                 // ANCHOR-P2-LEISTUNG (Fähigkeitslevel, Ermüdungsresistenz)
-                AbilityLevelsCard(rides: rides, weightKg: model.profile.weightKg)
+                AbilityLevelsCard(rides: rides, weightKg: model.effectiveWeightKg)
                 DurabilityCard(rides: rides)
 
 
@@ -167,7 +167,7 @@ struct PerformanceView: View {
     }
 
     private func effortRow(_ p: PowerCurve.Point) -> some View {
-        let perKg = model.profile.weightKg > 0 ? p.watts / model.profile.weightKg : nil
+        let perKg = model.effectiveWeightKg > 0 ? p.watts / model.effectiveWeightKg : nil
         let measured = p.source == .measured
         let duration = Text(PerformanceFormat.duration(p.duration)).font(.headline).lineLimit(1).fixedSize()
         let watts = Text(PerformanceFormat.watts(p.watts)).font(.title3.weight(.semibold)).monospacedDigit().lineLimit(1)
@@ -289,7 +289,7 @@ struct VO2maxCard: View {
     var body: some View {
         let now = Date.now
         let agg = PowerCurve.aggregate(rides: rides, from: now.addingTimeInterval(-Double(range.days) * 86_400), to: now)
-        let estimate = VO2max.estimate(curve: agg, profile: model.profile)
+        let estimate = VO2max.estimate(curve: agg, profile: model.calculationProfile)
         Card(title: "VO₂max", systemImage: "lungs") {
             if let estimate {
                 HStack(alignment: .firstTextBaseline) {
@@ -323,7 +323,7 @@ struct VO2maxCard: View {
         switch e.method {
         case .power:
             let watts = e.inputWatts.map { "\(Int($0.rounded())) W" } ?? "–"
-            return "ACSM-Formel: 10,8 × (\(watts) ÷ \(Formatters.decimal(model.profile.weightKg, digits: 1)) kg) + 7"
+            return "ACSM-Formel: 10,8 × (\(watts) ÷ \(Formatters.decimal(model.effectiveWeightKg, digits: 1)) kg) + 7"
                 + (e.isLowerBound ? ". Die 5-Minuten-Leistung ist nur ein Mindestwert, der Wert kann höher liegen." : ".")
         case .ftp:
             let watts = e.inputWatts.map { "\(Int($0.rounded())) W" } ?? "–"
@@ -337,7 +337,7 @@ struct VO2maxCard: View {
 
     @ViewBuilder
     private var trend: some View {
-        let points = VO2max.trend(rides: rides, profile: model.profile)
+        let points = VO2max.trend(rides: rides, profile: model.calculationProfile)
         if points.count >= 2 {
             Chart(points) { p in
                 LineMark(x: .value("Zeitraum bis", p.windowEnd), y: .value("VO₂max", p.value))

@@ -75,7 +75,7 @@ struct ProfileView: View {
             Stepper(value: $model.profile.weightKg, in: 40...150, step: 0.5) {
                 LabeledContent("Gewicht", value: "\(Formatters.decimal(model.profile.weightKg, digits: 1)) kg")
             }
-            LabeledContent("W/kg", value: Formatters.decimal(model.profile.wattsPerKg, digits: 2))
+            LabeledContent("W/kg", value: Formatters.decimal(model.calculationProfile.wattsPerKg, digits: 2))
             Stepper(value: Binding(get: { model.profile.thresholdHeartRate ?? 0 },
                                    set: { model.profile.thresholdHeartRate = $0 == 0 ? nil : $0 }),
                     in: 0...210, step: 1) {

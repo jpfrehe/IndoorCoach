@@ -13,7 +13,7 @@ extension AppModel {
                                     manualJokerWeeks: manualJokerWeeks, sessions: consistencySessions())
     }
 
-    static let manualJokerKey = "consistency.manualJokerWeeks.v1"
+    static let manualJokerKey = Keys.manualJokerWeeks
 
     /// Weeks (Monday) in which the rider spent a joker on purpose; lives in UserDefaults.
     var manualJokerWeeks: Set<Date> {

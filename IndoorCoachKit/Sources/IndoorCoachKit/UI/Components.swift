@@ -411,15 +411,16 @@ struct RideRow: View {
 
     var body: some View {
         let est = TrainingLoad.estimateTSS(for: ride, ftp: ftp, thresholdHeartRate: thresholdHeartRate)
+        let symbol = ride.foreignSport.map { SportClassification.symbol(for: $0) } ?? (ride.isIndoor ? "figure.indoor.cycle" : "figure.outdoor.cycle")
         HStack(spacing: 12) {
-            Image(systemName: ride.isIndoor ? "figure.indoor.cycle" : "figure.outdoor.cycle")
+            Image(systemName: symbol)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Theme.ink)
                 .frame(width: 40, height: 40)
-                .background(ride.isIndoor ? Theme.indoor : Theme.outdoor,
+                .background(ride.isForeignSport ? Theme.softFill : ride.isIndoor ? Theme.indoor : Theme.outdoor,
                             in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .strokeBorder(ride.isIndoor ? Theme.indoorMark : Theme.outdoorMark, lineWidth: 1.5))
+                    .strokeBorder(ride.isForeignSport ? Theme.rowSecondary : ride.isIndoor ? Theme.indoorMark : Theme.outdoorMark, lineWidth: 1.5))
             VStack(alignment: .leading, spacing: 3) {
                 Text(ride.name).font(.body.weight(.semibold)).lineLimit(2)
                 Text(ride.startDate.formatted(.dateTime.weekday(.abbreviated).day().month().hour().minute().locale(Locale(identifier: "de_DE"))))
@@ -430,7 +431,7 @@ struct RideRow: View {
                 Text(Formatters.duration(ride.movingTime)).font(.subheadline.weight(.medium)).monospacedDigit()
                 HStack(spacing: 6) {
                     if let np = ride.weightedAverageWatts ?? ride.averageWatts { Text("\(Int(np)) W") }
-                    Text("TSS \(Int(est.tss.rounded()))")
+                    Text(ride.isForeignSport ? "TSS \(Int(est.tss.rounded())) geschätzt" : "TSS \(Int(est.tss.rounded()))")
                     if let effort = RelativeEffort.estimate(for: ride, heartRate: heartRate).value {
                         Text("RE \(Int(effort.rounded()))")
                     }

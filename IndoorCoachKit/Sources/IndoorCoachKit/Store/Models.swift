@@ -115,6 +115,7 @@ public final class StoredRide {
         r.healthUUID = healthUUID
         r.foreignSport = foreignSport
         r.estimatedTSS = estimatedTSS
+        r.healthNote = healthNote
         return r
     }
 }
