@@ -86,6 +86,7 @@ struct RecordingAttachTests {
         // Neustart: Zustand kommt aus den Defaults.
         let again = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), defaults: defaults,
                              transport: RoutingTransport { _ in (500, Data()) }, myWhooshStore: InMemoryMyWhooshSessionStore())
+        again.pendingRecordingsURL = model.pendingRecordingsURL   // gleiche Datei wie vor dem „Neustart“
         #expect(again.pendingRecordings.count == 1)
         again.mergeImportedRides([ride(offset: 90)])
         #expect(again.pendingRecordings.isEmpty)
@@ -160,5 +161,47 @@ struct RecordingAttachTests {
         #expect(!z.hasPower)
         #expect(z.power.allSatisfy { $0 == 0 })
         #expect(z.heartTotal == 600)
+    }
+
+    struct DiskFull: Error {}
+
+    @Test("Speicherfehler beim Zuordnen: Ergebnis .failed, keine Zuordnung, nichts wartet (Datei bleibt beim Dienst)")
+    func attachSaveFailureReportsAndKeepsRecording() throws {
+        model.mergeImportedRides([ride()])
+        model.saveOverride = { throw DiskFull() }
+        #expect(model.finishRecording(result()) == .failed)
+        #expect(model.banner?.isError == true)
+        #expect(model.recordingSource(for: ride()) == nil)
+        #expect(model.pendingRecordings.isEmpty)
+        model.saveOverride = nil
+        #expect(model.rideSeconds(id: 77)?.heartRate == nil)   // Änderung zurückgenommen
+        // Nach dem Fehler klappt ein zweiter Versuch mit derselben Aufzeichnung.
+        #expect(model.finishRecording(result()) == .attached(rideID: 77))
+    }
+
+    @Test("Speicherfehler bei der Krafteinheit: nil, Fehler-Banner, keine halbe Zeile")
+    func strengthSaveFailure() throws {
+        let rec = RecordingResult(kind: .strength, title: "Kraft", startedAt: t0, endedAt: t0.addingTimeInterval(600),
+                                  seconds: RideSeconds(power: [UInt16](repeating: 0, count: 600), heartRate: [UInt8](repeating: 120, count: 600)))
+        model.saveOverride = { throw DiskFull() }
+        #expect(model.saveStrength(from: rec, draft: .otherSport("x", exertion: 5, legShare: .light, note: "")) == nil)
+        #expect(model.banner?.isError == true)
+        model.saveOverride = nil
+        #expect(model.storedStrengthRows().isEmpty)
+    }
+
+    @Test("Wartende Aufzeichnungen liegen in einer Datei (nicht im Backup) und werden aus den Defaults übernommen")
+    func pendingInFileWithMigration() throws {
+        let legacy = StoredRecording(result())
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        defaults.set(try encoder.encode([legacy]), forKey: AppModel.Keys.recordingPending)
+        #expect(model.pendingRecordings.map(\.id) == [legacy.id])      // Migration beim ersten Lesen
+        #expect(defaults.data(forKey: AppModel.Keys.recordingPending) == nil)
+        #expect(FileManager.default.fileExists(atPath: model.pendingRecordingsURL.path))
+        #expect(ProtectedFile.isExcludedFromBackup(model.pendingRecordingsURL))
+        #expect(model.finishRecording(result(start: t0.addingTimeInterval(86_400))) == .pending)
+        #expect(model.pendingRecordings.count == 2)
+        #expect(defaults.data(forKey: AppModel.Keys.recordingPending) == nil)
     }
 }

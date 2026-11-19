@@ -89,6 +89,11 @@ public final class AppModel {
     public internal(set) var healthPins = HealthSourcePins()
     /// Ort der Morgen-HRV-Messungen (Tests setzen einen temporären).
     @ObservationIgnored var morningHRVStoreURL = MorningHRVStore.defaultURL
+    /// Datei der wartenden Aufzeichnungen (Application Support, nicht im Backup). Nur in der App selbst am echten Ort,
+    /// sonst (Tests, Vorschau) eine eigene temporäre Datei je Modell; Tests mit gemeinsamem „Neustart“ setzen denselben Pfad.
+    @ObservationIgnored var pendingRecordingsURL = AppModel.defaultPendingRecordingsURL()
+    /// Ersetzt das Speichern des Kontexts (nur Tests: Speicherfehler auslösen).
+    @ObservationIgnored var saveOverride: (() throws -> Void)?
     /// Health-Quelle; Tests und `-uiHealthStub` setzen einen Stub. Standard: HealthKit auf iOS, sonst nicht verfügbar.
     @ObservationIgnored public var healthSource: any HealthDataSource = HealthDataSourceFactory.make()
     /// Schreibzugriff für den Export eigener Einheiten (opt-in je Sportart); Tests und `-uiHealthStub` setzen einen Stub.
@@ -1018,6 +1023,21 @@ public final class AppModel {
     }
 
     // MARK: - Helpers
+
+    /// Speichert den Kontext und meldet einen Fehler an die UI (Banner), statt ihn zu verschlucken. Bei einem Fehler
+    /// werden die ungespeicherten Änderungen verworfen, damit nichts Halbes im Speicher bleibt.
+    @discardableResult
+    func saveReportingErrors(_ what: String) -> Bool {
+        do {
+            if let saveOverride { try saveOverride() } else { try context.save() }
+            return true
+        } catch {
+            context.rollback()
+            Log.error(.app, "\(what): Speichern fehlgeschlagen: \(type(of: error))")
+            show("\(what) konnte nicht gespeichert werden. Eine Aufzeichnung bleibt gesichert und wird beim nächsten Start angeboten.", error: true)
+            return false
+        }
+    }
 
     public func show(_ message: String, error: Bool) {
         if error { Log.error(.app, "Banner: \(message)") }

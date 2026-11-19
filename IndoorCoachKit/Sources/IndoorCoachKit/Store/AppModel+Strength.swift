@@ -90,7 +90,7 @@ extension AppModel {
                                       exercises: draft.exercises, templateName: draft.templateName, note: draft.note)
         let row = StoredStrengthSession(session: session, heartRate: result.seconds.heartRate, sportName: draft.sportName)
         context.insert(row)
-        try? context.save()
+        guard saveReportingErrors("Die Einheit") else { return nil }
         exportToHealth(row)   // nur wenn für die Sportart eingeschaltet (Profil → Datenquellen)
         return row
     }

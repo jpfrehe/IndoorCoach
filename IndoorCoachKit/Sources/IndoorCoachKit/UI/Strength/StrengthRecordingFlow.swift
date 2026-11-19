@@ -73,7 +73,7 @@ struct StrengthRecordingView: View {
             }
         }
         .confirmationDialog("Aufzeichnung verwerfen?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-            Button("Verwerfen", role: .destructive) { service.stop(); dismiss() }
+            Button("Verwerfen", role: .destructive) { service.cancel(); dismiss() }
                 .accessibilityIdentifier("recording.discard.confirm")
             Button("Weiter aufzeichnen", role: .cancel) {}
         } message: {
@@ -82,7 +82,7 @@ struct StrengthRecordingView: View {
         .onChange(of: exercises) { pushState() }
         .onChange(of: service.isRunning) { pushState() }
         .sheet(item: $finished) { result in
-            RecordedSessionFinish(result: result, templateName: templateName, exercises: exercises) {
+            RecordedSessionFinish(result: result, templateName: templateName, exercises: exercises, service: service) {
                 finished = nil
                 dismiss()
             }
@@ -119,6 +119,8 @@ struct RecordedSessionFinish: View {
     var result: RecordingResult
     var templateName: String?
     var exercises: [PerformedExercise] = []
+    /// Bestätigt nach dem Speichern bzw. Verwerfen, dass die Zwischendatei weg darf.
+    var service: RecordingService = .shared
     var onDone: () -> Void
 
     @Environment(AppModel.self) private var model
@@ -130,7 +132,7 @@ struct RecordedSessionFinish: View {
                             onSave: save, onDiscard: { confirmDiscard = true })
             .interactiveDismissDisabled()
             .confirmationDialog("Einheit verwerfen?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-                Button("Verwerfen", role: .destructive) { onDone() }
+                Button("Verwerfen", role: .destructive) { service.confirmHandled(result); onDone() }
                     .accessibilityIdentifier("strength.finish.discard.confirm")
                 Button("Zurück", role: .cancel) {}
             } message: {
@@ -139,11 +141,15 @@ struct RecordedSessionFinish: View {
     }
 
     private func save(_ draft: StrengthDraft) {
-        if model.saveStrength(from: result, draft: draft) != nil {
-            model.show(result.kind == .other ? "\(result.title) gespeichert." : "Krafteinheit gespeichert.", error: false)
-        } else {
+        if Int(result.duration.rounded()) <= 0 {
             model.show("Die Einheit war zu kurz zum Speichern.", error: true)
+            service.confirmHandled(result)
+            onDone()
+        } else if model.saveStrength(from: result, draft: draft) != nil {
+            model.show(result.kind == .other ? "\(result.title) gespeichert." : "Krafteinheit gespeichert.", error: false)
+            service.confirmHandled(result)
+            onDone()
         }
-        onDone()
+        // Sonst ist das Speichern gescheitert (Banner steht): das Sheet bleibt offen, die Zwischendatei liegt weiter bereit.
     }
 }

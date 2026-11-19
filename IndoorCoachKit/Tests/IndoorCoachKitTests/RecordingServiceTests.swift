@@ -87,8 +87,56 @@ struct RecordingServiceTests {
         #expect(saved.title == "T")
         #expect(saved.plannedWorkoutID != nil)
         #expect(saved.heartRate.first == 100)
-        _ = service.stop()
+        let result = try #require(service.stop())
+        // Die Zwischendatei bleibt, bis der Aufrufer das erfolgreiche Speichern bestätigt (Befund 4).
+        #expect(store.load()?.id == result.id)
+        service.confirmHandled(result)
         #expect(store.load() == nil)
+    }
+
+    @Test("Stopp ohne Speichern: Neustart findet die Aufzeichnung noch, Bestätigung räumt auf")
+    func stopWithoutSaveSurvivesRestart() throws {
+        let clock = TestClock(t0)
+        let store = tempStore()
+        let (first, _, _) = make(clock: clock, store: store)
+        first.start(kind: .ride, title: "Stopp")
+        for s in 0..<20 { first.ingest(heartRate: 120, at: t0.addingTimeInterval(Double(s) + 0.1)) }
+        clock.advance(20)
+        let stopped = try #require(first.stop())          // kein confirmHandled: Speichern ist ausgeblieben
+        let (second, _, _) = make(clock: clock, store: store)
+        let found = try #require(second.interrupted)
+        #expect(found.id == stopped.id)
+        #expect(found.heartRate.count == 20)               // der Stopp sichert die volle Spur, nicht den alten Stand
+        let again = try #require(second.finishInterrupted())
+        #expect(store.load() != nil)                        // auch hier bleibt die Datei bis zur Bestätigung
+        second.confirmHandled(again)
+        #expect(store.load() == nil)
+    }
+
+    @Test("Abbrechen verwirft die Aufzeichnung samt Datei")
+    func cancelClearsFile() {
+        let clock = TestClock(t0)
+        let (service, store, presenter) = make(clock: clock)
+        service.start(kind: .strength, title: "x")
+        clock.advance(40); service.tick()
+        #expect(store.load() != nil)
+        service.cancel()
+        #expect(!service.isRunning)
+        #expect(store.load() == nil)
+        #expect(!presenter.isActive)
+    }
+
+    @Test("Bestätigung einer alten Aufzeichnung löscht nicht die Datei einer neueren")
+    func confirmOnlyOwnFile() throws {
+        let clock = TestClock(t0)
+        let (service, store, _) = make(clock: clock)
+        service.start(kind: .ride, title: "alt")
+        clock.advance(10)
+        let old = try #require(service.stop())
+        service.start(kind: .ride, title: "neu")
+        clock.advance(40); service.tick()
+        service.confirmHandled(old)
+        #expect(store.load()?.title == "neu")
     }
 
     @Test("Unterbrochene Aufzeichnung wird beim Start erkannt und kann gespeichert werden")
@@ -108,6 +156,8 @@ struct RecordingServiceTests {
         #expect(result.seconds.count == 40)             // endet beim letzten Speichern
         #expect(result.seconds.heartRate?.allSatisfy { $0 == 110 } == true)
         #expect(second.interrupted == nil)
+        #expect(store.load() != nil)                    // bis zur Bestätigung bleibt die Datei
+        second.confirmHandled(result)
         #expect(store.load() == nil)
     }
 

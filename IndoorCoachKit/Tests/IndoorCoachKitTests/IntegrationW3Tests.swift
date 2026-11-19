@@ -280,7 +280,8 @@ struct IntegrationW3Tests {
         #expect(request.restored?.templateName == "Push")
         second.resumeInterrupted()
         #expect(second.strength == state)
-        _ = second.stop()
+        let result = try #require(second.stop())
+        second.confirmHandled(result)   // erst nach erfolgreichem Speichern fällt die Zwischendatei
         #expect(store.load() == nil)
     }
 

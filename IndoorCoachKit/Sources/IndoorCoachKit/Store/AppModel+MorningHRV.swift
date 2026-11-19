@@ -28,8 +28,7 @@ public struct MorningHRVStore {
     public func save(_ measurement: MorningHRV.Measurement, now: Date = .now, calendar: Calendar = .current) {
         let list = MorningHRV.upserting(measurement, into: measurements(), now: now, calendar: calendar)
         guard let data = try? JSONEncoder().encode(list) else { return }
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? data.write(to: url, options: .atomic)
+        do { try ProtectedFile.write(data, to: url) } catch { Log.error(.sync, "Morgenmessung nicht gespeichert: \(type(of: error))") }
     }
 
     public func hasMeasurement(on date: Date, calendar: Calendar = .current) -> Bool {
