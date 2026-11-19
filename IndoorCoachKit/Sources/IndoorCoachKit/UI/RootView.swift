@@ -7,6 +7,7 @@ public struct RootView: View {
     @Environment(AppModel.self) private var model
     @State private var tab: AppTab = RootView.initialTab
     @State private var showTour = false
+    @State private var recordRequest: RecordingRequest?
 
     public init() {}
 
@@ -70,6 +71,11 @@ public struct RootView: View {
             }
         }
         .tourCover(isPresented: $showTour)
+        // ANCHOR-W3A: Aufzeichnung mit Gurt (Kraft, Andere Einheit) und unterbrochene Aufzeichnungen
+        .interruptedRecordingPrompt()
+        .strengthRecordAction { template in present(.strength(template: template)) }
+        .otherRecordAction { sport in present(.other(sport: sport)) }
+        .recordingCover(item: $recordRequest) { StrengthRecordingView(request: $0) }
         .task {
             model.bootstrap()
             #if DEBUG
@@ -79,6 +85,16 @@ public struct RootView: View {
             await model.rescheduleWorkoutReminders()
             await model.syncRides()
             await model.syncFromBridge(announce: false)
+        }
+    }
+}
+
+extension RootView {
+    /// Das Schnellstart-Sheet schließt sich gleichzeitig: erst danach das Vollbild zeigen.
+    private func present(_ request: RecordingRequest) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            recordRequest = request
         }
     }
 }

@@ -66,6 +66,7 @@ final class AuditStrengthTests: AuditCase {
         launch()
         route = "heute"
         tap(element("strength.quick.other"), "Andere Einheit")
+        tap(element("other.start.manual"), "Nachtragen")
         check(element("strength.entry.sport").waitForExistence(timeout: 3), "Sportart wählbar")
         tap(element("strength.exertion.5"), "Härte 5")
         tap(element("strength.entry.save"), "Speichern")

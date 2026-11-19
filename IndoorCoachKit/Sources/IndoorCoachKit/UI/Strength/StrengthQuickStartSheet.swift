@@ -99,14 +99,48 @@ struct StrengthQuickStartSheet: View {
     }
 }
 
-/// Sheet „Andere Einheit“ nachtragen (Sportart, Dauer, Härte).
+/// Sheet „Andere Einheit“: Sportart wählen, dann mit Gurt aufzeichnen (nur wenn die Integration `otherRecordAction`
+/// gesetzt hat) oder nachtragen.
 struct OtherSessionSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.otherRecordAction) private var recordAction
+    @State private var sport = StrengthEntryForm.sports[0]
+    @State private var path: [StrengthQuickStartSheet.Step] = []
 
     var body: some View {
-        NavigationStack {
-            StrengthEntryForm(kind: .other) { dismiss() }
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schließen") { dismiss() } } }
+        NavigationStack(path: $path) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Welche Sportart?").font(.headline)
+                    Picker("Sportart", selection: $sport) {
+                        ForEach(StrengthEntryForm.sports, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("other.start.sport")
+                    VStack(spacing: 10) {
+                        if let recordAction {
+                            Button { dismiss(); recordAction(sport) } label: {
+                                Label("Mit Gurt aufzeichnen", systemImage: "heart.circle.fill").frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.jelly)
+                            .accessibilityIdentifier("other.start.record")
+                        }
+                        Button { path.append(.entry) } label: { Text("Nachtragen").frame(maxWidth: .infinity) }
+                            .buttonStyle(recordAction == nil ? AnyButtonStyle(.jelly) : AnyButtonStyle(.soft))
+                            .accessibilityIdentifier("other.start.manual")
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 24)
+            }
+            .background(Theme.canvas)
+            .navigationTitle("Andere Einheit")
+            .inlineNavigationTitle()
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Schließen") { dismiss() } } }
+            .navigationDestination(for: StrengthQuickStartSheet.Step.self) { _ in
+                StrengthEntryForm(kind: .other, sport: sport) { dismiss() }
+            }
         }
         .presentationDetents([.large])
     }

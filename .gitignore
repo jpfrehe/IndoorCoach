@@ -45,3 +45,6 @@ audit/
 
 # Subagent worktrees
 .claude/worktrees/
+
+# Lokaler xcodebuild-Ordner
+.build-dd/

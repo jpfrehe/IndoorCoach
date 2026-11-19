@@ -57,11 +57,11 @@ public struct RecordingView<Content: View>: View {
                 }
             }
             .confirmationDialog("Aufzeichnung beenden?", isPresented: $confirmStop, titleVisibility: .visible) {
-                Button("Beenden und speichern", role: .destructive) { finish() }
+                Button(kind == .ride ? "Beenden und speichern" : "Beenden", role: .destructive) { finish() }
                     .accessibilityIdentifier("recording.stop.confirm")
                 Button("Weiter aufzeichnen", role: .cancel) {}
             } message: {
-                Text("Die Pulsspur wird gespeichert und, bei einer Radeinheit, der passenden Fahrt zugeordnet.")
+                Text(kind == .ride ? "Die Pulsspur wird gespeichert und der passenden Fahrt zugeordnet." : "Danach gibst du noch Härte und Beine an und speicherst die Einheit.")
             }
         }
         .accessibilityIdentifier("recording.screen")
@@ -224,7 +224,7 @@ public struct RecordingResultCard: View {
         let zones = ZoneTime.compute(result.seconds, ftp: model.profile.ftp, heartRate: model.heartRateZones())
         let trimp = RelativeEffort.trimp(seconds: result.seconds, heartRate: model.profile.heartRateProfile)
         VStack(alignment: .leading, spacing: 16) {
-            Text("Aufzeichnung gespeichert").font(.largeTitle.weight(.bold))
+            Text(result.kind == .ride ? "Aufzeichnung gespeichert" : "Aufzeichnung beendet").font(.largeTitle.weight(.bold))
             Text(Formatters.duration(Int(result.duration)) + (result.reconnects > 0 ? " · \(result.reconnects)× neu verbunden" : "")
                  + (result.gapSeconds > 0 ? " · \(result.gapSeconds) s ohne Puls" : ""))
                 .font(.headline).foregroundStyle(.secondary)
@@ -360,20 +360,39 @@ extension View {
 struct InterruptedRecordingPrompt: ViewModifier {
     var service: RecordingService
     @Environment(AppModel.self) private var model
-    @State private var resumed = false
+    @State private var resumed: RecordingRequest?
+    @State private var handled = false
+    @State private var finishing: RecordingResult?
 
     func body(content: Content) -> some View {
         content
             .alert("Unterbrochene Aufzeichnung",
-                   isPresented: Binding(get: { service.interrupted != nil && !resumed }, set: { _ in })) {
-                Button("Fortsetzen") { service.resumeInterrupted(); resumed = true }
-                Button("Speichern") { if let r = service.finishInterrupted() { model.finishRecording(r) } }
+                   isPresented: Binding(get: { service.interrupted != nil && !handled }, set: { _ in })) {
+                Button("Fortsetzen") {
+                    let request = RecordingRequest.resumed(kind: service.interrupted?.kind ?? .ride, title: service.interrupted?.title ?? "")
+                    service.resumeInterrupted()
+                    handled = true
+                    resumed = request
+                }
+                Button("Speichern") {
+                    handled = true
+                    guard let r = service.finishInterrupted() else { return }
+                    // Rad: vorhandener Merge-Weg. Kraft / Andere Einheit: erst das Abschluss-Sheet (Härte, Beine).
+                    if model.handOff(r) == .finishSheet { finishing = r }
+                }
                 Button("Verwerfen", role: .destructive) { service.discardInterrupted() }
             } message: {
                 Text("Die App wurde während einer Aufzeichnung beendet. Fortsetzen oder speichern?")
             }
-            .recordingCover(isPresented: $resumed) {
-                RecordingView(kind: service.kind, title: service.title, plannedWorkoutID: service.plannedWorkoutID)
+            .recordingCover(item: $resumed) { request in
+                if request.kind == .ride {
+                    RecordingView(kind: .ride, title: request.title, plannedWorkoutID: service.plannedWorkoutID)
+                } else {
+                    StrengthRecordingView(request: request, service: service)
+                }
+            }
+            .sheet(item: $finishing) { result in
+                RecordedSessionFinish(result: result, templateName: nil) { finishing = nil }
             }
     }
 }
