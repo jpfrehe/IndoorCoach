@@ -196,7 +196,7 @@ public enum DemoData {
             hr += (goal - hr) / 25                           // pulse follows power with a lag
             heart.append(hr)
         }
-        return RideSeconds(watts: power, beatsPerMinute: heart)
+        return applyingWarmupCheck(RideSeconds(watts: power, beatsPerMinute: heart), for: ride, ftp: ftp)   // Demo+Warmup.swift
     }
 
     /// Plausible, deterministic mean-maximal curve for a demo ride (critical-power model with a sprint cap),

@@ -57,6 +57,8 @@ struct PerformanceView: View {
                 bridgeCallToAction(rides: rides)
                 if current.estimatedFTP != nil { eftpCard(current) }
                 VO2maxCard(rides: rides, showTrend: true, range: range)
+                // ANCHOR-WARMUP (Aufwärm-Check)
+                WarmupCheckCard(rides: rides)
                 // ANCHOR-K4-LEISTUNG (Aerobe Effizienz)
                 AerobicEfficiencyCard(rides: rides, ftp: model.profile.ftp, range: range)
                 // ANCHOR-P1-LEISTUNG (Trainingsverteilung, eFTP-Verlauf)

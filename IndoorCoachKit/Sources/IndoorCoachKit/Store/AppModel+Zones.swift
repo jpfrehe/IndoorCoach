@@ -45,6 +45,7 @@ extension AppModel {
     /// Imports add or replace seconds data: forget every digest.
     func invalidateSecondsDigests() {
         ZoneDigestCache.entries.removeAll()
+        invalidateWarmupChecks()
     }
 
     /// Time per power and heart-rate zone of a ride with stored seconds.

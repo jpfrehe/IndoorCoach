@@ -231,6 +231,9 @@ struct RideDetailView: View {
 
                 RideZonesCard(ride: ride)
 
+                // ANCHOR-WARMUP (Aufwärm-Check)
+                WarmupCheckCard(ride: ride)
+
                 // ANCHOR-K4-FAHRT (Effizienz & Entkopplung)
                 RideEfficiencyCard(ride: ride, ftp: model.profile.ftp)
 
