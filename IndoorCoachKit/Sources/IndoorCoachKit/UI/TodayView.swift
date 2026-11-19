@@ -61,6 +61,7 @@ struct TodayDashboard: View {
             if model.isDemoMode && !Self.showcase { demoHint }
             nextWorkoutCard(next)
             CheckInCard() // ANCHOR-CHECKIN
+            TrendHintCard(rides: rides) // ANCHOR-W4A (Trend-Wächter: ruhige Karte vor harter Einheit)
             StrengthQuickStartRow() // ANCHOR-STRENGTH (Schnellstart Kraft / Andere Einheit)
             HealthAnnotationCard() // ANCHOR-W3B (Kraft aus Apple Health: wie hart? Beine?)
             // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
