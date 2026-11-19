@@ -5,6 +5,8 @@ import SwiftUI
 struct StrengthFinishSheet: View {
     var templateName: String?
     var exercises: [PerformedExercise]
+    /// Gesetzt bei „Andere Einheit“: Beine nur bei muskulärer Sportart, Speichern als Einheit mit Sportart.
+    var sportName: String?
     var onSave: (StrengthDraft) -> Void
     var onDiscard: (() -> Void)?
 
@@ -12,10 +14,11 @@ struct StrengthFinishSheet: View {
     @State private var legs: LegInvolvement
     @State private var note = ""
 
-    init(templateName: String? = nil, exercises: [PerformedExercise], onSave: @escaping (StrengthDraft) -> Void,
-         onDiscard: (() -> Void)? = nil) {
+    init(templateName: String? = nil, exercises: [PerformedExercise], sportName: String? = nil,
+         onSave: @escaping (StrengthDraft) -> Void, onDiscard: (() -> Void)? = nil) {
         self.templateName = templateName
         self.exercises = exercises
+        self.sportName = sportName
         self.onSave = onSave
         self.onDiscard = onDiscard
         _legs = State(initialValue: ExerciseCatalog.legShare(for: exercises))
@@ -26,11 +29,11 @@ struct StrengthFinishSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     section("Wie hart war es?") { ExertionPicker(value: $exertion) }
-                    section("Beine") {
+                    if showsLegs { section("Beine") {
                         LegInvolvementPicker(value: $legs)
                         Text("Vorbelegt aus deinen Übungen. Du kannst ändern.")
                             .font(.footnote).foregroundStyle(Theme.rowSecondary)
-                    }
+                    } }
                     section("Notiz") {
                         TextField("Optional", text: $note, axis: .vertical)
                             .lineLimit(1...4)
@@ -56,8 +59,13 @@ struct StrengthFinishSheet: View {
         .presentationDetents([.large])
     }
 
+    private var showsLegs: Bool {
+        sportName.map { SportClassification.category(for: $0).feedsMuscleTrack } ?? true
+    }
+
     var draft: StrengthDraft {
-        StrengthDraft(templateName: templateName, exercises: exercises, exertion: exertion, legShare: legs,
+        if let sportName { return .otherSport(sportName, exertion: exertion, legShare: legs, note: note) }
+        return StrengthDraft(templateName: templateName, exercises: exercises, exertion: exertion, legShare: legs,
                       note: note.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 

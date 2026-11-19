@@ -22,6 +22,26 @@ extension View {
     }
 }
 
+/// Wie `StrengthRecordAction`, für „Andere Einheit“ (Parameter: gewählte Sportart).
+typealias OtherRecordAction = @MainActor @Sendable (String) -> Void
+
+private struct OtherRecordActionKey: EnvironmentKey {
+    static let defaultValue: OtherRecordAction? = nil
+}
+
+extension EnvironmentValues {
+    var otherRecordAction: OtherRecordAction? {
+        get { self[OtherRecordActionKey.self] }
+        set { self[OtherRecordActionKey.self] = newValue }
+    }
+}
+
+extension View {
+    func otherRecordAction(_ action: @escaping OtherRecordAction) -> some View {
+        environment(\.otherRecordAction, action)
+    }
+}
+
 /// Für `ForEach($exercises)`: eine Übung kommt je Einheit höchstens einmal vor.
 extension PerformedExercise: Identifiable {
     public var id: String { exerciseID }

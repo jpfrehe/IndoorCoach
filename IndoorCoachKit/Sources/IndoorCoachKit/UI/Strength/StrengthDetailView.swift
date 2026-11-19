@@ -51,6 +51,7 @@ struct StrengthDetailView: View {
                     }
                 }
                 if let hr = row.heartRateSeries, hr.contains(where: { $0 > 0 }) { heartRateCard(hr) }
+                if let heart = model.heartZoneTime(for: row)?.heart { zonesCard(heart) }
                 if !s.exercises.isEmpty { exercisesCard(s.exercises) }
                 if !s.note.isEmpty {
                     Card(title: "Notiz", systemImage: "note.text") { Text(s.note).font(.body) }
@@ -111,6 +112,22 @@ struct StrengthDetailView: View {
                 .accessibilityLabel("Pulsverlauf, Durchschnitt \(avg), Maximum \(valid.max() ?? 0) Schläge pro Minute")
             }
         }
+    }
+
+    private func zonesCard(_ heart: [Int]) -> some View {
+        Card(title: "Zeit in Pulszonen", systemImage: "chart.bar.xaxis") {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(0..<min(5, heart.count), id: \.self) { i in
+                    HStack {
+                        Text("Zone \(i + 1) \(HeartRateZones.names[i])").font(.subheadline)
+                        Spacer()
+                        Text("\(Int((Double(heart[i]) / 60).rounded())) min").font(.subheadline.weight(.semibold)).monospacedDigit()
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+        .accessibilityIdentifier("strength.detail.zones")
     }
 
     private func exercisesCard(_ exercises: [PerformedExercise]) -> some View {

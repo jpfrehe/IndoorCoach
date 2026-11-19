@@ -24,10 +24,11 @@ struct StrengthEntryForm: View {
     /// Auswahl für „Andere Einheit“ (Namen kennt `SportClassification`).
     static let sports = ["Laufen", "Laufband", "Wandern", "Rudern", "Schwimmen", "Crosstrainer", "Kurs", "Bouldern", "Rumpf", "Sonstiges"]
 
-    init(kind: Kind, template: StrengthTemplate? = nil, onSaved: @escaping () -> Void = {}) {
+    init(kind: Kind, template: StrengthTemplate? = nil, sport: String? = nil, onSaved: @escaping () -> Void = {}) {
         self.kind = kind
         self.template = template
         self.onSaved = onSaved
+        if let sport { _sport = State(initialValue: sport) }
         let list = template?.makeExercises().map { e -> PerformedExercise in var c = e; c.checked = false; return c } ?? []
         _exercises = State(initialValue: list)
         _showExercises = State(initialValue: !list.isEmpty)

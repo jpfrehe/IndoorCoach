@@ -8,11 +8,20 @@ public struct StrengthDraft: Equatable, Sendable {
     public var exertion: Int?
     public var legShare: LegInvolvement?
     public var note: String
+    /// Sportart bei „Andere Einheit“ (nil = Krafttraining).
+    public var sportName: String?
 
     public init(templateName: String? = nil, exercises: [PerformedExercise] = [], exertion: Int? = nil,
-                legShare: LegInvolvement? = nil, note: String = "") {
+                legShare: LegInvolvement? = nil, note: String = "", sportName: String? = nil) {
         self.templateName = templateName; self.exercises = exercises; self.exertion = exertion
-        self.legShare = legShare; self.note = note
+        self.legShare = legShare; self.note = note; self.sportName = sportName
+    }
+
+    /// Abschluss einer aufgezeichneten „Anderen Einheit“: Beine nur bei muskulärer Sportart (wie beim Nachtragen).
+    public static func otherSport(_ sport: String, exertion: Int?, legShare: LegInvolvement?, note: String) -> StrengthDraft {
+        let muscular = SportClassification.category(for: sport).feedsMuscleTrack
+        return StrengthDraft(exertion: exertion, legShare: muscular ? legShare : nil,
+                             note: note.trimmingCharacters(in: .whitespacesAndNewlines), sportName: sport)
     }
 }
 
@@ -79,10 +88,17 @@ extension AppModel {
         let session = StrengthSession(id: result.id, start: result.startedAt, durationSeconds: seconds, source: .recorded,
                                       exertion: draft.exertion.map { min(max($0, 0), 10) }, legShare: draft.legShare,
                                       exercises: draft.exercises, templateName: draft.templateName, note: draft.note)
-        let row = StoredStrengthSession(session: session, heartRate: result.seconds.heartRate)
+        let row = StoredStrengthSession(session: session, heartRate: result.seconds.heartRate, sportName: draft.sportName)
         context.insert(row)
         try? context.save()
         return row
+    }
+
+    /// Zeit in Pulszonen einer aufgezeichneten Einheit (nur Puls, keine Watt-Zonen); nil ohne Pulsspur.
+    public func heartZoneTime(for row: StoredStrengthSession) -> ZoneTime.Result? {
+        guard let hr = row.heartRateSeries, hr.contains(where: { $0 > 0 }) else { return nil }
+        let seconds = RideSeconds(power: Array(repeating: 0, count: hr.count), heartRate: hr)
+        return ZoneTime.compute(seconds, ftp: profile.ftp, heartRate: heartRateZones())
     }
 
     /// Ergänzt ein Apple-Health-Workout um Härte und Beine (für das HealthKit-Paket). Gleiche `id` aktualisiert die

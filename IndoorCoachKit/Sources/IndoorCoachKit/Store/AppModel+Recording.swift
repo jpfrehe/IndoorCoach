@@ -26,6 +26,12 @@ public enum RecordingPowerSource: String, Codable, Sendable {
     }
 }
 
+/// Ziel einer beendeten Aufzeichnung je `RecordingKind`.
+public enum RecordingHandoff: Equatable, Sendable {
+    case merged(RecordingOutcome)
+    case finishSheet
+}
+
 /// Which recording hangs on which ride (kept in the defaults, no schema change).
 struct RecordingAttachment: Codable, Equatable, Sendable {
     var recordingID: UUID
@@ -78,6 +84,13 @@ extension AppModel {
         pendingRecordings = pendingRecordings.filter { $0.id != recording.id } + [recording]
         Log.notice(.sync, "Aufzeichnung wartet auf eine Fahrt (\(recording.heartRate.count) s)")
         return .pending
+    }
+
+    /// Was nach dem Stopp passiert: Rad geht in den Merge-Weg, Kraft und „Andere Einheit“ brauchen erst das
+    /// Abschluss-Sheet (Härte, Beine) und werden danach mit `saveStrength(from:draft:)` gespeichert.
+    @discardableResult
+    public func handOff(_ result: RecordingResult) -> RecordingHandoff {
+        result.kind == .ride ? .merged(finishRecording(result)) : .finishSheet
     }
 
     /// Called after every import: attaches waiting recordings to rides that arrived since.
