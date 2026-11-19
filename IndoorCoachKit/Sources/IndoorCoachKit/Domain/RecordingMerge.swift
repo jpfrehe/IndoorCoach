@@ -1,5 +1,16 @@
 import Foundation
 
+/// Zustand einer Krafteinheit während der Aufzeichnung: Häkchen und Vorlagenname überleben einen App-Abbruch.
+public struct StoredStrengthState: Codable, Equatable, Sendable {
+    public var templateName: String?
+    public var exercises: [PerformedExercise]
+
+    public init(templateName: String? = nil, exercises: [PerformedExercise] = []) {
+        self.templateName = templateName
+        self.exercises = exercises
+    }
+}
+
 /// A recording as stored on disk (in-progress file) or in the "waits for a ride" list. `RecordingResult` itself is the
 /// contract type and not Codable, so this is its persistent twin. Heart rate is one byte per second (0 = gap).
 public struct StoredRecording: Codable, Equatable, Sendable, Identifiable {
@@ -14,9 +25,12 @@ public struct StoredRecording: Codable, Equatable, Sendable, Identifiable {
     public var plannedWorkoutID: UUID?
     /// Plan the recording follows (for the timeline after a resume); nil without plan.
     public var definition: WorkoutDefinition?
+    /// Übungen und Vorlage einer Krafteinheit (nur `.strength`); nil sonst und bei älteren Dateien.
+    public var strength: StoredStrengthState?
 
     public init(id: UUID, kind: RecordingKind, title: String, startedAt: Date, endedAt: Date, heartRate: Data,
-                gapSeconds: Int, reconnects: Int, plannedWorkoutID: UUID?, definition: WorkoutDefinition? = nil) {
+                gapSeconds: Int, reconnects: Int, plannedWorkoutID: UUID?, definition: WorkoutDefinition? = nil,
+                strength: StoredStrengthState? = nil) {
         self.id = id
         self.kind = kind
         self.title = title
@@ -27,6 +41,7 @@ public struct StoredRecording: Codable, Equatable, Sendable, Identifiable {
         self.reconnects = reconnects
         self.plannedWorkoutID = plannedWorkoutID
         self.definition = definition
+        self.strength = strength
     }
 
     public init(_ result: RecordingResult, definition: WorkoutDefinition? = nil) {

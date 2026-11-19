@@ -363,22 +363,25 @@ struct InterruptedRecordingPrompt: ViewModifier {
     @State private var resumed: RecordingRequest?
     @State private var handled = false
     @State private var finishing: RecordingResult?
+    @State private var finishingState: StoredStrengthState?
 
     func body(content: Content) -> some View {
         content
             .alert("Unterbrochene Aufzeichnung",
                    isPresented: Binding(get: { service.interrupted != nil && !handled }, set: { _ in })) {
                 Button("Fortsetzen") {
-                    let request = RecordingRequest.resumed(kind: service.interrupted?.kind ?? .ride, title: service.interrupted?.title ?? "")
+                    let request = RecordingRequest.resumed(kind: service.interrupted?.kind ?? .ride, title: service.interrupted?.title ?? "",
+                                                           restored: service.interrupted?.strength)
                     service.resumeInterrupted()
                     handled = true
                     resumed = request
                 }
                 Button("Speichern") {
                     handled = true
+                    let state = service.interrupted?.strength
                     guard let r = service.finishInterrupted() else { return }
                     // Rad: vorhandener Merge-Weg. Kraft / Andere Einheit: erst das Abschluss-Sheet (Härte, Beine).
-                    if model.handOff(r) == .finishSheet { finishing = r }
+                    if model.handOff(r) == .finishSheet { finishingState = state; finishing = r }
                 }
                 Button("Verwerfen", role: .destructive) { service.discardInterrupted() }
             } message: {
@@ -392,7 +395,8 @@ struct InterruptedRecordingPrompt: ViewModifier {
                 }
             }
             .sheet(item: $finishing) { result in
-                RecordedSessionFinish(result: result, templateName: nil) { finishing = nil }
+                RecordedSessionFinish(result: result, templateName: finishingState?.templateName,
+                                      exercises: finishingState?.exercises ?? []) { finishing = nil; finishingState = nil }
             }
     }
 }

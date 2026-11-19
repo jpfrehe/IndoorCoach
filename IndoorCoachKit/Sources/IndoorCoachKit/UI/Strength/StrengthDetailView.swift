@@ -50,6 +50,11 @@ struct StrengthDetailView: View {
                         fact("Quelle", StrengthFormat.sourceLabel(row.source))
                     }
                 }
+                if let note = row.healthNote {
+                    Label(note, systemImage: "heart.text.square")
+                        .font(.caption).foregroundStyle(Theme.rowSecondary)
+                        .accessibilityIdentifier("strength.detail.healthNote")
+                }
                 if let hr = row.heartRateSeries, hr.contains(where: { $0 > 0 }) { heartRateCard(hr) }
                 if let heart = model.heartZoneTime(for: row)?.heart { zonesCard(heart) }
                 if !s.exercises.isEmpty { exercisesCard(s.exercises) }

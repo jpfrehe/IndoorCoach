@@ -165,6 +165,7 @@ extension AppModel {
         try? context.save()
         invalidateSecondsDigests()
         Log.notice(.sync, "Aufzeichnung an Fahrt gehängt (Versatz \(shift) s, Lücken \(recording.gapSeconds) s)")
+        exportToHealth(recording)   // nur wenn „Rad-Aufzeichnung“ eingeschaltet ist
         return true
     }
 

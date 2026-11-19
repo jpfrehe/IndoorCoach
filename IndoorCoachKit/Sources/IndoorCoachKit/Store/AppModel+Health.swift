@@ -12,11 +12,16 @@ extension AppModel {
         static let enabled = "health.enabled.v1"
         static let ledger = "health.ledger.v1"
         static let weight = "health.weightKg.v1"
+        static let pins = "health.pins.v1"
+        /// Frühere Schalter/Pins der Datenquellen-Ansicht (vor der Zusammenführung); werden beim Laden übernommen und entfernt.
+        static let legacyEnabled = "dataSources.healthEnabled.v1"
+        static let legacyPins = "dataSources.pins.v1"
     }
 
     /// Die UserDefaults-Schlüssel des Health-Zustands; `resetHealthState()` räumt sie auf (nicht in `Keys.all`, damit der
-    /// Anker zusammen mit ihnen fällt). Der Anker liegt im `HealthAnchorStore`.
-    static let healthStateKeys = [HealthKeys.enabled, HealthKeys.ledger, HealthKeys.weight]
+    /// Anker zusammen mit ihnen fällt). Die Anker liegen im `HealthAnchorStore`, den Export-Zustand räumt `Keys.all`.
+    static let healthStateKeys = [HealthKeys.enabled, HealthKeys.ledger, HealthKeys.weight, HealthKeys.pins,
+                                  HealthKeys.legacyEnabled, HealthKeys.legacyPins]
 
     /// Ältere Workouts werden beim ersten Abgleich nicht übernommen (wie der Strava-Import: 120 bis 210 Tage).
     static let healthImportWindowDays = 210
@@ -24,17 +29,33 @@ extension AppModel {
     // MARK: Zustand
 
     func loadHealthState() {
+        migrateLegacyHealthSettings()
         healthEnabled = defaults.bool(forKey: HealthKeys.enabled)
+        healthPins = defaults.data(forKey: HealthKeys.pins).flatMap { try? JSONDecoder().decode(HealthSourcePins.self, from: $0) }
+            ?? HealthSourcePins()
         healthWeightKg = defaults.object(forKey: HealthKeys.weight) as? Double
         healthCandidates = Self.candidates(in: loadHealthLedger())
+    }
+
+    /// Früher hatte die Datenquellen-Ansicht einen eigenen Schalter und eigene Pins. Ein eingeschalteter alter Schalter gilt
+    /// weiter (an), die Pins werden übernommen; danach gibt es nur noch den einen Zustand.
+    private func migrateLegacyHealthSettings() {
+        if defaults.bool(forKey: HealthKeys.legacyEnabled) { defaults.set(true, forKey: HealthKeys.enabled) }
+        if defaults.data(forKey: HealthKeys.pins) == nil, let old = defaults.data(forKey: HealthKeys.legacyPins) {
+            defaults.set(old, forKey: HealthKeys.pins)
+        }
+        defaults.removeObject(forKey: HealthKeys.legacyEnabled)
+        defaults.removeObject(forKey: HealthKeys.legacyPins)
     }
 
     func resetHealthState() {
         healthEnabled = false
         healthCandidates = []
         healthWeightKg = nil
+        healthPins = HealthSourcePins()
         healthObserverStarted = false
-        HealthAnchorStore(defaults: defaults).save(nil, for: .workouts)
+        let anchors = HealthAnchorStore(defaults: defaults)
+        for type in HealthReadType.allCases { anchors.save(nil, for: type) }
         for key in Self.healthStateKeys { defaults.removeObject(forKey: key) }
     }
 
@@ -77,6 +98,39 @@ extension AppModel {
         healthEnabled = true
         defaults.set(true, forKey: HealthKeys.enabled)
         await syncHealth()
+    }
+
+    // MARK: Datenquellen-Ansicht (HealthSettingsControlling)
+
+    public var healthAvailable: Bool { healthSource.isAvailable }
+
+    public func requestAuthorization() async throws {
+        try await healthSource.requestReadAuthorization(Set(HealthReadType.allCases))
+    }
+
+    public var pins: HealthSourcePins { healthPins }
+
+    /// Quellen der letzten 4 Wochen je Kennzahl (nil = Workouts); leer, solange Health aus ist.
+    public func connectedSources() async -> [HealthSourceUsage] {
+        guard healthEnabled, healthSource.isAvailable else { return [] }
+        let now = Date.now
+        let from = Calendar.current.date(byAdding: .day, value: -28, to: now) ?? now
+        var dailies: [HealthDaily] = []
+        for metric in HealthMetric.allCases {
+            dailies += (try? await healthSource.dailyValues(metric, in: from...now)) ?? []
+        }
+        let workouts = (try? await healthSource.workouts(since: nil))?.added ?? []
+        return HealthSourceUsageBuilder.usage(dailies: dailies, workouts: workouts, now: now)
+    }
+
+    /// `nil` = automatisch (Pin lösen). Ein Wechsel startet eine neue Basis ab heute.
+    public func pin(_ new: HealthSourceRef?, for metric: HealthMetric) {
+        if let new {
+            healthPins.pin(new, for: metric, from: healthPins.pins[metric] == nil ? nil : Calendar.current.startOfDay(for: .now))
+        } else {
+            healthPins.unpin(metric)
+        }
+        if let data = try? JSONEncoder().encode(healthPins) { defaults.set(data, forKey: HealthKeys.pins) }
     }
 
     // MARK: Gewicht
@@ -271,10 +325,12 @@ extension AppModel {
             }
             ledger.append(HealthLedgerEntry(workout, outcome: .merged, targetRideID: id))
         case .strength(let id):
-            if supplyHeartRate, let row = storedStrengthRows().first(where: { $0.id == id }), row.heartRateSeconds == nil,
+            let row = storedStrengthRows().first(where: { $0.id == id })
+            if supplyHeartRate, let row, row.heartRateSeconds == nil,
                let hr = (try? await healthSource.heartRateSeconds(for: workout))?.heartRate, hr.contains(where: { $0 > 0 }) {
                 row.heartRateSeconds = Data(hr)
             }
+            if let row, row.healthNote == nil { row.healthNote = note }
             ledger.append(HealthLedgerEntry(workout, outcome: .merged, targetStrengthID: id))
         }
         invalidateSecondsDigests()
@@ -363,6 +419,9 @@ extension AppModel {
                 known = true
                 if row.healthUUID == text { context.delete(row) } else { row.mergedHealthUUID = nil; row.healthNote = nil }
             }
+        }
+        if entry?.outcome == .merged, let id = entry?.targetStrengthID, let row = storedStrengthRows().first(where: { $0.id == id }) {
+            row.healthNote = nil
         }
         if entry?.outcome == .annotated, let row = storedStrengthRows().first(where: { $0.healthUUID == text }) {
             context.delete(row)

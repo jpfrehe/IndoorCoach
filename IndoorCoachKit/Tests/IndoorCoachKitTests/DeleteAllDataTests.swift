@@ -30,6 +30,15 @@ struct DeleteAllDataTests {
         defaults.set(["fit-1"], forKey: AppModel.Keys.bridgeKnownIDs)
         defaults.set(Data([1]), forKey: AppModel.Keys.recordingPending)  // ANCHOR-REC
         defaults.set(Data([1]), forKey: AppModel.Keys.recordingAttached)
+        // Welle 3: Kraft-Vorlagen und Studio-Tage, Joker, Beinlast-Hinweis, Gurt, Health-Export.
+        model.saveStrengthTemplate(StrengthTemplate(name: "Push", exerciseIDs: ["squat"]))
+        model.strengthDays = [2, 4]
+        defaults.set([1_800_000_000.0], forKey: AppModel.Keys.manualJokerWeeks)
+        defaults.set(["w"], forKey: AppModel.Keys.legLoadKept)
+        StrapStore(defaults: defaults).savedID = UUID()
+        model.healthWriter = StubHealthWorkoutWriter()
+        try await model.healthExport.setEnabled(.strength, true)
+        defaults.set(["e"], forKey: AppModel.Keys.healthExportLedger)
         model.bridge.load(defaults: defaults)
         model.onboardingStep = 2
         model.setClaudeAPIKey("placeholder-claude-key")

@@ -52,7 +52,7 @@ struct ConsistencyCard: View {
                 }
                 .accessibilityHidden(true)   // the dots already speak their state
             }
-            Text("Eine Woche zählt, wenn du 80 % deines Wochenbudgets fährst, alle geplanten Einheiten schaffst oder eine geplante Erholungswoche zur Hälfte fährst. Alle 4 erfüllten Wochen in Folge bringen einen Joker (höchstens 2): Er fängt eine verpasste Woche automatisch auf.")
+            Text("Eine Woche zählt, wenn du 80 % deines Wochenbudgets fährst, alle geplanten Einheiten schaffst oder eine geplante Erholungswoche zur Hälfte fährst. Alle 4 erfüllten Wochen in Folge bringen einen Joker (höchstens 2): Er fängt eine verpasste Woche automatisch auf. Auch eine aktive Woche zählt: mindestens 2 Einheiten, darunter Kraft oder eine andere Sportart.")
                 .font(.footnote).foregroundStyle(Theme.rowSecondary)
         }
         .accessibilityIdentifier("consistency.card")
@@ -66,6 +66,7 @@ struct ConsistencyCard: View {
     static func description(_ state: Consistency.State) -> String {
         switch state {
         case .fulfilled(.recovery): "Erholungswoche, erfüllt"
+        case .fulfilled(.sessions): "erfüllt, Aktive Woche: Rad, Kraft & mehr"
         case .fulfilled(let reason): "erfüllt, \(reason.label)"
         case .joker: "Joker eingesetzt"
         case .missed: "verpasst"

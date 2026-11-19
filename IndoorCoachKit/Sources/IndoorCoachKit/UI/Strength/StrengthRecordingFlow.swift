@@ -8,6 +8,8 @@ struct RecordingRequest: Identifiable, Equatable {
     var kind: RecordingKind
     var title: String
     var template: StrengthTemplate?
+    /// Gesicherte Häkchen und Vorlage einer unterbrochenen Kraft-Aufzeichnung.
+    var restored: StoredStrengthState?
 
     static func strength(template: StrengthTemplate?) -> RecordingRequest {
         RecordingRequest(kind: .strength, title: "Kraft", template: template)
@@ -15,9 +17,9 @@ struct RecordingRequest: Identifiable, Equatable {
 
     static func other(sport: String) -> RecordingRequest { RecordingRequest(kind: .other, title: sport) }
 
-    /// Fortsetzen einer unterbrochenen Aufzeichnung (Übungen sind nicht gesichert).
-    static func resumed(kind: RecordingKind, title: String) -> RecordingRequest {
-        RecordingRequest(kind: kind, title: title)
+    /// Fortsetzen einer unterbrochenen Aufzeichnung: Häkchen und Vorlagenname kommen aus der Zwischenspeicherung zurück.
+    static func resumed(kind: RecordingKind, title: String, restored: StoredStrengthState? = nil) -> RecordingRequest {
+        RecordingRequest(kind: kind, title: title, restored: restored)
     }
 }
 
@@ -47,7 +49,8 @@ struct StrengthRecordingView: View {
     init(request: RecordingRequest, service: RecordingService = .shared) {
         self.request = request
         self.service = service
-        let list = request.template?.makeExercises().map { e -> PerformedExercise in var c = e; c.checked = false; return c } ?? []
+        let list = request.restored?.exercises
+            ?? request.template?.makeExercises().map { e -> PerformedExercise in var c = e; c.checked = false; return c } ?? []
         _exercises = State(initialValue: list)
     }
 
@@ -76,6 +79,8 @@ struct StrengthRecordingView: View {
         } message: {
             Text("Nichts wird gespeichert. Das lässt sich nicht rückgängig machen.")
         }
+        .onChange(of: exercises) { pushState() }
+        .onChange(of: service.isRunning) { pushState() }
         .sheet(item: $finished) { result in
             RecordedSessionFinish(result: result, templateName: templateName, exercises: exercises) {
                 finished = nil
@@ -85,7 +90,14 @@ struct StrengthRecordingView: View {
     }
 
     private var templateName: String? {
-        request.template.flatMap { $0.name == StrengthTemplate.lastWeekName ? nil : $0.name }
+        if let restored = request.restored { return restored.templateName }
+        return request.template.flatMap { $0.name == StrengthTemplate.lastWeekName ? nil : $0.name }
+    }
+
+    /// Sichert Häkchen und Vorlage mit der Zwischenspeicherung der Aufzeichnung (nur Kraft).
+    private func pushState() {
+        guard request.kind == .strength, service.isRunning else { return }
+        service.updateStrength(StoredStrengthState(templateName: templateName, exercises: exercises))
     }
 
     private var noStrapHint: some View {

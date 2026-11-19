@@ -185,6 +185,20 @@ public enum HealthImport {
         }
     }
 
+    /// HealthKit-Name für eine Sportart der App (deutsche Bezeichnung oder schon ein HealthKit-Name); `"other"` ohne Treffer.
+    public static func activityTypeName(forSport sport: String) -> String {
+        let key = SportClassification.normalize(sport)
+        let known = HealthWorkoutTypeMap.table.values
+        if let hit = known.first(where: { SportClassification.normalize($0) == key }) { return hit }
+        let extras = ["laufband": "running", "bouldern": "climbing", "rumpf": "coreTraining", "kurs": "mixedCardio",
+                      "gehen": "walking", "laufen": "running", "ski": "downhillSkiing", "skifahren": "downhillSkiing",
+                      "langlauf": "crossCountrySkiing"]
+        if let mapped = extras[key] { return mapped }
+        if let english = names.first(where: { SportClassification.normalize($0.value) == key })?.key,
+           let hit = known.first(where: { SportClassification.normalize($0) == english }) { return hit }
+        return "other"
+    }
+
     private static let names: [String: String] = [
         "running": "Laufen", "walking": "Gehen", "hiking": "Wandern", "cycling": "Radfahren", "handcycling": "Handbike",
         "crosscountryskiing": "Ski-Langlauf", "downhillskiing": "Skifahren", "snowboarding": "Snowboarden",

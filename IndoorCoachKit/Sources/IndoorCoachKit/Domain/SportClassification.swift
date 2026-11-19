@@ -35,6 +35,26 @@ public enum SportClassification {
         }
     }
 
+    /// SF-Symbol der Sportart (HealthKit-Name oder deutsche Bezeichnung) für Verlauf und Detail; Standard: allgemeines Training.
+    public static func symbol(for name: String) -> String {
+        switch normalize(name) {
+        case "running", "laufen", "laufband": "figure.run"
+        case "walking", "gehen": "figure.walk"
+        case "hiking", "wandern": "figure.hiking"
+        case "swimming", "schwimmen": "figure.pool.swim"
+        case "rowing", "rudern", "rudergerät": "figure.rower"
+        case "elliptical", "crosstrainer": "figure.elliptical"
+        case "crosscountryskiing", "langlauf": "figure.skiing.crosscountry"
+        case "downhillskiing", "ski", "skifahren": "figure.skiing.downhill"
+        case "snowboarding": "figure.snowboarding"
+        case "skatingsports": "figure.skating"
+        case "stairclimbing", "stairs", "steptraining": "figure.stair.stepper"
+        case "paddlesports": "oar.2.crossed"
+        case "cycling", "indoorcycling", "handcycling", "rad", "radfahren": "figure.outdoor.cycle"
+        default: "figure.mixed.cardio"
+        }
+    }
+
     static func normalize(_ name: String) -> String {
         var s = name.lowercased().filter { $0.isLetter || $0.isNumber }
         for prefix in ["hkworkoutactivitytype", "hkworkout"] where s.hasPrefix(prefix) {

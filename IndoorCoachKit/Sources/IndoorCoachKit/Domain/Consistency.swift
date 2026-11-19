@@ -23,7 +23,7 @@ public enum Consistency {
             case .budget: "Wochenbudget erreicht"
             case .plan: "Alle geplanten Einheiten erledigt"
             case .recovery: "Erholungswoche"
-            case .sessions: "Mindestens 2 Einheiten (Rad, Kraft, Andere)"
+            case .sessions: "Aktive Woche: Rad, Kraft & mehr"
             }
         }
     }

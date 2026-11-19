@@ -59,7 +59,8 @@ public protocol HeartRateStrapControlling: AnyObject, Sendable {
 /// Remembers the strap's peripheral identifier (a random per-phone UUID, no personal data).
 public struct StrapStore: @unchecked Sendable {
     private let defaults: UserDefaults
-    private let key = "heartRateStrap.peripheralID"
+    static let key = "heartRateStrap.peripheralID"
+    private var key: String { Self.key }
 
     public init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 

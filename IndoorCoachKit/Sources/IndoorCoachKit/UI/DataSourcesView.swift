@@ -6,8 +6,8 @@ import SwiftUI
 
 // MARK: - Integrationspunkt
 
-/// Was die Ansicht von der Health-Anbindung braucht. `DefaultHealthSettings` nutzt nur den `HealthKitService`;
-/// bei der Integration wird sie durch die Implementierung aus `AppModel+Health` (W3-B) ersetzt.
+/// Was die Ansicht von der Health-Anbindung braucht. Die einzige Implementierung ist das `AppModel` (`AppModel+Health`):
+/// ein Health-Ein/Aus-Zustand für Import, Gewicht und diese Ansicht.
 @MainActor
 public protocol HealthSettingsControlling: AnyObject {
     var healthAvailable: Bool { get }
@@ -21,71 +21,18 @@ public protocol HealthSettingsControlling: AnyObject {
     func pin(_ source: HealthSourceRef?, for metric: HealthMetric)
 }
 
-@MainActor @Observable
-public final class DefaultHealthSettings: HealthSettingsControlling {
-    private static let enabledKey = "dataSources.healthEnabled.v1"
-    private static let pinsKey = "dataSources.pins.v1"
-
-    @ObservationIgnored private let source: any HealthDataSource
-    @ObservationIgnored private let defaults: UserDefaults
-    public private(set) var healthEnabled: Bool
-    public private(set) var pins: HealthSourcePins
-
-    public init(source: any HealthDataSource = HealthDataSourceFactory.make(), defaults: UserDefaults = .standard) {
-        self.source = source
-        self.defaults = defaults
-        healthEnabled = defaults.bool(forKey: Self.enabledKey)
-        pins = defaults.data(forKey: Self.pinsKey).flatMap { try? JSONDecoder().decode(HealthSourcePins.self, from: $0) } ?? HealthSourcePins()
-    }
-
-    public var healthAvailable: Bool { source.isAvailable }
-
-    public func setHealthEnabled(_ on: Bool) async {
-        if on {
-            do { try await requestAuthorization() } catch { return }
-        }
-        healthEnabled = on
-        defaults.set(on, forKey: Self.enabledKey)
-    }
-
-    public func requestAuthorization() async throws {
-        try await source.requestReadAuthorization(Set(HealthReadType.allCases))
-    }
-
-    public func connectedSources() async -> [HealthSourceUsage] {
-        guard healthEnabled, source.isAvailable else { return [] }
-        let now = Date.now
-        let from = Calendar.current.date(byAdding: .day, value: -28, to: now) ?? now
-        var dailies: [HealthDaily] = []
-        for metric in HealthMetric.allCases {
-            dailies += (try? await source.dailyValues(metric, in: from...now)) ?? []
-        }
-        let workouts = (try? await source.workouts(since: nil))?.added ?? []
-        return HealthSourceUsageBuilder.usage(dailies: dailies, workouts: workouts, now: now)
-    }
-
-    public func pin(_ new: HealthSourceRef?, for metric: HealthMetric) {
-        if let new {
-            pins.pin(new, for: metric, from: pins.pins[metric] == nil ? nil : Calendar.current.startOfDay(for: .now))
-        } else {
-            pins.unpin(metric)
-        }
-        defaults.set(try? JSONEncoder().encode(pins), forKey: Self.pinsKey)
-    }
-}
+extension AppModel: HealthSettingsControlling {}
 
 // MARK: - Ansicht
 
 struct DataSourcesView: View {
-    @State private var controller: any HealthSettingsControlling
+    @Environment(AppModel.self) private var model
     @State private var usage: [HealthSourceUsage] = []
-    @State private var exportService = HealthExportService(writer: HealthWorkoutWriterFactory.make())
     @State private var exportSettings = HealthExportSettings()
     @State private var exportError: String?
 
-    init(controller: any HealthSettingsControlling = DefaultHealthSettings()) {
-        _controller = State(initialValue: controller)
-    }
+    private var controller: any HealthSettingsControlling { model }
+    private var exportService: HealthExportService { model.healthExport }
 
     var body: some View {
         Form {
