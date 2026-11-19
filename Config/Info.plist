@@ -21,6 +21,12 @@
 	<false/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>IndoorCoach sucht im WLAN nach der IndoorCoach Brücke auf deinem Mac, um deine MyWhoosh-Fahrten mit Sekundendaten zu holen.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>IndoorCoach verbindet sich per Bluetooth mit deinem Brustgurt, um deinen Puls (und die Abstände zwischen den Herzschlägen) live zu lesen. Es werden nur Pulsgurte gesucht, nichts wird hochgeladen.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-central</string>
+	</array>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_indoorcoach._tcp</string>

@@ -11,6 +11,8 @@ public enum Log {
         case strava, claude, calendar, sync, plan, mywhoosh, bridge
         /// User-visible banners and app-level events.
         case app
+        // ANCHOR-STRAP: Brustgurt-Verbindung und Gerätetest (nur Zähler/Status, keine Pulswerte)
+        case strap
     }
 
     public static let subsystem: String = Bundle.main.bundleIdentifier ?? "app.indoorcoach.personal"

@@ -78,6 +78,39 @@ Im Simulator und per Loopback ist alles automatisch geprüft, siehe [Brücke §7
 | 6.3 | B14 | VoiceOver-Durchlauf: Heute → Einheit → senden, Plan → neu planen, Verlauf → Fahrt, Profil → Mac-Brücke | ☐ |
 | 6.4 | B15 | Release-Build (*Edit Scheme → Run → Release*): Kaltstart < 2 s, Verlauf scrollt flüssig | ☐ |
 
+## 7. Brustgurt (O11/O12, B26)
+
+Voraussetzung: Paket „HR · Brustgurt-Basis“ im Build, ein BLE-Brustgurt (TICKR, Polar H10 oder ähnlich) mit frischer Batterie, MyWhoosh am Mac. Gurt vorher anfeuchten und anlegen. **Polar H10:** in der App Polar Beat einmal verbinden und die Mehrfachverbindung aktivieren. Das Protokoll liefert nur Zähler und Status, keine Pulswerte. Es steht danach im Diagnose-Export (*Profil → Hilfe & Feedback → Diagnose exportieren*).
+
+### 7a. Koppeln und Fähigkeiten
+
+| # | Schritt | Erwartung | ✓ |
+|---|---|---|---|
+| 7.1 | *Profil → Geräte → Brustgurt* | Erklärseite „Nur dein Pulsgurt. Nichts verlässt das iPhone.“ | ☐ |
+| 7.2 | „Weiter“ | iOS fragt nach Bluetooth, Text nennt den Brustgurt. *Erlauben* | ☐ |
+| 7.3 | Suche, Gurt in der Liste antippen: „Verbinden“ | Gurt erscheint mit Signalstärke, nach dem Verbinden Live-Puls, plausibel zum Gefühl | ☐ |
+| 7.4 | Fähigkeiten ansehen | RR-Intervalle „✓ empfangen“ (sonst notieren), Akku in %, Gurtname, Modellhinweis | ☐ |
+
+### 7b. Mehrfachverbindung parallel zu MyWhoosh (O11)
+
+| # | Schritt | Erwartung | ✓ |
+|---|---|---|---|
+| 7.5 | Gurt hier verbunden lassen. Am Mac MyWhoosh öffnen, Gurt als Pulsquelle wählen | MyWhoosh zeigt Puls | ☐ |
+| 7.6 | In der App „Mehrfachverbindungs-Test“ → starten, Ablauf bestätigen | Puls läuft hier weiter, ohne Abbruch | ☐ |
+| 7.7 | 2 min beobachten, Puls hier und in MyWhoosh vergleichen | Beide Werte laufen, RR bleibt „✓“ | ☐ |
+| 7.8 | Bei Abbruch: Welche Seite verliert den Puls? | **Notieren:** Gurtmodell, wer abbricht, ob RR nur auf einer Seite ankommt | ☐ |
+
+### 7c. Gesperrtes Display (O12), 60 min
+
+| # | Schritt | Erwartung | ✓ |
+|---|---|---|---|
+| 7.9 | „Gerätetest → Protokoll starten“, Gurt tragen oder auf dem Rad ruhig fahren | Zähler laufen | ☐ |
+| 7.10 | iPhone sperren (Seitentaste), 60 min liegen lassen, MyWhoosh am Mac läuft parallel | – | ☐ |
+| 7.11 | Entsperren, App öffnen, „Protokoll beenden“ | Bericht: Hintergrund ≈ 60 min, Pakete ≈ 1/s, Lücken > 2 s: 0 (Ziel), Reconnects notiert | ☐ |
+| 7.12 | *Diagnose exportieren* und prüfen | Abschnitt „Gerätetest Brustgurt“ ohne Pulswerte | ☐ |
+
+**Ergebnis (eintragen):** Modell ____ · Mehrfachverbindung ja/nein ____ · RR auf zweitem Kanal ja/nein ____ · Lücken ____ (längste ____ s) · Reconnects ____ · Akku Start/Ende ____ / ____ · Auffälligkeiten ____
+
 ## Notizen
 
 | Punkt | Beobachtung |
