@@ -105,6 +105,44 @@ struct MigrationTests {
                                                                     "ZSTRAVARELATIVEEFFORT", "ZDECOUPLING", "ZDURABILITY"]))
     }
 
+    @Test func legacyStoreGainsTheHealthFieldsAsOptionalColumns() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("migration-health-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("default.store")
+        let start = Date(timeIntervalSince1970: 1_790_000_000)
+        do {
+            let legacy = Schema(versionedSchema: LegacySchemaV1.self)
+            let container = try ModelContainer(for: legacy, configurations: ModelConfiguration(schema: legacy, url: url))
+            let context = ModelContext(container)
+            context.insert(LegacySchemaV1.StoredRide(stravaID: 888, name: "Vor Health", startDate: start))
+            try context.save()
+        }
+        let container = try AppEnvironment.makeContainer(url: url)
+        let ride = try #require(try ModelContext(container).fetch(FetchDescriptor<StoredRide>()).first)
+        #expect(ride.stravaID == 888)
+        #expect(ride.sourceRaw == nil && ride.healthUUID == nil && ride.estimatedTSS == nil)
+        #expect(ride.foreignSport == nil && ride.mergedHealthUUID == nil && ride.healthNote == nil)
+        #expect(ride.summary.healthUUID == nil && !ride.summary.isForeignSport)
+
+        // Ein Health-Lauf lässt sich schreiben und wieder lesen.
+        var run = RideSummary(id: -5, name: "Laufen (Apple Watch)", sportType: "Run", startDate: start, movingTime: 3000, distance: 0,
+                              averageHeartrate: 150)
+        run.healthUUID = UUID().uuidString
+        run.foreignSport = "running"
+        run.estimatedTSS = 61.5
+        let context = ModelContext(container)
+        context.insert(StoredRide(run))
+        try context.save()
+        let reopened = try ModelContext(AppEnvironment.makeContainer(url: url)).fetch(FetchDescriptor<StoredRide>(predicate: #Predicate { $0.stravaID == -5 }))
+        let stored = try #require(reopened.first)
+        #expect(stored.sourceRaw == StoredRide.healthSource)
+        #expect(stored.summary.foreignSport == "running" && stored.summary.estimatedTSS == 61.5)
+        #expect(stored.summary.healthUUID == run.healthUUID)
+        let names = columns(of: "ZSTOREDRIDE", in: url)
+        #expect(names.isSuperset(of: ["ZSOURCERAW", "ZHEALTHUUID", "ZESTIMATEDTSS", "ZFOREIGNSPORT", "ZMERGEDHEALTHUUID", "ZHEALTHNOTE"]))
+    }
+
     /// Column names of a Core Data table, read directly via SQLite.
     private func columns(of table: String, in url: URL) -> Set<String> {
         var db: OpaquePointer?

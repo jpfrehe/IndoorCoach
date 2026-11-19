@@ -95,6 +95,8 @@ public enum FitnessFreshness {
                             thresholdHeartRate: Int?, effortFactor: Double?) -> Load {
         let estimate = TrainingLoad.estimateTSS(for: ride, ftp: ftp, thresholdHeartRate: thresholdHeartRate)
         if estimate.source == .power { return Load(value: estimate.tss, source: .power) }
+        // ANCHOR-W3B: die geschätzte Fremd-TSS (O6) gilt direkt, nicht über Relative Effort × k.
+        if ride.isForeignSport { return Load(value: estimate.tss, source: .estimate) }
         if let k = effortFactor, let effort = RelativeEffort.estimate(for: ride, heartRate: heartRate).value {
             return Load(value: effort * k, source: .relativeEffort)
         }

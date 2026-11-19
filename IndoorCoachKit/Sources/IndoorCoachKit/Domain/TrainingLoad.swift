@@ -28,6 +28,12 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
     public var decoupling: Double? = nil
     /// Fatigue resistance in percent (see `Durability`); only rides imported from a FIT file of at least 60 minutes.
     public var durability: Double? = nil
+    /// Apple-Health-Workout (UUID), aus dem diese Fahrt stammt; nil für alle anderen Quellen. ANCHOR-W3B
+    public var healthUUID: String? = nil
+    /// Aerobe Fremdsportart aus Health (HealthKit-Name, z. B. `running`): zählt nur in der Belastung, nie in Leistungsanalysen.
+    public var foreignSport: String? = nil
+    /// Geschätzte TSS einer Fremdsportart (O6, `HealthImport.estimate`).
+    public var estimatedTSS: Double? = nil
 
     public init(id: Int, name: String, sportType: String, startDate: Date, movingTime: Int, distance: Double,
                 averageWatts: Double? = nil, weightedAverageWatts: Double? = nil, kilojoules: Double? = nil,
@@ -47,6 +53,9 @@ public struct RideSummary: Hashable, Sendable, Identifiable {
     }
 
     public var isIndoor: Bool { trainer || sportType == "VirtualRide" }
+
+    /// Aerobe Fremdsportart aus Apple Health (Laufen, Wandern …) – keine Radfahrt.
+    public var isForeignSport: Bool { foreignSport != nil }
 
     /// Strava activity ids are positive; imported rides (MyWhoosh, FIT) use negative ids.
     public var isFromStrava: Bool { id > 0 }
@@ -79,6 +88,10 @@ public enum TrainingLoad {
     public static func estimateTSS(for ride: RideSummary, ftp: Int, thresholdHeartRate: Int? = nil) -> TSSEstimate {
         let hours = Double(ride.movingTime) / 3600
         guard hours > 0 else { return TSSEstimate(tss: 0, intensityFactor: nil, source: .duration) }
+        // ANCHOR-W3B: Fremdsportart aus Health – die geschätzte TSS (O6) gilt, nie Leistung/FTP.
+        if ride.isForeignSport, let estimated = ride.estimatedTSS {
+            return TSSEstimate(tss: estimated, intensityFactor: nil, source: ride.averageHeartrate != nil ? .heartRate : .duration)
+        }
         if ftp > 0, let np = ride.weightedAverageWatts ?? ride.averageWatts.map({ $0 * 1.05 }), np > 0 {
             let intensity = np / Double(ftp)
             return TSSEstimate(tss: hours * intensity * intensity * 100, intensityFactor: intensity, source: .power)

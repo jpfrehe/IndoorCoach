@@ -33,6 +33,21 @@ public final class StoredRide {
     // Added with the seconds-data analyses – optional so SwiftData migrates lightweight.
     /// 1 Hz power/heart rate from a FIT file (`RideSeconds` format); nil for rides without seconds data.
     @Attribute(.externalStorage) public var secondsData: Data?
+    // Added with the Apple-Health workouts (W3-B) – all optional so SwiftData migrates lightweight.
+    /// Herkunft, wenn nicht Strava/MyWhoosh/FIT: `"appleHealth"` (`StoredRide.healthSource`).
+    public var sourceRaw: String?
+    /// Health-Workout (UUID), das diese Fahrt ist; wird beim Löschen in Health mitgelöscht.
+    public var healthUUID: String?
+    /// Geschätzte TSS einer aeroben Fremdsportart (O6); nil bei allen anderen Fahrten.
+    public var estimatedTSS: Double?
+    /// HealthKit-Sportart einer aeroben Fremdsportart (z. B. `running`); nil bei Radfahrten.
+    public var foreignSport: String?
+    /// Health-Workout, das mit dieser Fahrt zusammengeführt wurde (rückgängig machbar).
+    public var mergedHealthUUID: String?
+    /// Sichtbarer Hinweis zur Zusammenführung.
+    public var healthNote: String?
+
+    public static let healthSource = "appleHealth"
 
     public init(_ r: RideSummary, isDemo: Bool = false) {
         stravaID = r.id
@@ -55,6 +70,12 @@ public final class StoredRide {
         powerCurveData = r.powerCurve.flatMap(PowerCurve.encode)
         decoupling = r.decoupling
         durability = r.durability
+        if let uuid = r.healthUUID {
+            sourceRaw = Self.healthSource
+            healthUUID = uuid
+            foreignSport = r.foreignSport
+            estimatedTSS = r.estimatedTSS
+        }
     }
 
     public func update(from r: RideSummary) {
@@ -91,6 +112,9 @@ public final class StoredRide {
         r.powerCurve = powerCurve
         r.decoupling = decoupling
         r.durability = durability
+        r.healthUUID = healthUUID
+        r.foreignSport = foreignSport
+        r.estimatedTSS = estimatedTSS
         return r
     }
 }
