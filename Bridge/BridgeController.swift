@@ -203,7 +203,15 @@ final class BridgeController {
             let added = await Task.detached(priority: .utility) { () -> Int in
                 var added = 0
                 for file in ready where file.size <= 50 * 1024 * 1024 {   // a ride file is 1–2 MB; skip anything absurd
-                    guard let data = try? Data(contentsOf: file.url) else { continue }
+                    guard let data = try? Data(contentsOf: file.url) else {
+                        Log.error(.bridge, "Datei \(file.url.lastPathComponent) nicht lesbar (Zugriff)")
+                        continue
+                    }
+                    // Diagnostics: which files carry 1 Hz power/heart rate (helps when the iPhone shows fewer rides
+                    // with seconds data than the folder has files).
+                    let facts = Result { BridgeFormat.FileFacts(try FITParser.summary(from: data)) }
+                    Log.notice(.bridge, BridgeFormat.fileDiagnostics(name: file.url.lastPathComponent, size: file.size,
+                                                                     facts: facts))
                     if (try? outbox.add(fit: data)) != nil { added += 1 }
                 }
                 return added

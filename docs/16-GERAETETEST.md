@@ -21,9 +21,9 @@ Im Simulator und per Loopback ist alles automatisch geprüft, siehe [Brücke §7
 
 | # | Schritt | Erwartung | ✓ |
 |---|---|---|---|
-| 1.1 | „MyWhoosh-Ordner freigeben“ | Der Öffnen-Dialog steht in `…/com.whoosh.whooshgame/…/MyWhoosh/Content/Data` | ☐ |
-| 1.2 | „Freigeben“ klicken, eine macOS-Abfrage zu „Daten anderer Apps“ mit **Erlauben** bestätigen | „✓ N Fahrten gefunden“ (N > 0, wenn du schon in MyWhoosh gefahren bist). **Notieren:** Erschien eine Abfrage? Wie hieß sie? | ☐ |
-| 1.3 | „iPhone koppeln“ | 6-stelliger Code mit Countdown. macOS fragt nach dem **lokalen Netzwerk** → *Erlauben* | ☐ |
+| 1.1 | „MyWhoosh-Ordner freigeben“ | Der Öffnen-Dialog steht in `…/com.whoosh.whooshgame/…/MyWhoosh/Content/Data` | ✅ |
+| 1.2 | „Freigeben“ klicken, eine macOS-Abfrage zu „Daten anderer Apps“ mit **Erlauben** bestätigen | „✓ N Fahrten gefunden“ (N > 0, wenn du schon in MyWhoosh gefahren bist). **Notieren:** Erschien eine Abfrage? Wie hieß sie? | ✅ |
+| 1.3 | „iPhone koppeln“ | 6-stelliger Code mit Countdown. macOS fragt nach dem **lokalen Netzwerk** → *Erlauben* | ✅ |
 | 1.4 | „Beim Anmelden starten“ an lassen | *Systemeinstellungen → Allgemein → Anmeldeobjekte* zeigt „IndoorCoach Brücke“ | ☐ |
 | 1.5 | Fenster schließen | Brücke läuft nur in der Menüleiste weiter, das Panel zeigt den Status | ☐ |
 
@@ -32,9 +32,9 @@ Im Simulator und per Loopback ist alles automatisch geprüft, siehe [Brücke §7
 | # | Schritt | Erwartung | ✓ |
 |---|---|---|---|
 | 2.1 | iPhone im selben WLAN. *Verlauf → Leistung* | Karte „Volle Leistungskurve für jede Fahrt“ mit „Einrichten“, sofern Fahrten ohne Sekundendaten existieren | ☐ |
-| 2.2 | „Einrichten“ | Drei Schritte. iOS fragt nach dem **lokalen Netzwerk** → *Erlauben*. Dein Mac erscheint unter „Gefundene Macs“ (≤ 10 s) | ☐ |
+| 2.2 | „Einrichten“ | Drei Schritte. iOS fragt nach dem **lokalen Netzwerk** → *Erlauben*. Dein Mac erscheint unter „Gefundene Macs“ (≤ 10 s) | ✅ |
 | 2.3 | Mac antippen, **falschen** Code eingeben | Fehlertext, keine Kopplung | ☐ |
-| 2.4 | Richtigen Code eingeben | „Gekoppelt mit <Mac>“, „N Fahrten übertragen, M bestehende ergänzt“, Banner | ☐ |
+| 2.4 | Richtigen Code eingeben | „Gekoppelt mit <Mac>“, „N Fahrten übertragen, M bestehende ergänzt“, Banner | ✅ |
 | 2.5 | *Verlauf* öffnen | Fahrten aus der MyWhoosh-Liste haben jetzt das Abzeichen „Sekundendaten“, *Leistung* zeigt „X von X Fahrten mit Sekundendaten“ | ☐ |
 | 2.6 | Eine ergänzte Fahrt öffnen | Leistungskurve gemessen statt „Mindestwert“. Ist Paket Z gemergt, auch „Zeit in Zonen“ | ☐ |
 
@@ -43,7 +43,7 @@ Im Simulator und per Loopback ist alles automatisch geprüft, siehe [Brücke §7
 | # | Schritt | Erwartung | ✓ |
 |---|---|---|---|
 | 3.1 | Eine kurze Fahrt (≥ 10 min) in MyWhoosh auf dem Mac fahren und speichern | Nach ≤ 1 min zeigt das Menüleisten-Panel eine Fahrt mehr | ☐ |
-| 3.2 | **Notieren:** Name der neuen Datei im MyWhoosh-Ordner, und ob dieselbe Datei überschrieben wurde | z. B. `MyNewActivity-<Version>.fit`. Wird sie überschrieben, ist das in Ordnung: Die Brücke kopiert jede Fahrt in ihren eigenen Ausgang | ☐ |
+| 3.2 | **Notieren:** Name der neuen Datei im MyWhoosh-Ordner, und ob dieselbe Datei überschrieben wurde | z. B. `MyNewActivity-<Version>.fit`. Wird sie überschrieben, ist das in Ordnung: Die Brücke kopiert jede Fahrt in ihren eigenen Ausgang | ✅ |
 | 3.3 | IndoorCoach auf dem iPhone öffnen (Vordergrund) | Banner „Neue Fahrt vom Mac: … min · NP … W“ innerhalb weniger Sekunden | ☐ |
 | 3.4 | Ist die Fahrt auch über die MyWhoosh-Liste gekommen (Sync beim Start)? | Nur **eine** Fahrt im Verlauf, keine Dublette | ☐ |
 | 3.5 | War für heute eine Einheit geplant? | Einheit ist „Erledigt“. Ist Paket S gemergt, zeigt die Einheit „Soll/Ist“ | ☐ |
@@ -82,4 +82,6 @@ Im Simulator und per Loopback ist alles automatisch geprüft, siehe [Brücke §7
 
 | Punkt | Beobachtung |
 |---|---|
-| | |
+| 19.11.2026, 1.1–2.4 | Brücke per `scripts/install-bridge.sh` installiert (Apple-Development-Zertifikat, kein Profil). Ordner freigegeben: macOS zeigte den Freigabe-Dialog (Wortlaut nicht notiert). Kopplung mit dem iPhone 17e im WLAN erfolgreich, Sekundendaten der heutigen Einheit in der App. |
+| 3.2 Dateiname | `MyNewActivity-<MyWhoosh-Version>.fit`, **eine Datei je App-Version**, jede neue Fahrt derselben Version überschreibt sie. Im Ordner lagen 6 Dateien (5.5.0 … 6.3.0, Dez. 2025 bis heute), alle mit Leistung, Puls und Kurve. Heute: `MyNewActivity-6.3.0.fit`, 45:06, Ø 122 W, NP 125 W. Die Brücke sichert jede neue Fassung in ihrem Ausgang. |
+| 2.4 „4 von 6“ | Die Brücke hat alle 6 Dateien gelesen und ausgeliefert (Protokoll). Wahrscheinlich war es der Banner „Vom Mac: 4 neu, 2 ergänzt“: Die Fahrten vom 14.05. und von heute kamen schon aus der MyWhoosh-Liste (210 Tage) und wurden ergänzt, die vier älteren neu angelegt. Gegenprobe offen: *Verlauf → Leistung* „X von Y Fahrten mit Sekundendaten“. |

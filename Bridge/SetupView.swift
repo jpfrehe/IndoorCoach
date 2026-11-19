@@ -32,8 +32,15 @@ struct SetupView: View {
             Button("MyWhoosh-Ordner freigeben") { controller.chooseFolder() }
             switch controller.folderCheck {
             case let .found(count):
-                Label(BridgeFormat.foundRidesText(count).replacingOccurrences(of: "✓ ", with: ""), systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(BridgeFormat.foundRidesText(count).replacingOccurrences(of: "✓ ", with: ""), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    // MyWhoosh keeps one file per app version and overwrites it with every ride (MyNewActivity-<Version>.fit).
+                    Text("MyWhoosh behält auf dem Mac nur die letzte Fahrt je App-Version. Ab jetzt sichert die Brücke jede neue Fahrt, solange sie läuft – lass „Beim Anmelden starten“ an.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             case .empty:
                 VStack(alignment: .leading, spacing: 4) {
                     Label("In diesem Ordner liegen keine MyWhoosh-Fahrten", systemImage: "exclamationmark.triangle.fill")

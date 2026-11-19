@@ -85,10 +85,16 @@ final class BridgeChannel: @unchecked Sendable {
                 once.run { cont.resume(throwing: BridgeError.unreachable); connection.cancel() }
             }
             queue.asyncAfter(deadline: .now() + timeout, execute: timer)
-            connection.receiveMessage { data, context, _, error in
+            connection.receiveMessage { data, context, isComplete, error in
                 once.run {
                     timer.cancel()
                     if let error { cont.resume(throwing: Self.map(error)); return }
+                    // The peer closed the connection cleanly (no message, final context).
+                    if data == nil, isComplete, context?.isFinal ?? true,
+                       context?.protocolMetadata(definition: BridgeFramer.definition) == nil {
+                        cont.resume(throwing: BridgeChannelClosed())
+                        return
+                    }
                     guard let context,
                           let meta = context.protocolMetadata(definition: BridgeFramer.definition)
                             as? NWProtocolFramer.Message,
@@ -111,3 +117,6 @@ final class BridgeChannel: @unchecked Sendable {
         return answer
     }
 }
+
+/// The other side closed the connection cleanly – the normal end of a session, not an error to report.
+struct BridgeChannelClosed: Error {}

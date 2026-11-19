@@ -1,8 +1,25 @@
 import XCTest
+import IndoorCoachKit
 @testable import IndoorCoachBridge
 
 final class BridgeStatusTests: XCTestCase {
     private let utc = TimeZone(identifier: "UTC")!
+
+    func testFileDiagnosticsLine() {
+        let start = Date(timeIntervalSince1970: 1_795_072_200) // 2026-11-19 07:10 UTC
+        var facts = BridgeFormat.FileFacts(start: start, seconds: 3120, averageWatts: 201, normalizedPower: 214,
+                                           powerSeconds: 3120, heartRateSeconds: 3120, hasCurve: true)
+        XCTAssertEqual(BridgeFormat.fileDiagnostics(name: "MyNewActivity-6.1.0.fit", size: 87_429, facts: .success(facts)),
+                       "Datei MyNewActivity-6.1.0.fit (85 KB): Start 2026-11-19T07:10:00Z, 52:00, Ø 201 W, NP 214 W, "
+                       + "Leistung 3120 s, Puls 3120 s, Kurve ja")
+        facts.powerSeconds = nil
+        facts.heartRateSeconds = nil
+        facts.hasCurve = false
+        XCTAssertEqual(BridgeFormat.fileDiagnostics(name: "a.fit", size: 2048, facts: .success(facts)),
+                       "Datei a.fit (2 KB): Start 2026-11-19T07:10:00Z, 52:00, Ø 201 W, NP 214 W, Leistung –, Puls –, Kurve nein")
+        XCTAssertEqual(BridgeFormat.fileDiagnostics(name: "b.fit", size: 10, facts: .failure(FITParser.Error.notFIT)),
+                       "Datei b.fit (0 KB): nicht lesbar (notFIT)")
+    }
 
     func testStatusLinePairedWithFetch() {
         let fetch = Date(timeIntervalSince1970: 1_763_491_320) // 2025-11-18 18:42 UTC

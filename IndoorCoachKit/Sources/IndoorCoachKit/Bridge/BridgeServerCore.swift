@@ -25,6 +25,9 @@ final class BridgeServerCore: @unchecked Sendable {
     private var pairingFailures = 0
     private var pairingInFlight = 0
     private var pairedThisWindow = false
+    /// Abnormal connection ends (for tests); a clean close by the phone is not recorded.
+    private var endErrors: [String] = []
+    var connectionEndErrors: [String] { lock.withLock { endErrors } }
 
     init(name: String, secret: Data, source: any BridgeRideSource, advertise: Bool) {
         self.name = name
@@ -187,7 +190,10 @@ final class BridgeServerCore: @unchecked Sendable {
             }
             do {
                 if pairing { try await servePairing(channel) } else { try await serveMain(channel) }
+            } catch is BridgeChannelClosed {
+                // the phone is done
             } catch {
+                lock.withLock { endErrors.append("\(error)") }
                 Log.notice(.bridge, "connection ended: \(error)")
             }
         }

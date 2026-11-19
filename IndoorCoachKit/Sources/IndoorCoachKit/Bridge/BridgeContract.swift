@@ -220,6 +220,8 @@ public final class BridgeServer: @unchecked Sendable {
     }
     /// Port of the main listener once started (nil before).
     public var port: UInt16? { core.port }
+    /// Abnormal connection ends so far (tests).
+    var connectionEndErrors: [String] { core.connectionEndErrors }
     /// Port of the pairing listener while pairing (nil otherwise).
     public var pairingPort: UInt16? { core.pairingPort }
     public func start() async throws { try await core.start() }

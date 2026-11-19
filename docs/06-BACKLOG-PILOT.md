@@ -41,7 +41,7 @@ Legende: **Agent** = im Repo umsetzbar und an Subagenten vergeben · **Nutzer** 
 | B18 | intervals.icu-Brücke für automatischen MyWhoosh-Upload |
 | B23 | ✅ **gelöst über die IndoorCoach Brücke** ([Konzept](14-SEKUNDENDATEN-MAC-BRUECKE.md)): Die Mac-App liest die FIT-Dateien lokal aus dem MyWhoosh-Ordner und bietet sie im WLAN an, das iPhone ergänzt damit die Fahrten. Der Cloud-Download bleibt gesperrt. Ursprünglich: **MyWhoosh-FIT-Datei (S3 verweigert):** Der Download der FIT-Datei über MyWhoosh scheitert mit „Access Denied“ (S3). Deshalb haben MyWhoosh-Fahrten aus der Liste keine Sekundendaten und liefern der Leistungskurve nur Mindestwerte; die volle Kurve gibt es nur über den FIT-Import aus der Dateien-App. Zu klären: anderer Endpunkt/Signatur oder Export-Weg. |
 | B24 | Brücke Phase 2: iCloud-Drive-Container als zweiter Transport (Abgleich auch außerhalb des Heim-WLANs), Verteilung der Mac-App (Mac App Store/TestFlight für macOS, eigener Release-Job) |
-| B25 | Brücke: Live-Gerätetest mit signiertem Build (Freigabe-Dialog des MyWhoosh-Containers, Netzwerk-Abfrage, Login-Item) und mit echter MyWhoosh-FIT-Datei |
+| B25 | ◐ **live bestätigt 19.11.2026:** signierter Build, Freigabe-Dialog des MyWhoosh-Containers, Kopplung im WLAN, echte MyWhoosh-FIT-Dateien (6 Dateien, alle mit Sekundendaten) und Abruf der heutigen Einheit auf dem iPhone. Offen: Anmeldeobjekt nach Neustart, Sonderfälle ([Gerätetest](16-GERAETETEST.md) Teil 4). |
 | B19 | Widget „Heutige Einheit“ + Winter-Arc-Level |
 | B20 | Wöchentlicher Auto-Plan (Docker-Backend + Push) |
 

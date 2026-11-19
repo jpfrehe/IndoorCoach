@@ -1,3 +1,4 @@
+import IndoorCoachKit
 import Foundation
 
 // Pure helpers of the bridge app (no UI, no I/O beyond what is injected) – unit-tested in Bridge/Tests.
@@ -27,6 +28,52 @@ struct BridgeStatusLine: Equatable {
 }
 
 enum BridgeFormat {
+    /// What a scanned FIT file contains, for the diagnostics log (no ride names or places).
+    struct FileFacts: Equatable {
+        var start: Date
+        var seconds: Int
+        var averageWatts: Double?
+        var normalizedPower: Double?
+        var powerSeconds: Int?
+        var heartRateSeconds: Int?
+        var hasCurve: Bool
+
+        init(start: Date, seconds: Int, averageWatts: Double?, normalizedPower: Double?, powerSeconds: Int?,
+             heartRateSeconds: Int?, hasCurve: Bool) {
+            self.start = start
+            self.seconds = seconds
+            self.averageWatts = averageWatts
+            self.normalizedPower = normalizedPower
+            self.powerSeconds = powerSeconds
+            self.heartRateSeconds = heartRateSeconds
+            self.hasCurve = hasCurve
+        }
+
+        init(_ s: FITParser.Summary) {
+            self.init(start: s.startDate, seconds: s.movingTime, averageWatts: s.averageWatts, normalizedPower: s.normalizedPower,
+                      powerSeconds: s.seconds?.count, heartRateSeconds: s.seconds?.heartRate?.count,
+                      hasCurve: s.powerCurve?.isEmpty == false)
+        }
+    }
+
+    /// One diagnostics line per scanned file.
+    static func fileDiagnostics(name: String, size: Int, facts: Result<FileFacts, Error>) -> String {
+        let head = "Datei \(name) (\(size / 1024) KB)"
+        switch facts {
+        case .failure(let error):
+            return "\(head): nicht lesbar (\(error))"
+        case .success(let f):
+            let iso = ISO8601DateFormatter().string(from: f.start)
+            let duration = String(format: "%d:%02d", f.seconds / 60, f.seconds % 60)
+            let avg = f.averageWatts.map { "Ø \(Int($0.rounded())) W" } ?? "Ø –"
+            let np = f.normalizedPower.map { "NP \(Int($0.rounded())) W" } ?? "NP –"
+            let power = f.powerSeconds.map { "Leistung \($0) s" } ?? "Leistung –"
+            let heart = f.heartRateSeconds.map { "Puls \($0) s" } ?? "Puls –"
+            return "\(head): Start \(iso), \(duration), \(avg), \(np), \(power), \(heart), Kurve \(f.hasCurve ? "ja" : "nein")"
+        }
+    }
+
+
     /// One-line status of the menu panel, e.g. "Gekoppelt mit iPhone · 23 Fahrten bereit · zuletzt abgeholt 18:42".
     static func statusLine(_ input: BridgeStatusInput, timeZone: TimeZone = .current) -> BridgeStatusLine {
         switch input.folder {

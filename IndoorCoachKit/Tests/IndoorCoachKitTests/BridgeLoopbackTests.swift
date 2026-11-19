@@ -117,3 +117,18 @@ private final class EventBox: @unchecked Sendable {
     func add(_ e: BridgeServer.Event) { lock.withLock { events.append(e) } }
     var all: [BridgeServer.Event] { lock.withLock { events } }
 }
+
+@Suite("Bridge connection end", .serialized, .timeLimit(.minutes(1)))
+struct BridgeConnectionEndTests {
+    /// A phone that fetched and closed the connection is a normal end, not a malformed message (log hygiene: the
+    /// server's log should not report an error after every successful pickup).
+    @Test func cleanCloseIsNotReportedAsMalformed() async throws {
+        let secret = BridgeCrypto.newPairingSecret()
+        let server = BridgeServer(name: "Mac", secret: secret, source: makeSource(), advertise: false)
+        try await server.start()
+        defer { server.stop() }
+        _ = try await BridgeClient(deviceName: "Phone").fetchNewRides(from: try local(server.port), secret: secret, since: nil, known: [])
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(server.connectionEndErrors.isEmpty, "\(server.connectionEndErrors)")
+    }
+}

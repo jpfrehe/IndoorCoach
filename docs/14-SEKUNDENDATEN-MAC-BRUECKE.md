@@ -141,3 +141,9 @@ IndoorCoach (iOS)                                                               
 2. **Release-Build brach ab:** `TLS_PSK_WITH_AES_128_GCM_SHA256` wird je nach Architektur als `UInt32` importiert. Die CI baut nur Debug für eine Architektur und hat das nicht bemerkt; ein App-Store-Archiv wäre gescheitert. Die Umwandlung ist jetzt explizit.
 
 Dazu `scripts/install-bridge.sh` (Release bauen, mit Apple-Development-Zertifikat signieren, nach `/Programme` installieren, starten). Neuinstallation mit derselben Signatur liest das Geheimnis ohne Rückfrage.
+
+**Live-Test 19.11.2026** (Mac + iPhone 17e): Kopplung und Abruf funktionieren. Erkenntnisse:
+- **MyWhoosh speichert eine FIT-Datei je App-Version** (`MyNewActivity-<Version>.fit`) und überschreibt sie mit jeder Fahrt. Auf dem Mac liegen daher nur wenige Fahrten (hier 6 aus einem Jahr). Die Brücke sichert ab ihrer Einrichtung jede neue Fassung. Das Einrichtungsfenster sagt das jetzt („… nur die letzte Fahrt je App-Version …“). Ältere Fahrten kommen weiter über die MyWhoosh-Liste, ohne Sekundendaten.
+- Alle 6 echten Dateien wurden gelesen (Leistung, Puls, Kurve). Das Format aus der Community-Doku ist damit bestätigt.
+- Die Brücke protokolliert je Datei Name, Größe, Start, Dauer und ob Leistung, Puls und Kurve vorhanden sind (keine Fahrtnamen, keine Orte), damit solche Fragen ohne Zugriff auf den geschützten Ordner beantwortbar sind.
+- Ein ordnungsgemäßes Verbindungsende des iPhones stand bisher als „connection ended: malformedMessage“ im Protokoll. Es wird jetzt als normales Ende behandelt (Test).
