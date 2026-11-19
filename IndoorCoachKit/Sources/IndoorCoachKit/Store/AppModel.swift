@@ -87,6 +87,8 @@ public final class AppModel {
     public internal(set) var healthWeightKg: Double?
     /// Gepinnte Quelle je Kennzahl (Profil → Datenquellen); Teil des einen Health-Zustands.
     public internal(set) var healthPins = HealthSourcePins()
+    /// Ort der Morgen-HRV-Messungen (Tests setzen einen temporären).
+    @ObservationIgnored var morningHRVStoreURL = MorningHRVStore.defaultURL
     /// Health-Quelle; Tests und `-uiHealthStub` setzen einen Stub. Standard: HealthKit auf iOS, sonst nicht verfügbar.
     @ObservationIgnored public var healthSource: any HealthDataSource = HealthDataSourceFactory.make()
     /// Schreibzugriff für den Export eigener Einheiten (opt-in je Sportart); Tests und `-uiHealthStub` setzen einen Stub.
@@ -971,6 +973,9 @@ public final class AppModel {
         try? context.save()
         deleteAllStrengthData() // ANCHOR-STRENGTH
         resetHealthState() // ANCHOR-W3B
+        resetWellnessState()
+        resetMorningHRVState()
+        resetConsentState()
         calendarService.removeAppData(eventIDs: eventIDs)
         reminderCenter.cancel(id: WeeklyReviewReminder.identifier)
         await reminderCenter.cancelAll(withPrefix: WorkoutReminder.idPrefix)

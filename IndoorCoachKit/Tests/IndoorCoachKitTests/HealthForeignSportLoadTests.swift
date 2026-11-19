@@ -45,6 +45,7 @@ struct HealthForeignSportLoadTests {
         #expect(weeks[0].seconds == 7200)
         #expect(abs(weeks[0].tss - (80 + power)) < 0.001)
         #expect(weeks[0].indoorSeconds == 3600)   // der Lauf zählt nicht als Indoor
+        #expect(weeks[0].otherSeconds == 3600)    // sondern als „Andere“, nicht als Outdoor
     }
 
     @Test func foreignSportFeedsCTLAndATLEvenWithAnEffortFactor() {

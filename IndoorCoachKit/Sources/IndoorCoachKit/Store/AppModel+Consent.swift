@@ -70,7 +70,7 @@ extension AppModel {
         let rows = (try? context.fetch(FetchDescriptor<StoredCheckIn>())) ?? []
         let answers = rows.filter { !$0.isDeleted && !$0.skipped && $0.day >= start }.map(\.answers)
         let warmup = warmupTrend().direction
-        let wellness = Self.recoveryWellnessProvider?.recoveryWellness(today: today)
+        let wellness = Self.recoveryWellnessProvider?.recoveryWellness(today: today) ?? recoveryWellnessFromHealth(now: now)
         return RecoverySummary.make(.init(wellness: wellness, checkIns: answers, warmup: warmup))
     }
 

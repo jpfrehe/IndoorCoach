@@ -27,6 +27,7 @@ public enum Theme {
     static let fatigue = fill(.z6), fatigueLine = cap(.z6)
     static let indoor = fill(.z5), indoorMark = cap(.z5)
     static let outdoor = fill(.z2), outdoorMark = cap(.z2)
+    static let otherMark = cap(.z4)
     static let done = cap(.z3)
     /// Chart axis labels: Swift Charts' default secondary grey is ~3.5:1 at caption2 size; this is ≥ 7:1.
     static let axisLabel = Color.primary.opacity(0.72)

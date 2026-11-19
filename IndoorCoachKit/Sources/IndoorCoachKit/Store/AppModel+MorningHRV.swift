@@ -51,13 +51,13 @@ public struct MorningHRVStore {
 extension AppModel {
     /// Für den Trend-Wächter: true = unter dem üblichen Bereich, false = nicht darunter, nil = aus oder kein Trend.
     public func morningHRVSignal(store: MorningHRVStore? = nil, now: Date = .now) -> Bool? {
-        let store = store ?? MorningHRVStore(defaults: defaults)
+        let store = store ?? MorningHRVStore(url: morningHRVStoreURL, defaults: defaults)
         guard store.enabled else { return nil }
         return MorningHRV.signalBelowBaseline(store.measurements(), now: now)
     }
 
     /// „Alle Daten löschen“: Messungen und Opt-in entfernen.
     public func resetMorningHRVState(store: MorningHRVStore? = nil) {
-        (store ?? MorningHRVStore(defaults: defaults)).reset()
+        (store ?? MorningHRVStore(url: morningHRVStoreURL, defaults: defaults)).reset()
     }
 }

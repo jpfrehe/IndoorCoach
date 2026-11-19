@@ -41,6 +41,14 @@ struct DataSourcesView: View {
                 typesSection
                 sourcesSection
             }
+            if controller.healthEnabled {
+                Section {
+                    NavigationLink { WellnessTrendsView() } label: {
+                        Label("Erholung ansehen", systemImage: "waveform.path.ecg").frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("dataSources.recovery")
+                }
+            }
             gapsSection
             exportSection
             Section {

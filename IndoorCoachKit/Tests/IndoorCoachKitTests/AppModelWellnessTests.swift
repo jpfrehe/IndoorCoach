@@ -77,10 +77,8 @@ struct AppModelWellnessTests {
 
     @Test func pinnedSourceWins() async throws {
         let mixed = series(Array(repeating: 50, count: 28)) + series(Array(repeating: 70, count: 28), source: garmin)
-        let (model, defaults, _) = try makeModel(source: StubHealthDataSource(daily: mixed))
-        var pins = HealthSourcePins()
-        pins.pin(garmin, for: .restingHR, from: nil)
-        defaults.set(try JSONEncoder().encode(pins), forKey: AppModel.wellnessPinsKey)
+        let (model, _, _) = try makeModel(source: StubHealthDataSource(daily: mixed))
+        model.pin(garmin, for: .restingHR)
         await model.refreshWellness(now: now, directory: tempDir())
         let trend = model.wellnessTrend(.restingHR, now: now)
         #expect(trend.source == garmin && trend.baseline == 70)
