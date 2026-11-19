@@ -118,6 +118,8 @@ struct WorkoutDetailContent: View {
             // Soll/Ist je Intervall: renders only for done workouts whose linked ride has seconds data.
             IntervalComplianceCard(workout: workout)
 
+            RecordingEntry(workout: workout) // ANCHOR-REC
+
             Card(title: "Zeit in Zonen", systemImage: "square.stack.3d.up") {
                 ZoneDistributionBar(definition: d)
             }

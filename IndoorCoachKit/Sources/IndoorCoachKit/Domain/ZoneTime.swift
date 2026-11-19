@@ -41,6 +41,8 @@ public enum ZoneTime {
         public var bands: [Int]
 
         public var powerTotal: Int { power.reduce(0, +) }
+        /// False for pulse-only rides (iPhone recording): power zones are hidden then, not shown as Z1.
+        public var hasPower: Bool { powerTotal > 0 }
         public var heartTotal: Int { heart?.reduce(0, +) ?? 0 }
     }
 

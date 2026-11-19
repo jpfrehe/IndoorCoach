@@ -108,9 +108,12 @@ public final class AppModel {
         static let bridgeMacName = "bridge.macName.v1"
         static let bridgeLastSync = "bridge.lastSync.v1"
         static let bridgeKnownIDs = "bridge.knownIDs.v1"
+        static let recordingPending = "recording.pending.v1" // ANCHOR-REC: recordings waiting for their ride
+        static let recordingAttached = "recording.attached.v1" // ANCHOR-REC: which ride carries which recording
         /// Everything "Alle Daten löschen" removes – add every new persisted key here.
         static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport,
-                          weeklyReviewDismissed, onboardingStep, bridgeMacName, bridgeLastSync, bridgeKnownIDs]
+                          weeklyReviewDismissed, onboardingStep, bridgeMacName, bridgeLastSync, bridgeKnownIDs,
+                          recordingPending, recordingAttached] // ANCHOR-REC
     }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
@@ -619,7 +622,8 @@ public final class AppModel {
                 let merged = RideMerge.enriched(working[index], with: ride)
                 working[index] = merged
                 byID[id]?.update(from: merged)
-                if let s = seconds[ride.id], byID[id]?.secondsData == nil { byID[id]?.secondsData = s.encoded() }
+                // ANCHOR-REC: seconds of a pulse-only recording are replaced by measured ones (pulse kept)
+                if let s = seconds[ride.id], let row = byID[id], let upgraded = upgradedSeconds(s, over: row) { row.secondsData = upgraded.encoded() }
                 result.enriched += 1
             case .alreadyComplete(let id):
                 // Same ride with a curve but without stored seconds (imported before they were kept): add them.
@@ -631,6 +635,7 @@ public final class AppModel {
         }
         linkCompletedWorkouts()
         try? context.save()
+        matchPendingRecordings() // ANCHOR-REC: recordings that waited for a ride
         invalidateSecondsDigests()
         hasImportedRides = true
         defaults.set(true, forKey: Keys.ridesImported)
@@ -948,6 +953,7 @@ public final class AppModel {
         seriesCache = nil
         onboardingStep = 0
         for key in Keys.all { defaults.removeObject(forKey: key) }
+        RecordingStore().clear() // ANCHOR-REC: interim file of an unfinished recording
         // Feedback draft (FeedbackView keeps it in @AppStorage so it survives the trip to GitHub).
         for key in ["feedback.draft.kind", "feedback.draft.title", "feedback.draft.body", "feedback.draft.appInfo",
                     "feedback.draft.awaitingGitHub"] { defaults.removeObject(forKey: key) }

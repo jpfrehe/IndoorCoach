@@ -32,7 +32,8 @@ extension AppModel {
         guard workout.status == .done, let rideID = workout.linkedRideID else { return nil }
         let key = ComplianceCache.Key(workout: workout.id, ride: rideID, ftp: profile.ftp, segments: workout.segmentsData)
         if let cached = ComplianceCache.shared.value(for: key) { return cached }
-        guard let seconds = rideSeconds(id: rideID),
+        // ANCHOR-REC: no planned-vs-actual from assumed watts (pulse-only recordings have no power seconds).
+        guard let seconds = rideSeconds(id: rideID), RecordingMerge.hasPower(seconds),
               let result = IntervalCompliance.analyze(definition: workout.definition, seconds: seconds, ftp: profile.ftp)
         else { return nil }
         ComplianceCache.shared.store(result, for: key)

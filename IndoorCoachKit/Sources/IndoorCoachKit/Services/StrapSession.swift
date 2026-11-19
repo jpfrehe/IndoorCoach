@@ -36,6 +36,8 @@ public final class StrapSession {
     private var recorder: StrapProtocolRecorder?
     private var appActive = true
     private var eventTask: Task<Void, Never>?   // ends with the stream; holds self weakly
+    // ANCHOR-REC: the event stream has one consumer (this session); the recording taps it here.
+    private var observers: [UUID: @MainActor (StrapEvent) -> Void] = [:]
 
     public init(controller: any HeartRateStrapControlling, now: @escaping @Sendable () -> Date = { .now }) {
         self.controller = controller
@@ -49,6 +51,18 @@ public final class StrapSession {
         }
     }
 
+
+    // MARK: Observers (ANCHOR-REC)
+
+    /// Calls `handler` for every strap event (after the session's own state is updated). Returns a token for `removeObserver`.
+    @discardableResult
+    public func addObserver(_ handler: @escaping @MainActor (StrapEvent) -> Void) -> UUID {
+        let token = UUID()
+        observers[token] = handler
+        return token
+    }
+
+    public func removeObserver(_ token: UUID) { observers[token] = nil }
 
     // MARK: Derived
 
@@ -141,6 +155,7 @@ public final class StrapSession {
             if let manufacturer, !manufacturer.isEmpty { self.manufacturer = manufacturer }
         }
         syncCounters()
+        for handler in observers.values { handler(event) }
     }
 
     private func syncCounters() {

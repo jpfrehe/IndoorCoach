@@ -21,12 +21,14 @@ struct RideZonesCard: View {
     var body: some View {
         if let zones = model.zoneTimes(for: ride) {
             let hasHeart = zones.heart != nil && zones.heartTotal > 0
-            let active = (mode == .heart && hasHeart) ? Mode.heart : Mode.power
+            // ANCHOR-REC: pulse-only rides (iPhone recording) show pulse zones only, not an empty power view.
+            let pulseOnly = hasHeart && !zones.hasPower
+            let active = ((mode == .heart || pulseOnly) && hasHeart) ? Mode.heart : Mode.power
             let rows = rows(zones, mode: active)
             let total = max(1, rows.map(\.seconds).reduce(0, +))
             let longest = max(1, rows.map(\.seconds).max() ?? 1)
             Card(title: "Zeit in Zonen", systemImage: "chart.bar.xaxis") {
-                if hasHeart {
+                if hasHeart, !pulseOnly {
                     Picker("Zonen", selection: $mode) {
                         ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
                     }
