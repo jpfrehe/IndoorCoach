@@ -13,7 +13,7 @@ extension AppModel {
         } else if healthEnabled, healthSource.isAvailable, start < now {
             resting = (try? await healthSource.dailyValues(.restingHR, in: start...now)) ?? []
         }
-        let pins = defaults.data(forKey: Self.wellnessPinsKey).flatMap { try? JSONDecoder().decode(HealthSourcePins.self, from: $0) } ?? HealthSourcePins()
+        let pins = self.pins // same pins as Datenquellen and Wellness (health.pins.v1)
         resting = HealthSourcePinning.filter(resting, pins: pins)
         let ref = profile.effectiveWarmupCheckWatts
         let checks = rides.filter(\.trainer).filter { $0.startDate >= start }.sorted { $0.startDate > $1.startDate }
