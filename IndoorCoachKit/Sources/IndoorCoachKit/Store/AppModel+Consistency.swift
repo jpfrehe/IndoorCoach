@@ -10,7 +10,7 @@ extension AppModel {
         return Consistency.evaluate(weeklyBudgetSeconds: profile.weeklyHours * 3600,
                                     rides: consistencyRides(rides.filter { $0.startDate >= start }),
                                     planned: consistencyPlanned(), seasonStart: start, now: now, calendar: calendar,
-                                    manualJokerWeeks: manualJokerWeeks)
+                                    manualJokerWeeks: manualJokerWeeks, sessions: consistencySessions())
     }
 
     static let manualJokerKey = "consistency.manualJokerWeeks.v1"
@@ -43,5 +43,15 @@ extension AppModel {
         ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? []).map {
             Consistency.PlannedItem(date: $0.date, tss: $0.definition.estimatedTSS, done: $0.status == .done || $0.linkedRideID != nil)
         }
+    }
+
+    /// Kraft- und andere Einheiten für die Wochen-Serie (≥ 2 Einheiten beliebiger Art halten die Woche).
+    func consistencySessions() -> [Consistency.Session] {
+        ((try? context.fetch(FetchDescriptor<StoredStrengthSession>())) ?? []).map { Consistency.Session(date: $0.start) }
+    }
+
+    /// Beginn aller Krafteinheiten (ohne „Andere Einheiten“) für die Trophäe Kraft-Winter.
+    func strengthSessionDates() -> [Date] {
+        ((try? context.fetch(FetchDescriptor<StoredStrengthSession>())) ?? []).filter { !$0.isOtherSport }.map(\.start)
     }
 }

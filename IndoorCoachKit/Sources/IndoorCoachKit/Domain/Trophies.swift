@@ -3,7 +3,7 @@ import Foundation
 /// Trophies (K3): computed on the fly from rides, challenges and the Winter Arc – nothing is stored.
 /// Every trophy has a condition text; earned ones also carry the date they were earned.
 public struct Trophy: Identifiable, Equatable, Sendable {
-    public enum Kind: String, Sendable { case challenge, level, streak, record, secondData }
+    public enum Kind: String, Sendable { case challenge, level, streak, record, secondData, strength }
 
     public var id: String
     public var kind: Kind
@@ -30,6 +30,7 @@ public struct Trophy: Identifiable, Equatable, Sendable {
 
 public enum Trophies {
     public static let streakMilestones = [4, 8, 12]
+    public static let strengthWinterTiers = [8, 16, 24]
 
     /// Day each Winter Arc level was first reached: level 1 on the season start, level n on the first day the best
     /// fitness since the start covers (n−1)/10 of the way to the target (same rule as `WinterArc.status`).
@@ -71,7 +72,8 @@ public enum Trophies {
 
     /// Every trophy, earned ones first (newest first), then locked ones in their natural order.
     public static func all(rides: [RideSummary], ftp: Int, arc: WinterArc.Status?, fitness: [FitnessFreshness.Point],
-                           now: Date = .now, calendar: Calendar = .current) -> [Trophy] {
+                           now: Date = .now, calendar: Calendar = .current,
+                           strengthDates: [Date] = []) -> [Trophy] {
         var list: [Trophy] = []
 
         // Challenges
@@ -98,6 +100,15 @@ public enum Trophies {
                 list.append(Trophy(id: "streak-\(n)", kind: .streak, title: "\(n) Wochen in Folge",
                                    condition: "\(n) Wochen in Folge dein Wochenziel halten", detail: nil, symbol: "flame",
                                    earnedOn: reached ? streakDate(milestone: n, streak: arc.streakWeeks, now: now, calendar: calendar) : nil))
+            }
+
+            // Kraft-Winter: Krafteinheiten im Zeitraum des Winter Arc (Start bis Ziel-Tag).
+            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: arc.goal)) ?? arc.goal
+            let inWinter = strengthDates.filter { $0 >= calendar.startOfDay(for: arc.start) && $0 < end }.sorted()
+            for n in strengthWinterTiers {
+                list.append(Trophy(id: "strengthWinter-\(n)", kind: .strength, title: "Kraft-Winter · \(n)",
+                                   condition: "\(n) Krafteinheiten im Winter", detail: inWinter.count >= n ? nil : "\(inWinter.count) von \(n)",
+                                   symbol: "dumbbell", earnedOn: inWinter.count >= n ? inWinter[n - 1] : nil))
             }
         }
 

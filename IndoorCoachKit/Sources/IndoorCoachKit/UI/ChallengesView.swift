@@ -10,7 +10,8 @@ extension AppModel {
 
     /// All trophies, earned ones first.
     func trophies(rides: [RideSummary], arc: WinterArc.Status?, now: Date = .now) -> [Trophy] {
-        Trophies.all(rides: rides, ftp: profile.ftp, arc: arc, fitness: fitnessSeries(rides: rides, now: now).points, now: now)
+        Trophies.all(rides: rides, ftp: profile.ftp, arc: arc, fitness: fitnessSeries(rides: rides, now: now).points, now: now,
+                       strengthDates: strengthSessionDates())
     }
 }
 
