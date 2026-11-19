@@ -118,3 +118,18 @@ Voraussetzung: Paket „HR · Brustgurt-Basis“ im Build, ein BLE-Brustgurt (TI
 | 19.11.2026, 1.1–2.4 | Brücke per `scripts/install-bridge.sh` installiert (Apple-Development-Zertifikat, kein Profil). Ordner freigegeben: macOS zeigte den Freigabe-Dialog (Wortlaut nicht notiert). Kopplung mit dem iPhone 17e im WLAN erfolgreich, Sekundendaten der heutigen Einheit in der App. |
 | 3.2 Dateiname | `MyNewActivity-<MyWhoosh-Version>.fit`, **eine Datei je App-Version**, jede neue Fahrt derselben Version überschreibt sie. Im Ordner lagen 6 Dateien (5.5.0 … 6.3.0, Dez. 2025 bis heute), alle mit Leistung, Puls und Kurve. Heute: `MyNewActivity-6.3.0.fit`, 45:06, Ø 122 W, NP 125 W. Die Brücke sichert jede neue Fassung in ihrem Ausgang. |
 | 2.4 „4 von 6“ | Die Brücke hat alle 6 Dateien gelesen und ausgeliefert (Protokoll). Wahrscheinlich war es der Banner „Vom Mac: 4 neu, 2 ergänzt“: Die Fahrten vom 14.05. und von heute kamen schon aus der MyWhoosh-Liste (210 Tage) und wurden ergänzt, die vier älteren neu angelegt. Gegenprobe offen: *Verlauf → Leistung* „X von Y Fahrten mit Sekundendaten“. |
+
+## Live Activity (B38)
+
+Voraussetzung: Einstellungen → IndoorCoach → „Live-Aktivitäten“ ist an. Für das Widget-Target `IndoorCoachWidgets` (Bundle-ID `app.indoorcoach.personal.widgets`) in Xcode dasselbe Team wie für die App wählen.
+
+| # | Schritt | Erwartung | ✓ |
+|---|---|---|---|
+| L.1 | Aufzeichnung starten (Gurt tragen), iPhone sperren | Sperrbildschirm zeigt Titel, laufende Zeit, Puls groß mit Herz | ☐ |
+| L.2 | Plan-Einheit: Block wechselt | Blockname und Restzeit-Countdown aktualisieren sich | ☐ |
+| L.3 | Gurt ausschalten oder weit weglegen | „Gurt getrennt“ in Gelb, Puls „–“; nach Wiederverbinden normal | ☐ |
+| L.4 | iPhone mit Dynamic Island, App verlassen | Kompakt: Herz + Puls; lang drücken: Puls, Titel, Zeit, Block | ☐ |
+| L.5 | VoiceOver auf dem Sperrbildschirm | Ein Satz: Titel, Puls, ggf. Gurt getrennt, Block mit Restzeit | ☐ |
+| L.6 | Live-Aktivitäten in den Einstellungen abschalten, neu aufzeichnen | Aufzeichnung läuft normal, keine Live Activity, kein Fehler | ☐ |
+| L.7 | Aufzeichnung beenden | Aktivität endet, Sperrbildschirm räumt nach ca. 1 min auf | ☐ |
+| L.8 | Dunkel- und Hellmodus | Immer dunkle Fläche, Schrift gut lesbar | ☐ |
