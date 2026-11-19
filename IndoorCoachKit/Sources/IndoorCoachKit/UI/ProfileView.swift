@@ -28,6 +28,13 @@ struct ProfileView: View {
                     }
                     .accessibilityIdentifier("profile.strap")
                 }
+                // ANCHOR-STRENGTH (Profil → Kraft)
+                Section("Training") {
+                    NavigationLink { StrengthSettingsView() } label: {
+                        Label("Kraft", systemImage: "dumbbell").frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("profile.strength")
+                }
                 // ANCHOR-K2-PROFIL (Erinnerungen)
                 ReminderSection()
 
