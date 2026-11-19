@@ -25,8 +25,6 @@ public struct TrendHint {
 extension AppModel {
     // MARK: Schlüssel und Orte
 
-    /// Pins je Kennzahl, geschrieben von `DefaultHealthSettings` (Datenquellen-Ansicht).
-    static let wellnessPinsKey = "dataSources.pins.v1"
     static let wellnessShadowKey = "wellness.shadow.enabled.v1"
     static let wellnessShadowHitsKey = "wellness.shadow.hits.v1"
     static let wellnessShadowDaysKey = "wellness.shadow.days.v1"
@@ -131,9 +129,7 @@ extension AppModel {
     // MARK: Trend
 
     /// Gepinnte Quelle je Kennzahl (Datenquellen-Ansicht); ohne Pin zählt die Quelle des neuesten Werts.
-    private func wellnessPins() -> HealthSourcePins {
-        defaults.data(forKey: Self.wellnessPinsKey).flatMap { try? JSONDecoder().decode(HealthSourcePins.self, from: $0) } ?? HealthSourcePins()
-    }
+    private func wellnessPins() -> HealthSourcePins { healthPins }
 
     /// Trend einer Kennzahl; leer (nie „fertig“), solange Health aus ist oder zu wenige Tage vorliegen.
     public func wellnessTrend(_ kind: HealthMetric, now: Date = .now) -> WellnessTrend {
@@ -184,7 +180,7 @@ extension AppModel {
     }
 
     /// Wertet den Wächter aus den Trends, dem letzten Check-in und (für S0) dem Aufwärm-Check aus. Ohne Health: ruhig.
-    /// `morningHRVSignal` überschreibt `AppModel.morningHRVSignalProvider` (Einhängepunkt für das Morgen-HRV-Paket).
+    /// `morningHRVSignal` überschreibt `AppModel.morningHRVSignalProvider`; Standard ist die Morgenmessung (`morningHRVSignal(now:)`).
     public func trendGuardResult(now: Date = .now, morningHRVSignal: (() -> Bool?)? = nil) -> TrendGuard.Result {
         guard healthEnabled else { return .quiet }
         let rhr = wellnessTrend(.restingHR, now: now)
@@ -197,8 +193,26 @@ extension AppModel {
                                      lastCheckInNegative: signals.lastNegative, lastCheckInInfection: signals.lastInfection,
                                      negativeCheckIns3Days: signals.negativeCount,
                                      warmupDeltaBpm: rhr.isReady ? nil : warmupDeltaBpm(now: now),
-                                     morningHRVSignal: (morningHRVSignal ?? Self.morningHRVSignalProvider)?())
+                                     morningHRVSignal: (morningHRVSignal ?? Self.morningHRVSignalProvider ?? { self.morningHRVSignal(now: now) })())
         return TrendGuard.evaluate(input)
+    }
+
+    // MARK: Erholungskontext
+
+    /// Schlaf, Ruhepuls und HRV als Mittel der letzten 7 Tage gegen die eigene Basis, dazu der Wächter; `nil` ohne Health oder Werte.
+    /// Bleibt auf dem Gerät; nur `RecoverySummary` (relativ, gerundet) geht mit Einwilligung an Claude.
+    func recoveryWellnessFromHealth(now: Date = .now) -> RecoveryWellness? {
+        guard healthEnabled else { return nil }
+        let sleep = wellnessTrend(.sleepHours, now: now)
+        let rhr = wellnessTrend(.restingHR, now: now)
+        let hrv = wellnessTrend(.hrvSDNN, now: now)
+        var w = RecoveryWellness()
+        if sleep.isReady, let recent = sleep.mean7, let base = sleep.baseline { w.sleepRecentHours = recent; w.sleepBaselineHours = base }
+        if rhr.isReady, let recent = rhr.mean7, let base = rhr.baseline { w.restingHRRecent = recent; w.restingHRBaseline = base }
+        if hrv.isReady, let recent = hrv.lnMean7, let base = hrv.lnBaseline { w.hrvRecent = exp(recent); w.hrvBaseline = exp(base) }
+        w.trendGuardActive = trendGuardResult(now: now).isTriggered
+        let hasValues = w.sleepRecentHours != nil || w.restingHRRecent != nil || w.hrvRecent != nil
+        return hasValues || w.trendGuardActive ? w : nil
     }
 
     // MARK: Karte „Heute“
