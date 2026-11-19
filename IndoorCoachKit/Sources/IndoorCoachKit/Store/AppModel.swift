@@ -798,6 +798,7 @@ public final class AppModel {
         result.strength = strengthWeekSummary(now: now, horizonStart: start, horizonEnd: end, calendar: calendar) // ANCHOR-W3C
         result.otherSports = OtherSportSummary.summaries(from: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
                                                          today: today, calendar: calendar) // ANCHOR-W3C
+        result.recovery = consentedRecoverySummary(now: now) // ANCHOR-W4C (nur mit Einwilligung)
         return result
     }
 

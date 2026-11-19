@@ -179,6 +179,7 @@ struct PlanGeneratorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var wish = ""
     @State private var startToday = false
+    @State private var showConsent = false // ANCHOR-W4C
     /// Cached so typing in the wish field does not re-run fetches and load calculations.
     @State private var ctx: PlanContext?
 
@@ -259,11 +260,17 @@ struct PlanGeneratorSheet: View {
         .scrollContentBackground(.hidden)
         .background(Theme.canvas)
         .scrollDismissesKeyboard(.interactively)
+        .sheet(isPresented: $showConsent) { // ANCHOR-W4C
+            ClaudeConsentSheet { Task { await model.generatePlan(wish: wish, startToday: startToday) } }
+        }
         // Primary action stays visible above the keyboard instead of sitting below the fold.
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 6) {
                 Button {
-                    Task { await model.generatePlan(wish: wish, startToday: startToday) }
+                    // ANCHOR-W4C: beim ersten Planen mit Claude nach der Einwilligung fragen
+                    if model.hasClaudeKey, model.needsClaudeConsentPrompt() { showConsent = true } else {
+                        Task { await model.generatePlan(wish: wish, startToday: startToday) }
+                    }
                 } label: {
                     HStack {
                         if model.isPlanning {

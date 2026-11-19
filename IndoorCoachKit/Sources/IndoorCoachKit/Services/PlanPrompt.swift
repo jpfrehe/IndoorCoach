@@ -98,6 +98,8 @@ public struct PlanContext: Sendable {
     public var strength: StrengthWeekSummary? = nil
     /// Aerobe Fremdsportarten der letzten 14 Tage (W3-C).
     public var otherSports: [OtherSportSummary] = []
+    /// Erholungskontext der letzten 14 Tage (W4-C), relativ und gerundet. Nur mit Einwilligung gesetzt, sonst `nil`.
+    public var recovery: RecoverySummary? = nil
 
     public init(profile: AthleteProfile, today: Date, horizonStart: Date, horizonEnd: Date,
                 load: TrainingLoad.DayLoad?, weeks: [TrainingLoad.WeekSummary], recentRides: [RideSummary],
@@ -144,6 +146,10 @@ public enum PlanPrompt {
       · Geplante Studio-Tage einplanen: Studio-Tage gelten vorsorglich als Beintage, am Folgetag eines Studio-Tags keine harte \
         Einheit (Sweet Spot und härter), wenn vermeidbar.
       · Fremdbelastung (z. B. Laufen) zählt zur Wochenlast und zur Erholungsbilanz; plane danach entsprechend weniger Rad-TSS.
+    - Erholung (Abschnitt "Erholung (14 Tage, relativ)", falls vorhanden): Hinweise auf schlechtere Erholung (weniger Schlaf, \
+    höherer Ruhepuls, niedrigere HRV, schwere Beine, aktiver Trend-Wächter) führen zu konservativerer Progression: \
+    Intensität und Umfang zurücknehmen, nicht ganze Einheiten streichen. Triff keine Diagnosen und nenne keine Krankheiten; \
+    das sind relative Hinweise, keine Messwerte. Nenne die Erholung in der Begründung (rationale), wenn sie die Planung beeinflusst hat.
     - Optional "text" in Segmenten für kurze Hinweise, die während der Fahrt eingeblendet werden (max. 60 Zeichen).
     """
 
@@ -272,6 +278,11 @@ public enum PlanPrompt {
             }
         }
 
+        if let recovery = ctx.recovery, !recovery.isEmpty {
+            lines.append("")
+            lines.append(contentsOf: recoverySection(recovery))
+        }
+
         if !ctx.alreadyPlanned.isEmpty {
             lines.append("")
             lines.append("## Bereits geplant (nicht erneut planen)")
@@ -286,6 +297,11 @@ public enum PlanPrompt {
         let wish = ctx.wish.trimmingCharacters(in: .whitespacesAndNewlines)
         if !wish.isEmpty { lines.append("Wunsch des Athleten: \(wish)") }
         return lines.joined(separator: "\n")
+    }
+
+    /// Abschnitt „Erholung“ samt Überschrift; auch die Vorschau in Profil und Einwilligung zeigt genau diese Zeilen.
+    public static func recoverySection(_ recovery: RecoverySummary) -> [String] {
+        ["## Erholung (14 Tage, relativ)"] + recovery.promptLines
     }
 
     // MARK: Response parsing & validation
