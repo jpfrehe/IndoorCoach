@@ -60,6 +60,7 @@ struct TodayDashboard: View {
 
             if model.isDemoMode && !Self.showcase { demoHint }
             nextWorkoutCard(next)
+            MorningMeasurementRow() // ANCHOR-W4B (Morgenmessung HRV, nur aktiviert, vor 11 Uhr)
             CheckInCard() // ANCHOR-CHECKIN
             StrengthQuickStartRow() // ANCHOR-STRENGTH (Schnellstart Kraft / Andere Einheit)
             HealthAnnotationCard() // ANCHOR-W3B (Kraft aus Apple Health: wie hart? Beine?)

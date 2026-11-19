@@ -29,6 +29,7 @@ struct StrapDetailView: View {
                 Text("Akku unter 20 %. Wechsle bald die Batterie, sonst bricht die Verbindung ab.").font(.footnote).foregroundStyle(.orange)
             }
         }
+        MorningMeasurementSettings(session: session) // ANCHOR-W4B
         multiConnectionSection
         Section {
             Button("Trennen") { session.disconnect() }
