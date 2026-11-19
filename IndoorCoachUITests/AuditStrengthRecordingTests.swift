@@ -32,7 +32,7 @@ final class AuditStrengthRecordingTests: AuditCase {
         check(waitFast(start, timeout: 10), "Aufzeichnung bereit")
         check(!element("recording.noStrap").exists, "Gurt gekoppelt: kein Hinweis")
         tap(element("strength.checklist.add"), "Übung hinzufügen")
-        tap(element("strength.pick.bench_press"), "Bankdrücken")
+        pickExercise(id: "bench_press", name: "Bankdrücken")
         tap(start, "Start")
         check(waitFast(element("recording.pulse"), timeout: 10), "Puls sichtbar")
         tap(element("strength.checklist.bench_press"), "Bankdrücken abhaken")
@@ -49,7 +49,7 @@ final class AuditStrengthRecordingTests: AuditCase {
 
         openTab("Verlauf")
         route = "verlauf"
-        tap(app.buttons["Kraft"], "Filter Kraft")
+        tap(visibleButton("Kraft"), "Filter Kraft")
         let entry = element("history.strength.row")
         check(entry.waitForExistence(timeout: 4), "Aufgezeichnete Krafteinheit im Verlauf")
         tap(entry, "Detail öffnen")

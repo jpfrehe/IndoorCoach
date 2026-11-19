@@ -6,8 +6,9 @@ final class AuditAdjustTests: AuditCase {
 
     /// The "Dauer" tile value of the workout detail (the label next to the "Dauer" caption).
     private func durationValue() -> String {
+        // Heute bleibt beim Push im Baum (Wochenzeit „1:03 h“, Karte „1:09 h“): nur sichtbare Kacheln zählen.
         let tiles = app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", #"^(\d+ min|\d+:\d\d h|\d+:\d\d min)$"#))
-        return tiles.firstMatch.exists ? tiles.firstMatch.label : ""
+        return tiles.allElementsBoundByIndex.first { $0.isHittable }?.label ?? ""
     }
 
     private func openNextWorkout() {

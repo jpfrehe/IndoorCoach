@@ -247,6 +247,7 @@ public struct RecordingResultCard: View {
             if result.kind == .ride, let definition = result.definitionForAnalysis(model) { ergCard(definition) }
         }
         .padding(.top, 8)
+        .accessibilityElement(children: .contain) // sonst überdeckt die Kennung die der Unterelemente (source, pending, powerHint)
         .accessibilityIdentifier("recording.result")
     }
 
@@ -273,6 +274,7 @@ public struct RecordingResultCard: View {
                     .font(.subheadline)
                 powerHint
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("recording.pending")
         default:
             EmptyView()

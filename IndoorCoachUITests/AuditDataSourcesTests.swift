@@ -17,8 +17,10 @@ final class AuditDataSourcesTests: AuditCase {
         check(toggle.waitForExistence(timeout: 5), "Schalter Apple Health")
         tap(toggle, "Apple Health einschalten")
 
-        let sources = scrollUntilExists(element("dataSources.sources"))
-        check(sources.waitForExistence(timeout: 5), "Erkannte Quellen erscheinen nach dem Einschalten")
+        // Die Quellen laden nach dem Einschalten asynchron: erst abwarten, dann scrollen (sonst rauscht man daran vorbei).
+        let sources = element("dataSources.sources")
+        if !waitFast(sources, timeout: 8) { _ = scrollUntilExists(sources) }
+        check(sources.exists, "Erkannte Quellen erscheinen nach dem Einschalten")
         check(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Apple Watch'")).firstMatch.waitForExistence(timeout: 4),
               "Apple Watch als Quelle")
         shot("quellen")

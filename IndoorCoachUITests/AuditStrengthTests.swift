@@ -34,7 +34,7 @@ final class AuditStrengthTests: AuditCase {
         tap(element("strength.template.new"), "Neue Vorlage")
         type(element("strength.template.name"), "Push", "Name")
         tap(element("strength.checklist.add"), "Übung hinzufügen")
-        tap(element("strength.pick.bench_press"), "Bankdrücken")
+        pickExercise(id: "bench_press", name: "Bankdrücken")
         tap(element("strength.template.save"), "Vorlage speichern")
         check(element("strength.template.Push").waitForExistence(timeout: 3), "Vorlage erscheint in der Liste")
         shot("vorlagen")
@@ -53,7 +53,7 @@ final class AuditStrengthTests: AuditCase {
 
         openTab("Verlauf")
         route = "verlauf"
-        tap(app.buttons["Kraft"], "Filter Kraft")
+        tap(visibleButton("Kraft"), "Filter Kraft")
         let entry = element("history.strength.row")
         check(entry.waitForExistence(timeout: 3), "Krafteinheit im Verlauf")
         tap(entry, "Detail öffnen")

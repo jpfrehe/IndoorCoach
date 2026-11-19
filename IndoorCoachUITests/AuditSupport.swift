@@ -67,7 +67,9 @@ class AuditCase: XCTestCase {
 
     @discardableResult
     func tap(_ element: XCUIElement, _ description: String, timeout: TimeInterval = 6) -> Bool {
-        guard element.waitForExistence(timeout: timeout) else {
+        // Träge Listen/Formulare halten Zeilen außerhalb des Bildschirms nicht bereit: erst kurz warten, dann bis dahin scrollen.
+        if !element.waitForExistence(timeout: min(timeout, 3)) { _ = scrollUntilExists(element, maxSwipes: 6) }
+        guard element.exists else {
             check(false, "Element nicht gefunden: \(description)")
             return false
         }
@@ -147,6 +149,26 @@ class AuditCase: XCTestCase {
             usleep(100_000)
         }
         return false
+    }
+
+    /// Wählt eine Übung im Katalog-Sheet über die Suche (die lange, träge Liste hält Zeilen außerhalb des Bildschirms
+    /// nicht bereit – ohne Suchbegriff wäre der Treffer sonst abhängig von der Scrollposition).
+    func pickExercise(id: String, name: String) {
+        let search = app.searchFields.firstMatch
+        if search.waitForExistence(timeout: 4) {
+            search.tap()
+            search.typeText(name)
+            log("Searched exercise", name)
+        } else {
+            check(false, "Suchfeld im Übungskatalog nicht gefunden")
+        }
+        tap(app.descendants(matching: .any).matching(identifier: "strength.pick.\(id)").firstMatch, name)
+    }
+
+    /// Sichtbarer Knopf mit genau diesem Titel (derselbe Titel kann auch auf einem verdeckten Bildschirm im Baum stehen).
+    func visibleButton(_ label: String) -> XCUIElement {
+        let all = app.buttons.matching(NSPredicate(format: "label == %@", label)).allElementsBoundByIndex
+        return all.first { $0.isHittable } ?? app.buttons[label].firstMatch
     }
 
     func button(containing text: String) -> XCUIElement {

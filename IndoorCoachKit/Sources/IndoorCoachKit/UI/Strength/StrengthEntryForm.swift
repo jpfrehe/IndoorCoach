@@ -77,15 +77,19 @@ struct StrengthEntryForm: View {
             Section("Notiz") {
                 TextField("Optional", text: $note, axis: .vertical).lineLimit(1...3)
             }
-            Section {
-                Button { save() } label: { Text("Speichern").frame(maxWidth: .infinity) }
-                    .buttonStyle(.jelly)
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("strength.entry.save")
-            }
         }
         .scrollContentBackground(.hidden)
         .background(Theme.canvas)
+        // „Speichern“ bleibt am unteren Rand stehen: Das Formular ist lang, der Knopf darf nicht erst nach dem
+        // Scrollen erreichbar sein (Nachtragen in unter 15 s).
+        .safeAreaInset(edge: .bottom) {
+            Button { save() } label: { Text("Speichern").frame(maxWidth: .infinity) }
+                .buttonStyle(.jelly)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
+                .accessibilityIdentifier("strength.entry.save")
+        }
         .navigationTitle(kind == .strength ? "Kraft nachtragen" : "Andere Einheit")
         .inlineNavigationTitle()
         .onChange(of: exercises) { _, new in

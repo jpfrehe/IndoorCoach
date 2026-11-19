@@ -133,6 +133,7 @@ struct DataSourcesView: View {
             }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("dataSources.sources") // ein Abschnitts-Identifier erreicht kombinierte Zeilen nicht
     }
 
     private func pinPicker(metric: HealthMetric, rows: [HealthSourceUsage]) -> some View {

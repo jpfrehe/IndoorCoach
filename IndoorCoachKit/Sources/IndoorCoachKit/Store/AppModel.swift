@@ -385,10 +385,12 @@ public final class AppModel {
         try? context.delete(model: StoredRide.self)
         try? context.delete(model: StoredWorkout.self)
         deleteAllStrengthData() // ANCHOR-STRENGTH
+        try? context.delete(model: StoredCheckIn.self) // Check-in vom selben Tag würde die Karte „Heute“ verstecken
         try? context.save()
         // Every UI test starts clean: also forget dismissed reviews, import state and sync dates from earlier runs
         // (onboarding has its own override, see applyUITestOnboardingOverride).
         for key in Keys.all where key != Keys.onboardingCompleted { defaults.removeObject(forKey: key) }
+        for key in Self.uiFlagKeys { defaults.removeObject(forKey: key) } // z. B. „Gurt-Erklärung gesehen“
         resetHealthState() // ANCHOR-W3B
         lastSync = nil
         hasImportedRides = false

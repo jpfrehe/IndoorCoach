@@ -40,6 +40,8 @@ final class AuditRecordingTests: AuditCase {
 
         let pulse = element("recording.pulse")
         check(waitFast(pulse, timeout: 10), "Puls groß sichtbar")
+        let spoken = NSPredicate(format: "label CONTAINS 'Schläge pro Minute'")
+        _ = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: spoken, object: pulse)], timeout: 10)
         check(pulse.label.contains("Schläge pro Minute"), "Puls vorgelesen (\(pulse.label))")
         check(element("recording.elapsed").exists, "Zeit läuft")
         check(element("recording.connection").exists, "Verbindungsstatus")
