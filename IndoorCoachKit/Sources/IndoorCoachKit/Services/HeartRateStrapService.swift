@@ -9,6 +9,8 @@ import Foundation
 
 public enum StrapUnavailableReason: Equatable, Sendable {
     case bluetoothOff, unauthorized, unsupported
+    /// Der gemerkte Gurt wurde nach dem Rückfall-Scan (60 s) nicht gefunden.
+    case notFound
 }
 
 public enum StrapConnectionState: Equatable, Sendable {
@@ -98,6 +100,7 @@ public final class CoreBluetoothStrapController: NSObject, HeartRateStrapControl
     private var wantsConnection = false
     private var wantsScan = false
     private var pendingConnectID: UUID?
+    private var plan = StrapReconnectPlan()
     private var manufacturerName: String?
     private var modelName: String?
 
@@ -129,6 +132,7 @@ public final class CoreBluetoothStrapController: NSObject, HeartRateStrapControl
         queue.async { [self] in
             wantsConnection = true
             pendingConnectID = id
+            plan.connectRequested(id)
             ensureCentral()
             connectPendingIfPossible()
         }
@@ -138,6 +142,7 @@ public final class CoreBluetoothStrapController: NSObject, HeartRateStrapControl
         queue.async { [self] in
             wantsConnection = false
             pendingConnectID = nil
+            plan.cancel()
             if let peripheral { central?.cancelPeripheralConnection(peripheral) }
             peripheral = nil
             continuation.yield(.state(.idle))
@@ -167,15 +172,28 @@ public final class CoreBluetoothStrapController: NSObject, HeartRateStrapControl
         guard wantsConnection, let central, central.state == .poweredOn, let id = pendingConnectID else { return }
         let target = known[id] ?? central.retrievePeripherals(withIdentifiers: [id]).first
         guard let target else {
-            // Not known to this phone any more (e.g. after "forget" on the iPhone side): fall back to scanning.
-            wantsScan = true
-            beginScanIfPossible()
+            // Not known to this phone any more (e.g. after "forget" on the iPhone side): scan for the saved strap,
+            // limited to 60 s (`StrapReconnectPlan`). `didDiscover` connects as soon as it shows up.
+            if case .startFallbackScan(let deadline) = plan.peripheralUnknown(now: .now) {
+                wantsScan = true
+                beginScanIfPossible()
+                queue.asyncAfter(deadline: .now() + max(0, deadline.timeIntervalSinceNow) + 0.1) { [self] in fallbackTimerFired() }
+            }
             return
         }
         peripheral = target
         target.delegate = self
         continuation.yield(.state(.connecting))
         central.connect(target)   // a pending connect never times out; it completes when the strap is in range
+    }
+
+    private func fallbackTimerFired() {
+        guard case .reportNotFound = plan.fallbackTimerFired(now: .now) else { return }
+        wantsScan = false
+        wantsConnection = false
+        pendingConnectID = nil
+        central?.stopScan()
+        continuation.yield(.state(.unavailable(.notFound)))
     }
 
     private func reconnect() {
@@ -203,10 +221,17 @@ extension CoreBluetoothStrapController: CBCentralManagerDelegate {
         known[peripheral.identifier] = peripheral
         let name = peripheral.name ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? "Pulsgurt"
         continuation.yield(.discovered(DiscoveredStrap(id: peripheral.identifier, name: name, rssi: RSSI.intValue)))
+        // Rückfall-Scan nach dem gemerkten Gurt: gefunden → verbinden, Scan beenden.
+        if case .connect = plan.discovered(peripheral.identifier) {
+            wantsScan = false
+            central.stopScan()
+            connectPendingIfPossible()
+        }
     }
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         store.savedID = peripheral.identifier
+        plan.connected()
         wantsScan = false
         central.stopScan()
         continuation.yield(.state(.connected))
@@ -214,7 +239,10 @@ extension CoreBluetoothStrapController: CBCentralManagerDelegate {
     }
 
     public func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        reconnect()
+        // Mit wachsendem Abstand (2/5/10/30 s) erneut versuchen, nicht sofort in einer Schleife.
+        guard case .retryConnect(let delay) = plan.connectFailed() else { return }
+        continuation.yield(.state(.reconnecting))
+        queue.asyncAfter(deadline: .now() + delay) { [self] in reconnect() }
     }
 
     public func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {

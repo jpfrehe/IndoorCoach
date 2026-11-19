@@ -51,5 +51,6 @@ struct ProtectedFileTests {
         let file = dir.appendingPathComponent(AppModel.wellnessCacheFile)
         #expect(FileManager.default.fileExists(atPath: file.path))
         #expect(ProtectedFile.isExcludedFromBackup(file))
+        model.resetWellnessState()   // der Wellness-Zustand liegt in einer statischen Tabelle je Modell-Adresse
     }
 }

@@ -143,6 +143,7 @@ struct DevicesView: View {
         case .bluetoothOff: "Bluetooth ist ausgeschaltet. Schalte es in den iPhone-Einstellungen oder im Kontrollzentrum ein."
         case .unauthorized: "IndoorCoach darf Bluetooth nicht nutzen. Erlaube es in den iPhone-Einstellungen unter IndoorCoach."
         case .unsupported: "Dieses Gerät unterstützt kein Bluetooth Low Energy."
+        case .notFound: "Der gekoppelte Gurt wurde nicht gefunden. Gurt anfeuchten oder anlegen, Bluetooth prüfen und erneut verbinden."
         }
     }
 
