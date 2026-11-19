@@ -293,7 +293,8 @@ extension AppModel {
         let name = "\(HealthImport.germanName(for: workout.activityTypeName)) (\(workout.sourceName))"
         var ride = RideSummary(id: id, name: name, sportType: HealthImport.sportType(for: workout.activityTypeName),
                                startDate: workout.start, movingTime: Int(workout.end.timeIntervalSince(workout.start).rounded()),
-                               distance: 0, averageHeartrate: workout.avgHR, maxHeartrate: workout.maxHR, trainer: false)
+                               distance: 0, averageHeartrate: workout.avgHR, maxHeartrate: workout.maxHR,
+                               trainer: workout.isIndoorCycling)   // Rolle: zählt als Indoor und kann den iPhone-Puls bekommen
         ride.healthUUID = workout.uuid.uuidString
         if let estimate {
             ride.foreignSport = workout.activityTypeName

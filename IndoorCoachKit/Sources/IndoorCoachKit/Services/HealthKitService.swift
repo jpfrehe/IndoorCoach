@@ -220,7 +220,8 @@ public final class HealthKitService: HealthDataSource, @unchecked Sendable {
             isOwnSource: source == HKSource.default(),
             avgHR: hr?.averageQuantity()?.doubleValue(for: bpm),
             maxHR: hr?.maximumQuantity()?.doubleValue(for: bpm),
-            energyKcal: w.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie()))
+            energyKcal: w.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie()),
+            isIndoor: (w.metadata?[HKMetadataKeyIndoorWorkout] as? NSNumber)?.boolValue ?? false)
     }
 
     // MARK: Puls

@@ -171,7 +171,7 @@ extension AppModel {
         let since = profile.warmupCheckBaseSince
         let rides = allRides().filter { $0.trainer && $0.startDate >= (since ?? .distantPast) && $0.startDate <= now }
             .sorted { $0.startDate > $1.startDate }.prefix(60)
-        let checks = rides.compactMap { warmupCheck(for: $0) }.filter(\.valid)
+        let checks = rides.compactMap { warmupCheck(for: $0) }.filter { $0.valid && $0.source == .measured }
         guard let newest = checks.map(\.date).max(), newest >= from else { return nil }
         return TrendGuard.warmupDelta(checks: checks, refWatts: profile.effectiveWarmupCheckWatts)
     }

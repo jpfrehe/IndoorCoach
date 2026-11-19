@@ -45,15 +45,16 @@ extension AppModel {
         return result
     }
 
-    /// Trend over the indoor rides since the baseline date (newest 120 rides at most).
-    public func warmupTrend(rides: [RideSummary]? = nil) -> WarmupCheck.Trend {
+    /// Trend over the indoor rides since the baseline date (newest 120 rides at most). Standard: nur gemessene Werte
+    /// (Erholungskontext, Wächter); `.assumedERG` liefert den getrennten Trend der angenommenen Leistung (nur Anzeige).
+    public func warmupTrend(rides: [RideSummary]? = nil, source: WarmupCheck.Source = .measured) -> WarmupCheck.Trend {
         let ref = profile.effectiveWarmupCheckWatts
         let since = profile.warmupCheckBaseSince
         let candidates = (rides ?? allRides())
             .filter { $0.trainer && $0.startDate >= (since ?? .distantPast) }
             .sorted { $0.startDate > $1.startDate }
             .prefix(120)
-        return WarmupCheck.trend(checks: candidates.compactMap { warmupCheck(for: $0) }, refWatts: ref, since: since)
+        return WarmupCheck.trend(checks: candidates.compactMap { warmupCheck(for: $0) }, refWatts: ref, since: since, source: source)
     }
 
     /// "Neue Basis ab heute": reference power from the current FTP, older measurements no longer count.

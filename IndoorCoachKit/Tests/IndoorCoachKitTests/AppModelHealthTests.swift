@@ -403,4 +403,28 @@ struct AppModelHealthTests {
         let fresh = relaunch(model, defaults)
         #expect(!fresh.healthEnabled && fresh.healthCandidates.isEmpty)
     }
+
+    // MARK: Indoor-Rad aus Health (Befund 5)
+
+    @Test func indoorHealthCyclingIsImportedAsTrainerRideAndTakesThePhonePulse() async throws {
+        var indoor = workout("cycling", start: -7200, minutes: 30, hr: 120)
+        indoor.isIndoor = true
+        var outdoor = workout("cycling", start: -86_400, minutes: 60, hr: 130)
+        outdoor.isIndoor = false
+        let named = workout("indoorCycling", start: -172_800, minutes: 45, hr: 125)
+        let (model, _) = try makeModel(source: FakeHealthSource([indoor, outdoor, named]))
+        model.healthEnabled = true
+        await model.syncHealth(now: now)
+        let rows = rides(model)
+        #expect(rows.count == 3)
+        #expect(rows.first { $0.startDate == indoor.start }?.trainer == true)
+        #expect(rows.first { $0.startDate == outdoor.start }?.trainer == false)
+        #expect(rows.first { $0.startDate == named.start }?.trainer == true)
+        // iPhone-Puls aus der Aufzeichnung findet die Health-Radfahrt.
+        let seconds = 1800
+        let recording = RecordingResult(kind: .ride, title: "Rolle", startedAt: indoor.start, endedAt: indoor.start.addingTimeInterval(TimeInterval(seconds)),
+                                        seconds: RideSeconds(power: [UInt16](repeating: 0, count: seconds), heartRate: [UInt8](repeating: 140, count: seconds)))
+        let id = try #require(rows.first { $0.startDate == indoor.start }?.stravaID)
+        #expect(model.finishRecording(recording) == .attached(rideID: id))
+    }
 }

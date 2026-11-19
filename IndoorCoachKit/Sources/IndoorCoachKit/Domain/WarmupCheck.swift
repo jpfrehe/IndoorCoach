@@ -112,7 +112,7 @@ public struct WarmupCheck: Equatable, Sendable {
     public static func evaluate(date: Date, definition: WorkoutDefinition?, seconds: RideSeconds,
                                 ftp: Int, refWatts: Int) -> WarmupCheck? {
         guard refWatts > 0, ftp > 0 else { return nil }
-        let hasPower = seconds.power.reduce(0) { $0 + ($1 > 0 ? 1 : 0) } >= max(60, seconds.count / 4)
+        let hasPower = seconds.hasPower
 
         if let definition, let planned = blockStart(in: definition) {
             if hasPower {
@@ -208,10 +208,12 @@ public struct WarmupCheck: Equatable, Sendable {
 
     /// Median-based trend of the valid checks at `refWatts` (optionally only since a baseline date). From
     /// `minChecksForTrend` measurements the median of the older half is compared with the newer half.
-    public static func trend(checks: [WarmupCheck], refWatts: Int, since: Date? = nil) -> Trend {
+    /// `source` beschränkt den Trend auf gemessene oder auf angenommene (ERG) Werte; `nil` = alle (nur zur Anzeige).
+    public static func trend(checks: [WarmupCheck], refWatts: Int, since: Date? = nil, source: Source? = nil) -> Trend {
         let used = checks
             .filter { check in
                 check.valid && check.hrMean != nil && check.refWatts == refWatts && (since.map { check.date >= $0 } ?? true)
+                    && (source.map { check.source == $0 } ?? true)
             }
             .sorted { $0.date < $1.date }
         let values = used.compactMap(\.hrMean)

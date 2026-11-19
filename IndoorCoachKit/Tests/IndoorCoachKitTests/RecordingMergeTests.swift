@@ -36,6 +36,19 @@ struct RecordingMergeTests {
         #expect(RecordingMerge.bestMatch(for: rec, in: [ride(trainer: false)]) == nil)
     }
 
+    @Test("Health-Radfahrt passt (auch ohne Indoor-Kennzeichen), Health-Fremdsport und Outdoor-Fahrt ohne Health nicht")
+    func healthRides() {
+        let rec = stored()
+        var health = ride(id: 5, trainer: false)
+        health.healthUUID = UUID().uuidString
+        #expect(RecordingMerge.bestMatch(for: rec, in: [health])?.id == 5)
+        var run = ride(id: 6, trainer: false)
+        run.healthUUID = UUID().uuidString
+        run.foreignSport = "running"
+        #expect(RecordingMerge.bestMatch(for: rec, in: [run]) == nil)
+        #expect(RecordingMerge.bestMatch(for: rec, in: [ride(id: 7, trainer: false)]) == nil)
+    }
+
     // MARK: Ausrichtung
 
     @Test("Grundversatz: Fahrt startet später → führende Pulssekunden fallen weg")

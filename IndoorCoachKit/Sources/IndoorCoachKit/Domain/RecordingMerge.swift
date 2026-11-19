@@ -74,7 +74,8 @@ public enum RecordingMerge {
 
     // MARK: Matching
 
-    /// The indoor ride that best fits the recording: start within ±30 min, similar duration; nearest start wins.
+    /// The indoor ride (or Health cycling ride, never another sport) that best fits the recording: start within ±30 min,
+    /// similar duration; nearest start wins.
     public static func bestMatch(for recording: StoredRecording, in rides: [RideSummary]) -> RideSummary? {
         let duration = recording.duration
         func gap(_ r: RideSummary) -> TimeInterval { abs(r.startDate.timeIntervalSince(recording.startedAt)) }
@@ -82,7 +83,8 @@ public enum RecordingMerge {
             let d = Double(r.movingTime)
             return abs(d - duration) <= 600 || (duration > 0 && d / duration >= 0.6 && d / duration <= 1.5)
         }
-        return rides.filter { $0.isIndoor && gap($0) <= matchWindow && similar($0) }.min { gap($0) < gap($1) }
+        return rides.filter { ($0.isIndoor || $0.healthUUID != nil) && !$0.isForeignSport && gap($0) <= matchWindow && similar($0) }
+            .min { gap($0) < gap($1) }
     }
 
     // MARK: Alignment
@@ -127,9 +129,7 @@ public enum RecordingMerge {
     // MARK: Combining
 
     /// Real power exists (not just the zeros of a pulse-only recording).
-    public static func hasPower(_ seconds: RideSeconds) -> Bool {
-        seconds.power.reduce(0) { $0 + ($1 > 0 ? 1 : 0) } >= max(1, min(10, seconds.count / 10))
-    }
+    public static func hasPower(_ seconds: RideSeconds) -> Bool { seconds.hasPower }
 
     /// Pulse of the iPhone onto a ride's seconds: power is never touched, the existing pulse wins, the iPhone pulse
     /// only fills seconds without a value. `heartRate` is already aligned to the ride timeline.
