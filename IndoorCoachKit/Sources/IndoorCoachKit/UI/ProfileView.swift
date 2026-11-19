@@ -42,6 +42,8 @@ struct ProfileView: View {
                     }
                     .accessibilityIdentifier("profile.dataSources")
                 }
+                // ANCHOR-W4C (Profil → Datenschutz: Claude-Einwilligung)
+                ClaudePrivacySection()
                 // ANCHOR-K2-PROFIL (Erinnerungen)
                 ReminderSection()
 

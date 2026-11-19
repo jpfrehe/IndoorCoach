@@ -74,11 +74,27 @@ Technische Grundlage: Runner `xcode-27` (macOS 27, nur arm64, Xcode 27.2 unter `
 
 ## 8. App-Datenschutz („App Privacy“) in App Store Connect
 
-Empfohlene Antwort: **„Daten werden nicht erfasst“ (Data Not Collected)**.
+Empfohlene Antwort bis Stand Paket O4: **„Daten werden nicht erfasst“ (Data Not Collected)**. Mit Health, Kraft, Check-ins und dem Claude-Erholungskontext gilt stattdessen die Tabelle im Unterabschnitt „App-Datenschutzangaben (Gesundheit & Fitness)“ weiter unten.
 
 Begründung: Der Entwickler betreibt keine Server und erhält keine Daten. Apple definiert „Erfassen“ als Übertragung an den Entwickler oder Dritte in dessen Auftrag. Anfragen an Anthropic, Strava und MyWhoosh gehen direkt vom Gerät mit den eigenen Zugangsdaten des Nutzers; keine SDKs, kein Tracking (`NSPrivacyTracking = false`). Apple kann dennoch Rückfragen stellen; halte die Begründung bereit. Das Privacy-Manifest `App/PrivacyInfo.xcprivacy` deklariert `UserDefaults` mit Grund `CA92.1`. Prüfung am Code: keine Datei-Zeitstempel-, Systemstart- oder Speicherplatz-APIs im Kit (Stand 18.11.2026). Bei neuem Code neu prüfen.
 
 Weiter: Datenschutz-URL = `https://github.com/jpfrehe/IndoorCoach/blob/main/docs/PRIVACY.md` (Entwurf erst prüfen, Impressumsdaten ergänzen; die URL muss ohne Anmeldung erreichbar sein).
+
+### App-Datenschutzangaben (Gesundheit & Fitness)
+
+Seit den Paketen Brustgurt, Apple Health, Kraft, Check-ins und Claude-Erholungskontext (W4-C) gilt für App Store Connect: Weil Gesundheits- und Fitnessdaten (mit Einwilligung) an Anthropic gehen, ist „Data Not Collected“ nicht mehr haltbar. Empfohlene Angaben unter „App-Datenschutz“:
+
+| Datentyp | Erfasst? | Mit Identität verknüpft | Tracking | Zweck |
+|---|---|---|---|---|
+| Gesundheit (Health) | Ja (relativer Erholungskontext, nur mit Einwilligung) | Nein | Nein | App-Funktionalität |
+| Fitness (Fitness) | Ja (Trainings- und Kraftdaten für die Planung) | Nein | Nein | App-Funktionalität |
+| Alle übrigen Typen (Kontakte, Standort, Kennungen, Nutzungsdaten, Diagnosedaten …) | Nein | | | |
+
+- Das Manifest `App/PrivacyInfo.xcprivacy` deklariert dieselben Typen (`NSPrivacyCollectedDataTypeHealth`, `NSPrivacyCollectedDataTypeFitness`, nicht verknüpft, kein Tracking, `AppFunctionality`). Beides muss übereinstimmen.
+- Datenschutz-URL unverändert (`docs/PRIVACY.md`, vor der Veröffentlichung juristisch prüfen, Offene Frage O3).
+- Review-Hinweis (5.1.2(i), 5.1.3): Erholungsdaten gehen nur nach ausdrücklicher Einwilligung (Sheet vor dem ersten Planen, widerrufbar unter Profil → Datenschutz) und nur relativ und gerundet an Claude; keine Werbung, kein Data-Mining, keine Weitergabe an Dritte. Health-Daten werden nicht in iCloud gespeichert.
+- `NSHealthShareUsageDescription` und `NSHealthUpdateUsageDescription` müssen den Lese- und Schreibzweck konkret nennen (Info.plist).
+- Bei jeder Änderung, was an Claude geht, `ClaudeConsent.currentVersion` erhöhen (erneute Einwilligung) und diese Tabelle prüfen.
 
 ## 9. Export-Compliance
 
