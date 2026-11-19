@@ -5,6 +5,7 @@ import TipKit
 
 enum RideFilter: String, CaseIterable, Identifiable {
     case all = "Alle", indoor = "Indoor", outdoor = "Outdoor"
+    case strength = "Kraft", other = "Andere" // ANCHOR-STRENGTH
     var id: String { rawValue }
 
     func matches(_ ride: RideSummary) -> Bool {
@@ -12,17 +13,32 @@ enum RideFilter: String, CaseIterable, Identifiable {
         case .all: true
         case .indoor: ride.isIndoor
         case .outdoor: !ride.isIndoor
+        case .strength, .other: false
         }
     }
+
+    // ANCHOR-STRENGTH
+    func matches(_ row: StoredStrengthSession) -> Bool {
+        switch self {
+        case .all: true
+        case .indoor, .outdoor: false
+        case .strength: !row.isOtherSport
+        case .other: row.isOtherSport
+        }
+    }
+
+    var showsRideCharts: Bool { self != .strength && self != .other }
 }
 
 struct HistoryView: View {
     @Environment(AppModel.self) private var model
     @Query(sort: \StoredRide.startDate, order: .reverse) private var storedRides: [StoredRide]
+    @Query(sort: \StoredStrengthSession.start, order: .reverse) private var strengthRows: [StoredStrengthSession] // ANCHOR-STRENGTH
     @State private var filter: RideFilter = .all
 
     var body: some View {
-        let rides = storedRides.map(\.summary).filter(filter.matches)
+        let rides = storedRides.map(\.summary).filter { filter.matches($0) }
+        let strength = strengthRows.filter { filter.matches($0) }
         NavigationStack {
             List {
                 Section {
@@ -47,17 +63,28 @@ struct HistoryView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
 
-                    HistoryChart(rides: rides, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate)
-                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-                    EffortWeekCard(weeks: model.effortWeeks(rides: storedRides.map(\.summary)))
-                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                    if filter.showsRideCharts {
+                        HistoryChart(rides: rides, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                        EffortWeekCard(weeks: model.effortWeeks(rides: storedRides.map(\.summary)))
+                            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                    }
                 }
-                if rides.isEmpty {
-                    EmptyStateView(title: "Keine Fahrten", systemImage: "bicycle",
-                                   message: "Verbinde Strava im Profil, um deine Fahrten zu sehen.")
+                if rides.isEmpty && strength.isEmpty {
+                    if filter.showsRideCharts {
+                        EmptyStateView(title: "Keine Fahrten", systemImage: "bicycle",
+                                       message: "Verbinde Strava im Profil, um deine Fahrten zu sehen.")
+                    } else {
+                        EmptyStateView(title: "Keine Einheiten", systemImage: "dumbbell",
+                                       message: "Trage Kraft oder andere Einheiten auf Heute nach.")
+                    }
                 }
-                ForEach(groups(rides), id: \.start) { group in
+                ForEach(groups(rides, strength: strength), id: \.start) { group in
                     Section {
+                        // ANCHOR-STRENGTH
+                        ForEach(group.strength) { row in
+                            NavigationLink(value: row) { StrengthRow(row: row) }
+                        }
                         ForEach(group.rides) { ride in
                             NavigationLink(value: ride) {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -86,19 +113,26 @@ struct HistoryView: View {
             .background(Theme.canvas)
             .navigationTitle("Verlauf")
             .navigationDestination(for: RideSummary.self) { RideDetailView(ride: $0) }
+            .navigationDestination(for: StoredStrengthSession.self) { StrengthDetailView(row: $0) } // ANCHOR-STRENGTH
             .refreshable {
                 await model.syncRides(userInitiated: true)
             }
         }
     }
 
-    struct Group { let start: Date; let rides: [RideSummary] }
+    struct Group { let start: Date; let rides: [RideSummary]; var strength: [StoredStrengthSession] = [] }
 
-    private func groups(_ rides: [RideSummary]) -> [Group] {
+    private func groups(_ rides: [RideSummary], strength: [StoredStrengthSession] = []) -> [Group] {
         var cal = Calendar.current
         cal.firstWeekday = 2
-        let grouped = Dictionary(grouping: rides) { cal.dateInterval(of: .weekOfYear, for: $0.startDate)?.start ?? $0.startDate }
-        return grouped.keys.sorted(by: >).map { Group(start: $0, rides: grouped[$0]!.sorted { $0.startDate > $1.startDate }) }
+        func weekStart(_ d: Date) -> Date { cal.dateInterval(of: .weekOfYear, for: d)?.start ?? d }
+        let grouped = Dictionary(grouping: rides) { weekStart($0.startDate) }
+        let strengthGrouped = Dictionary(grouping: strength) { weekStart($0.start) }
+        let keys = Set(grouped.keys).union(strengthGrouped.keys)
+        return keys.sorted(by: >).map {
+            Group(start: $0, rides: (grouped[$0] ?? []).sorted { $0.startDate > $1.startDate },
+                  strength: (strengthGrouped[$0] ?? []).sorted { $0.start > $1.start })
+        }
     }
 }
 

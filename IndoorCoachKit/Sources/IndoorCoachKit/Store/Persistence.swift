@@ -7,6 +7,7 @@ extension AppEnvironment {
     public static let schema = Schema([
         StoredRide.self, StoredWorkout.self,
         StoredCheckIn.self, // ANCHOR-CHECKIN
+        StoredStrengthSession.self, // ANCHOR-STRENGTH
     ])
 
     /// Opens the store at `url` with the current schema (used by tests; the app uses the default location).
