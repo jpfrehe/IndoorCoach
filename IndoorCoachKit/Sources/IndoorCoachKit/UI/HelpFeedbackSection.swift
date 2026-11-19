@@ -6,6 +6,7 @@ struct HelpFeedbackSection: View {
     @State private var diagnosticsURL: URL?
     @State private var isExporting = false
     @State private var showTour = false
+    @State private var shadowMode = false
 
     var body: some View {
         Section {
@@ -37,6 +38,12 @@ struct HelpFeedbackSection: View {
             }
             .accessibilityIdentifier("feedback.open")
             .accessibilityHint("Öffnet ein Formular für Fehler, Wünsche und Lob")
+            Toggle("Trend-Wächter Schattenmodus", isOn: $shadowMode)
+                .frame(minHeight: 44)
+                .accessibilityIdentifier("help.trendGuardShadow")
+                .accessibilityHint("Zählt Treffer nur im Hintergrund, ohne Karte auf Heute")
+                .onAppear { shadowMode = model.trendGuardShadowMode }
+                .onChange(of: shadowMode) { _, new in model.trendGuardShadowMode = new }
             Button {
                 showTour = true
             } label: {

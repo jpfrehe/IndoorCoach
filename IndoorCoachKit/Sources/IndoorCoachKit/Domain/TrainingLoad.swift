@@ -153,6 +153,8 @@ public enum TrainingLoad {
         public var tss: Double
         public var kilojoules: Double
         public var indoorSeconds: Int
+        /// Fremdsport aus Health (Laufen, Schwimmen …); weder Indoor noch Outdoor.
+        public var otherSeconds: Int = 0
         public var id: Date { weekStart }
     }
 
@@ -180,7 +182,7 @@ public enum TrainingLoad {
             bucket.seconds += ride.movingTime
             bucket.tss += estimateTSS(for: ride, ftp: ftp, thresholdHeartRate: thresholdHeartRate).tss
             bucket.kilojoules += ride.kilojoules ?? 0
-            if ride.isIndoor { bucket.indoorSeconds += ride.movingTime }
+            if ride.isForeignSport { bucket.otherSeconds += ride.movingTime } else if ride.isIndoor { bucket.indoorSeconds += ride.movingTime }
             buckets[key] = bucket
         }
         return buckets.values.sorted { $0.weekStart < $1.weekStart }

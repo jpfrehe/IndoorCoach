@@ -246,12 +246,16 @@ struct TodayDashboard: View {
                     .foregroundStyle(by: .value("Art", "Indoor"))
                     .cornerRadius(5)
                 BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
-                        y: .value("Stunden", Double(w.seconds - w.indoorSeconds) / 3600))
+                        y: .value("Stunden", Double(w.seconds - w.indoorSeconds - w.otherSeconds) / 3600))
                     .foregroundStyle(by: .value("Art", "Outdoor"))
+                    .cornerRadius(5)
+                BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
+                        y: .value("Stunden", Double(w.otherSeconds) / 3600))
+                    .foregroundStyle(by: .value("Art", "Andere"))
                     .cornerRadius(5)
             }
             // Deeper tones so the bars keep ≥ 3:1 against the white card.
-            .chartForegroundStyleScale(["Indoor": Theme.indoorMark, "Outdoor": Theme.outdoorMark])
+            .chartForegroundStyleScale(["Indoor": Theme.indoorMark, "Outdoor": Theme.outdoorMark, "Andere": Theme.otherMark])
             .chartYAxisLabel("h")
             .chartXAxis {
                 AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { _ in
