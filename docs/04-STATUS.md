@@ -1,6 +1,6 @@
 # Status & nächste Schritte
 
-Stand: v0.1 (Pilot-Vorbereitung) · 18.11.2026 · öffentlich auf [GitHub](https://github.com/jpfrehe/IndoorCoach)
+Stand: v0.2 (Pilot-Vorbereitung, „Die ganze Woche“) · 19.11.2026 · öffentlich auf [GitHub](https://github.com/jpfrehe/IndoorCoach)
 
 ## Was fertig ist
 

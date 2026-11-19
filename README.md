@@ -22,13 +22,33 @@ Im Winter sinkt das Radvolumen bei vielen um ein Drittel. IndoorCoach setzt gena
 - **Fortschritt sichtbar machen:** Leistungskurve, VO₂max, Fähigkeitslevel und Fitness-Prognose zeigen, dass die Arbeit ankommt. Nach jeder Fahrt siehst du, ob du deine Intervalle getroffen hast.
 - **Ein Grund für die nächste Einheit:** Winter Arc mit 10 Leveln, Alpenüberquerung als Etappenreise, Challenges und Trophäen.
 - **Jede MyWhoosh-Fahrt sekundengenau, ohne Handgriff:** Die kleine Mac-App „IndoorCoach Brücke“ holt die Daten aus MyWhoosh und bringt sie im WLAN aufs iPhone.
-- **Die ganze Woche im Blick:** Brustgurt direkt am iPhone (Puls auch ohne Mac-Brücke, Live Activity), Krafttraining im Studio mit Übungsliste und eigener Muskel-Spur, Check-in vor der Einheit, Aufwärm-Check und – auf Wunsch – Apple Health mit Ruhepuls, Schlaf und anderen Sportarten. Details: [Brainstorming & Roadmap](docs/17-BRAINSTORM-DATENQUELLEN-ALLTAG.md).
+- **Neu – die ganze Woche im Blick:** Brustgurt direkt am iPhone, Krafttraining im Studio, Check-in vor der Einheit, Aufwärm-Check und auf Wunsch Apple Health. Der Plan kennt jetzt auch deine schweren Beine vom Dienstag.
 
-Alles läuft auf deinen Geräten: auf dem iPhone und auf Wunsch zusätzlich auf dem Mac. Es gibt kein Backend und kein Konto bei IndoorCoach; Schlüssel und Sitzungen liegen im Schlüsselbund. Die Brücke überträgt Fahrten nur im eigenen WLAN, und an Claude gehen nur zusammengefasste Trainingsdaten, wenn du planst.
+Alles läuft auf deinen Geräten: auf dem iPhone und auf Wunsch zusätzlich auf dem Mac. Es gibt kein Backend und kein Konto bei IndoorCoach; Schlüssel und Sitzungen liegen im Schlüsselbund. Die Brücke überträgt Fahrten nur im eigenen WLAN. An Claude gehen nur zusammengefasste Trainingsdaten, wenn du planst – Erholungswerte nur mit deiner ausdrücklichen Einwilligung und nur relativ zu deiner eigenen Basis.
 
 **In zwei Minuten startklar:** Das Onboarding fragt Training und Trainingstage ab, verbindet MyWhoosh und prüft deinen Claude-API-Key direkt beim Einrichten. Danach zeigt eine kurze animierte Tour, was die App kann. Alles ist überspringbar – ohne Verbindung startet die App mit Demo-Daten.
 
 ---
+
+## Neu: Die ganze Woche im Blick
+
+Viele fahren im Winter nicht nur Rolle: dienstags Studio, samstags Laufen, und manchmal ist der Tag einfach zu lang. IndoorCoach sieht jetzt die ganze Woche – lokal, ohne Konto und ohne teures Wearable.
+
+| Kraft & andere Einheit auf Heute | Kraft starten | Krafteinheit im Verlauf | Dein Herz im Winter Arc |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/17-heute-kraft.png" width="200" alt="Heute mit Schnellstart Kraft und Andere Einheit"> | <img src="docs/screenshots/18-kraft-start.png" width="200" alt="Kraft starten: wie letzte Woche, mit Gurt aufzeichnen oder nachtragen"> | <img src="docs/screenshots/19-kraft-detail.png" width="200" alt="Krafteinheit Beine: Härte 7, Muskel-Last 385, Übungen mit Sätzen und Gewicht"> | <img src="docs/screenshots/20-herz-winterarc.png" width="200" alt="Dein Herz im Winter Arc: Aufwärm-Puls, Ruhepuls, aerobe Effizienz und Krafteinheiten je Monat"> |
+
+- **Brustgurt direkt am iPhone:** Jeder Bluetooth-Pulsgurt (z. B. Wahoo TICKR, Polar H10, Garmin HRM) verbindet sich in *Profil → Geräte*. Puls auf der Rolle auch ohne Mac-Brücke, mit Live Activity auf dem Sperrbildschirm und automatischem Wiederverbinden.
+- **Krafttraining im Studio:** Schnellstart „wie letzte Woche“, Übungsliste zum Abhaken (41 Übungen, Vorlagen, Sätze × Wdh × Gewicht), am Ende Härte und „Beine schwer?“ – oder in unter 15 Sekunden nachtragen. Kraft läuft in einer eigenen **Muskel-Spur** und verfälscht nicht deine Rad-Fitness.
+- **Andere Einheit:** Laufband, Kurs, Rudergerät – aerobe Einheiten zählen mit geschätzter Puls-TSS zur Wochenlast.
+- **Check-in vor der Einheit:** Drei Tipps, alles optional – und bei einem schlechten Tag gibt es Angebote: kürzer, leichter, gegen Grundlage tauschen oder Joker – „angepasst statt ausgefallen“.
+- **Aufwärm-Check:** Ein fester 6-min-Block im Aufwärmen misst deinen Puls bei immer gleichen Watt. Sinkt er über die Wochen, wirkt das Training – ganz ohne Uhr.
+- **Apple Health (optional):** Fremdsport, Ruhepuls, HRV, Schlaf und Gewicht fließen ein, Dubletten werden erkannt. Auf Wunsch schreibt IndoorCoach eigene Einheiten zurück (ohne Leistungswerte).
+- **Erholung im Plan:** Trends gegen deine eigene 28-Tage-Basis, optionale HRV-Morgenmessung mit dem Gurt und ein stiller Trend-Wächter, der nur vor harten Einheiten eine lockerere Alternative anbietet – kein Readiness-Score, keine Pushs, keine Diagnose.
+- **Claude kennt die Woche:** Krafteinheiten, Studio-Tage und Fremdsport fließen als weiche Faustregeln in den Plan – etwa keine VO₂max-Einheit innerhalb von 24 Stunden nach schweren Beinen.
+- **Dein Herz im Winter Arc:** „Gleiche Watt, weniger Puls, ruhigeres Herz“ – Aufwärm-Puls, Ruhepuls, aerobe Effizienz und Krafteinheiten je Monat, jede Zahl mit Quelle.
+
+Hintergrund, Personas und Entscheidungen: [Brainstorming & Roadmap](docs/17-BRAINSTORM-DATENQUELLEN-ALLTAG.md).
 
 ## Planen mit Claude
 
@@ -109,6 +129,8 @@ Farbsystem „Sunset Jelly“, geprüft auf iPhone SE und iPhone Pro, mit Dynami
 | **IndoorCoach Brücke (Mac)** | Sekundendaten jeder MyWhoosh-Fahrt, automatisch: volle Leistungskurve, NP, Ermüdungsresistenz, Effizienz | Menüleisten-App liest den MyWhoosh-Ordner, das iPhone holt die Fahrten im WLAN ab ([Konzept](docs/14-SEKUNDENDATEN-MAC-BRUECKE.md)) |
 | **FIT-Dateien** | Sekundendaten für die volle Leistungskurve, Ermüdungsresistenz, Effizienz | Aus der Dateien-App oder „Öffnen in IndoorCoach“, auch von Zwift, Wahoo, Garmin; ergänzt vorhandene Fahrten |
 | **Strava** | Aktivitäten per OAuth | Neue Strava-API-Apps brauchen seit Juni 2026 ein Strava-Abo |
+| **Bluetooth-Brustgurt** | Live-Puls und RR-Abstände für Rolle ohne Brücke, Kraft, andere Einheiten und die HRV-Morgenmessung | Jeder Gurt mit Standard-Pulsprofil; Mehrfachverbindung je nach Modell |
+| **Apple Health** (optional) | Workouts anderer Sportarten, Ruhepuls, HRV, Schlaf, Gewicht; auf Wunsch Export eigener Einheiten | Lesen und Schreiben einzeln freigebbar; die Daten bleiben auf dem iPhone. MyWhoosh schreibt selbst nicht nach Health. |
 | **Claude API** | Wochenpläne mit Begründung | Eigener API-Key, ca. 0,10 $ pro Plan mit Opus 5.5 |
 
 Ohne Verbindung startet die App mit Demo-Daten, so lässt sich alles sofort ausprobieren.
@@ -192,6 +214,8 @@ docs/                   Konzept, Feature-Pakete, Audits, Screenshots
 
 ## Roadmap
 
+- Gerätetests mit echten Gurten (Hintergrundbetrieb, Mehrfachverbindung) und Kalibrierung des Trend-Wächters im Pilot
+- Wellness aus intervals.icu oder Garmin, persönliche Muster (Saison 2)
 - Widget „Heute“ mit Level und nächster Einheit
 - Mac-Brücke auch unterwegs über iCloud, Mac-App über den App Store
 - Accountability-Gruppe für 3–5 Fahrer, Rangliste nach Plan-Treue statt Watt (braucht ein Backend)
