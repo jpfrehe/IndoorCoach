@@ -82,6 +82,7 @@ extension AppModel {
         Fahrten: \(rides.count) (Strava \(rides.filter { !$0.isDemo }.count), Demo \(rides.filter(\.isDemo).count))
         Fahrten mit Sekundendaten: \(rides.filter { $0.secondsData != nil }.count) von \(rides.count)
         Einheiten: \(workouts.count) (geplant \(workouts.filter { $0.status == .planned }.count), erledigt \(workouts.filter { $0.status == .done }.count), im Kalender \(workouts.filter { $0.calendarEventID != nil }.count))
+        Trend-Wächter Schattenmodus: \(trendGuardShadowSummary)
         """
     }
 

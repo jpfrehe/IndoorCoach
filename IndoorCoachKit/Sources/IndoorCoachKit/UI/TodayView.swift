@@ -62,6 +62,7 @@ struct TodayDashboard: View {
             nextWorkoutCard(next)
             MorningMeasurementRow() // ANCHOR-W4B (Morgenmessung HRV, nur aktiviert, vor 11 Uhr)
             CheckInCard() // ANCHOR-CHECKIN
+            TrendHintCard(rides: rides) // ANCHOR-W4A (Trend-Wächter: ruhige Karte vor harter Einheit)
             StrengthQuickStartRow() // ANCHOR-STRENGTH (Schnellstart Kraft / Andere Einheit)
             HealthAnnotationCard() // ANCHOR-W3B (Kraft aus Apple Health: wie hart? Beine?)
             // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
