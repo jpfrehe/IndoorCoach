@@ -100,6 +100,13 @@ extension AppModel {
         RecordingMerge.upgrade(existing: RideSeconds.decode(row.secondsData), incoming: incoming)
     }
 
+    /// Definition of a planned workout (for the result view of a recording).
+    func workoutDefinition(id: UUID) -> WorkoutDefinition? {
+        var d = FetchDescriptor<StoredWorkout>(predicate: #Predicate { $0.id == id })
+        d.fetchLimit = 1
+        return (try? context.fetch(d))?.first?.definition
+    }
+
     // MARK: Attach
 
     private func attach(_ recording: StoredRecording, to ride: RideSummary, manualShift: Int) -> Bool {

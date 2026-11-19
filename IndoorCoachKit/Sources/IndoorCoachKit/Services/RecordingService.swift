@@ -164,7 +164,7 @@ public final class RecordingService {
     /// Strap battery below 20 % (hint before the start).
     public var lowBattery: Bool { strap?.batteryLow == true && strap?.batteryLevel != nil }
     public var batteryLevel: Int? { strap?.batteryLevel }
-    public var currentBlock: PlanBlock? { PlanBlock.current(in: plan, elapsed: elapsed) }
+    public var currentBlock: PlanBlock? { RecordingPlan.current(in: plan, elapsed: elapsed)?.block }
 
     // MARK: Start / stop
 
@@ -331,11 +331,5 @@ public final class RecordingService {
         return RecordingLiveState(kind: kind, title: title, startedAt: startedAt ?? now(), heartRate: heartRate,
                                   connected: connected, blockTitle: block?.title,
                                   blockEndsAt: block.flatMap { b in startedAt.map { $0.addingTimeInterval(TimeInterval(b.end)) } })
-    }
-}
-
-extension PlanBlock {
-    static func current(in blocks: [PlanBlock], elapsed: Int) -> PlanBlock? {
-        RecordingPlan.current(in: blocks, elapsed: elapsed)?.block
     }
 }
