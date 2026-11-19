@@ -326,6 +326,7 @@ public final class AppModel {
             if ride.startDate >= recent, ride.trainer { row.secondsData = DemoData.syntheticSeconds(for: ride, ftp: profile.ftp).encoded() }
             context.insert(row)
         }
+        seedDemoStrength() // ANCHOR-STRENGTH
         let ctx = planContext(wish: "", startToday: true)
         let plan = DemoCoach.makePlan(ctx)
         for w in plan.workouts {
@@ -344,6 +345,7 @@ public final class AppModel {
         uiSeedApplied = true
         try? context.delete(model: StoredRide.self)
         try? context.delete(model: StoredWorkout.self)
+        deleteAllStrengthData() // ANCHOR-STRENGTH
         try? context.save()
         // Every UI test starts clean: also forget dismissed reviews, import state and sync dates from earlier runs
         // (onboarding has its own override, see applyUITestOnboardingOverride).
@@ -371,6 +373,7 @@ public final class AppModel {
     func deleteDemoData() {
         try? context.delete(model: StoredRide.self, where: #Predicate { $0.isDemo })
         try? context.delete(model: StoredWorkout.self, where: #Predicate { $0.sourceRaw == "demo" })
+        try? context.delete(model: StoredStrengthSession.self, where: #Predicate { $0.isDemo }) // ANCHOR-STRENGTH
     }
 
     // MARK: - Strava
@@ -920,6 +923,7 @@ public final class AppModel {
         try? context.delete(model: StoredRide.self)
         try? context.delete(model: StoredWorkout.self)
         try? context.save()
+        deleteAllStrengthData() // ANCHOR-STRENGTH
         calendarService.removeAppData(eventIDs: eventIDs)
         reminderCenter.cancel(id: WeeklyReviewReminder.identifier)
         await reminderCenter.cancelAll(withPrefix: WorkoutReminder.idPrefix)
