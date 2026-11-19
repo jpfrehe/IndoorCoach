@@ -174,6 +174,8 @@ extension AppModel {
 
     // MARK: Attach
 
+    static let recordingKeptHint = "Die Aufzeichnung bleibt gesichert und wird beim nächsten Start der App zum Speichern angeboten."
+
     private enum AttachResult { case attached, noMatch, failed }
 
     private func attach(_ recording: StoredRecording, to ride: RideSummary, manualShift: Int) -> AttachResult {
@@ -212,7 +214,7 @@ extension AppModel {
             workout.status = .done
         }
         // Erst speichern, dann die Zuordnung vermerken: scheitert das Speichern, bleibt die Aufzeichnung unzugeordnet.
-        guard saveReportingErrors("Die Pulsspur") else { return .failed }
+        guard saveReportingErrors("Die Pulsspur", hint: Self.recordingKeptHint) else { return .failed }
         var attachments = recordingAttachments
         attachments[ride.id] = RecordingAttachment(recordingID: recording.id, rideID: ride.id,
                                                    plannedWorkoutID: recording.plannedWorkoutID, shift: shift,

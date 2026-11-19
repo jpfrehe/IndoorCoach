@@ -17,6 +17,8 @@ public protocol HealthDataSource: Sendable {
     func requestReadAuthorization(_ types: Set<HealthReadType>) async throws
     /// Neue und gelöschte Workouts seit `anchor` (`nil` = alles). Den neuen Anker speichert der Aufrufer (`HealthAnchorStore`).
     func workouts(since anchor: HealthAnchor?) async throws -> HealthWorkoutChanges
+    /// Workouts, die den Zeitraum berühren (gezielte Abfrage; kein Lesen der ganzen Historie). Für Export-Prüfung und Quellenübersicht.
+    func workouts(in range: ClosedRange<Date>) async throws -> [HealthWorkout]
     /// Puls des Workouts als 1-Hz-Reihe, Leistung 0. `nil` ohne Pulsdaten.
     func heartRateSeconds(for workout: HealthWorkout) async throws -> RideSeconds?
     /// Tageswerte je Quelle im Zeitraum.
@@ -93,6 +95,10 @@ public final class StubHealthDataSource: HealthDataSource {
         let seen = anchor.flatMap { String(data: $0.data, encoding: .utf8) }.flatMap(Int.init) ?? 0
         let new = Array(all.dropFirst(seen))
         return HealthWorkoutChanges(added: new, deleted: [], anchor: HealthAnchor(data: Data(String(all.count).utf8)))
+    }
+
+    public func workouts(in range: ClosedRange<Date>) async throws -> [HealthWorkout] {
+        state.withLock { $0.workouts }.filter { $0.end >= range.lowerBound && $0.start <= range.upperBound }
     }
 
     public func heartRateSeconds(for workout: HealthWorkout) async throws -> RideSeconds? { heartRate }
@@ -204,6 +210,19 @@ public final class HealthKitService: HealthDataSource, @unchecked Sendable {
                 let workouts = (added ?? []).compactMap { ($0 as? HKWorkout).map(Self.workout(from:)) }
                 continuation.resume(returning: HealthWorkoutChanges(
                     added: workouts, deleted: (deleted ?? []).map(\.uuid), anchor: HealthAnchor(data: data)))
+            }
+            store.execute(query)
+        }
+    }
+
+    public func workouts(in range: ClosedRange<Date>) async throws -> [HealthWorkout] {
+        guard isAvailable else { throw HealthDataError.unavailable }
+        // Berührt das Fenster: Start vor dessen Ende und Ende nach dessen Anfang.
+        let predicate = HKQuery.predicateForSamples(withStart: range.lowerBound, end: range.upperBound, options: [])
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(sampleType: .workoutType(), predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, results, error in
+                if let error { continuation.resume(throwing: error); return }
+                continuation.resume(returning: (results as? [HKWorkout] ?? []).map(Self.workout(from:)))
             }
             store.execute(query)
         }

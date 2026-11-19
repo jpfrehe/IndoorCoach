@@ -94,6 +94,8 @@ public final class AppModel {
     @ObservationIgnored var pendingRecordingsURL = AppModel.defaultPendingRecordingsURL()
     /// Ersetzt das Speichern des Kontexts (nur Tests: Speicherfehler auslösen).
     @ObservationIgnored var saveOverride: (() throws -> Void)?
+    /// Zählt gescheiterte Speichervorgänge (`saveReportingErrors`): Abläufe, die Zeiger vorrücken, prüfen, ob unterwegs einer scheiterte.
+    @ObservationIgnored private(set) var saveFailureCount = 0
     /// Health-Quelle; Tests und `-uiHealthStub` setzen einen Stub. Standard: HealthKit auf iOS, sonst nicht verfügbar.
     @ObservationIgnored public var healthSource: any HealthDataSource = HealthDataSourceFactory.make()
     /// Schreibzugriff für den Export eigener Einheiten (opt-in je Sportart); Tests und `-uiHealthStub` setzen einen Stub.
@@ -677,7 +679,7 @@ public final class AppModel {
             }
         }
         linkCompletedWorkouts()
-        try? context.save()
+        guard saveReportingErrors("Der Import") else { return ImportResult() }   // nichts davon ist gespeichert
         matchPendingRecordings() // ANCHOR-REC: recordings that waited for a ride
         invalidateSecondsDigests()
         hasImportedRides = true
@@ -1027,14 +1029,15 @@ public final class AppModel {
     /// Speichert den Kontext und meldet einen Fehler an die UI (Banner), statt ihn zu verschlucken. Bei einem Fehler
     /// werden die ungespeicherten Änderungen verworfen, damit nichts Halbes im Speicher bleibt.
     @discardableResult
-    func saveReportingErrors(_ what: String) -> Bool {
+    func saveReportingErrors(_ what: String, hint: String? = nil) -> Bool {
         do {
             if let saveOverride { try saveOverride() } else { try context.save() }
             return true
         } catch {
             context.rollback()
+            saveFailureCount += 1
             Log.error(.app, "\(what): Speichern fehlgeschlagen: \(type(of: error))")
-            show("\(what) konnte nicht gespeichert werden. Eine Aufzeichnung bleibt gesichert und wird beim nächsten Start angeboten.", error: true)
+            show("\(what) konnte nicht gespeichert werden." + (hint.map { " " + $0 } ?? ""), error: true)
             return false
         }
     }

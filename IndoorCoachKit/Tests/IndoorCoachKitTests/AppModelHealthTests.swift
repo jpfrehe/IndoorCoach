@@ -10,6 +10,8 @@ final class FakeHealthSource: HealthDataSource, @unchecked Sendable {
     private var pendingDeleted: [UUID] = []
     private var handler: (@Sendable () -> Void)?
     private(set) var workoutCalls = 0
+    /// Zeitfenster-Abfragen (`workouts(in:)`), nur diese darf der Export/„Verbundene Quellen“ stellen.
+    private(set) var rangeRequests: [ClosedRange<Date>] = []
     private(set) var observerRegistrations = 0
     var weightMean: Double?
     var heartRate: RideSeconds?
@@ -31,6 +33,12 @@ final class FakeHealthSource: HealthDataSource, @unchecked Sendable {
             pendingDeleted = []
             return HealthWorkoutChanges(added: Array(all.dropFirst(seen)), deleted: deleted,
                                         anchor: HealthAnchor(data: Data(String(all.count).utf8)))
+        }
+    }
+    func workouts(in range: ClosedRange<Date>) async throws -> [HealthWorkout] {
+        lock.withLock {
+            rangeRequests.append(range)
+            return all.filter { $0.end >= range.lowerBound && $0.start <= range.upperBound }
         }
     }
     func heartRateSeconds(for workout: HealthWorkout) async throws -> RideSeconds? { heartRate }
@@ -426,5 +434,38 @@ struct AppModelHealthTests {
                                         seconds: RideSeconds(power: [UInt16](repeating: 0, count: seconds), heartRate: [UInt8](repeating: 140, count: seconds)))
         let id = try #require(rows.first { $0.startDate == indoor.start }?.stravaID)
         #expect(model.finishRecording(recording) == .attached(rideID: id))
+    }
+
+    // MARK: Anker nur nach erfolgreichem Speichern (Befund 10)
+
+    struct DiskFull: Error {}
+
+    @Test func failedSaveKeepsAnchorAndLedgerSoNothingIsLost() async throws {
+        let source = FakeHealthSource([workout("cycling", start: -7200, minutes: 45, hr: 130)])
+        let (model, defaults) = try makeModel(source: source)
+        model.healthEnabled = true
+        model.saveOverride = { throw DiskFull() }
+        let failed = await model.syncHealth(now: now)
+        #expect(failed.imported == 0 && failed.merged == 0)
+        #expect(HealthAnchorStore(defaults: defaults).anchor(for: .workouts) == nil, "Anker darf nicht vorrücken")
+        #expect(model.loadHealthLedger().isEmpty)
+        #expect(rides(model).isEmpty)
+        #expect(model.banner?.isError == true)
+        // Nächster Lauf: dasselbe Workout kommt erneut und wird jetzt übernommen.
+        model.saveOverride = nil
+        let ok = await model.syncHealth(now: now)
+        #expect(ok.imported == 1)
+        #expect(rides(model).count == 1)
+        #expect(HealthAnchorStore(defaults: defaults).anchor(for: .workouts) != nil)
+        #expect(model.loadHealthLedger().count == 1)
+    }
+
+    @Test func mergeWithoutTargetIsNotCountedAndFallsBackToOwnEntry() async throws {
+        let (model, _) = try makeModel(source: FakeHealthSource())
+        var ledger: [HealthLedgerEntry] = []
+        let w = workout("cycling", start: -7200, minutes: 45, hr: 130)
+        let merged = await model.mergeHealthWorkout(w, into: .ride(987_654), supplyHeartRate: true, ledger: &ledger)
+        #expect(!merged)
+        #expect(ledger.isEmpty, "kein Ledger-Eintrag „merged“ ohne Ziel")
     }
 }

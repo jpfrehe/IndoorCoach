@@ -119,7 +119,7 @@ extension AppModel {
         for metric in HealthMetric.allCases {
             dailies += (try? await healthSource.dailyValues(metric, in: from...now)) ?? []
         }
-        let workouts = (try? await healthSource.workouts(since: nil))?.added ?? []
+        let workouts = (try? await healthSource.workouts(in: from...now)) ?? []
         return HealthSourceUsageBuilder.usage(dailies: dailies, workouts: workouts, now: now)
     }
 
@@ -197,6 +197,7 @@ extension AppModel {
             Log.error(.sync, "Health-Workouts nicht lesbar: \(type(of: error))")
             return result
         }
+        let failuresBefore = saveFailureCount
         var ledger = loadHealthLedger()
         for uuid in changes.deleted where removeHealthWorkout(uuid, from: &ledger) { result.removed += 1 }
 
@@ -212,8 +213,15 @@ extension AppModel {
                 case .skip:
                     break
                 case .merge(let kind, let supply):
-                    await mergeHealthWorkout(workout, into: kind, supplyHeartRate: supply, ledger: &ledger)
-                    result.merged += 1
+                    if await mergeHealthWorkout(workout, into: kind, supplyHeartRate: supply, ledger: &ledger) {
+                        result.merged += 1
+                    } else {
+                        // Ziel nicht mehr da: das Workout wird eine eigene Einheit statt still zu verschwinden.
+                        let own = importAsOwn(workout, ledger: &ledger)
+                        result.imported += own.imported
+                        result.candidates += own.candidates
+                        occupied.append(Self.occupied(for: workout))
+                    }
                 case .aerobic(let estimate):
                     if importHealthRide(workout, estimate: estimate, ledger: &ledger) { result.imported += 1 }
                     occupied.append(Self.occupied(for: workout))
@@ -226,7 +234,8 @@ extension AppModel {
                 }
             }
         }
-        try? context.save()
+        // Anker und Protokoll rücken nur nach erfolgreichem Speichern vor; sonst kommt dieselbe Änderung beim nächsten Abgleich erneut.
+        guard saveReportingErrors("Der Health-Abgleich"), saveFailureCount == failuresBefore else { return HealthSyncResult() }
         anchors.save(changes.anchor, for: .workouts)
         await refreshHealthWeight(now: now)
         saveHealthLedger(Self.pruned(ledger, now: now))
@@ -306,8 +315,9 @@ extension AppModel {
         return inserted
     }
 
-    private func mergeHealthWorkout(_ workout: HealthWorkout, into kind: HealthImport.Occupied.Kind, supplyHeartRate: Bool,
-                                    ledger: inout [HealthLedgerEntry]) async {
+    /// Führt das Workout in die Fahrt/Einheit zusammen. `false`, wenn das Ziel fehlt (nichts geändert, kein Protokolleintrag).
+    func mergeHealthWorkout(_ workout: HealthWorkout, into kind: HealthImport.Occupied.Kind, supplyHeartRate: Bool,
+                            ledger: inout [HealthLedgerEntry]) async -> Bool {
         let minutes = Int((workout.end.timeIntervalSince(workout.start) / 60).rounded())
         let note = "Mit Apple-Health-Workout „\(HealthImport.germanName(for: workout.activityTypeName))“ von \(workout.sourceName) "
             + "(\(minutes) min) zusammengeführt\(supplyHeartRate ? " · Puls aus Health ergänzt" : "")."
@@ -315,7 +325,7 @@ extension AppModel {
         case .ride(let id):
             var descriptor = FetchDescriptor<StoredRide>(predicate: #Predicate { $0.stravaID == id })
             descriptor.fetchLimit = 1
-            guard let row = try? context.fetch(descriptor).first else { return }
+            guard let row = try? context.fetch(descriptor).first else { return false }
             if supplyHeartRate {
                 row.averageHeartrate = workout.avgHR
                 row.maxHeartrate = workout.maxHR ?? row.maxHeartrate
@@ -326,15 +336,32 @@ extension AppModel {
             }
             ledger.append(HealthLedgerEntry(workout, outcome: .merged, targetRideID: id))
         case .strength(let id):
-            let row = storedStrengthRows().first(where: { $0.id == id })
-            if supplyHeartRate, let row, row.heartRateSeconds == nil,
+            guard let row = storedStrengthRows().first(where: { $0.id == id }) else { return false }
+            if supplyHeartRate, row.heartRateSeconds == nil,
                let hr = (try? await healthSource.heartRateSeconds(for: workout))?.heartRate, hr.contains(where: { $0 > 0 }) {
                 row.heartRateSeconds = Data(hr)
             }
-            if let row, row.healthNote == nil { row.healthNote = note }
+            if row.healthNote == nil { row.healthNote = note }
             ledger.append(HealthLedgerEntry(workout, outcome: .merged, targetStrengthID: id))
         }
         invalidateSecondsDigests()
+        return true
+    }
+
+    /// Das Workout als eigene Einheit (Rad: Fahrt, aerob: Fahrt mit geschätzter TSS, Kraft: offener Kandidat).
+    private func importAsOwn(_ workout: HealthWorkout, ledger: inout [HealthLedgerEntry]) -> (imported: Int, candidates: Int) {
+        switch workout.category {
+        case .cycling:
+            return (importHealthRide(workout, estimate: nil, ledger: &ledger) ? 1 : 0, 0)
+        case .aerobic:
+            let estimate = HealthImport.estimate(for: workout, thresholdHeartRate: profile.thresholdHeartRate, heartRate: profile.heartRateProfile)
+            return (importHealthRide(workout, estimate: estimate, ledger: &ledger) ? 1 : 0, 0)
+        case .muscular, .mixed:
+            ledger.append(HealthLedgerEntry(workout, outcome: .candidate))
+            return (0, 1)
+        case .ignore:
+            return (0, 0)
+        }
     }
 
     /// Hook aus `mergeImportedRides`: eine echte Fahrt ersetzt ein schon importiertes Health-Workout (siehe `RideMerge`).
