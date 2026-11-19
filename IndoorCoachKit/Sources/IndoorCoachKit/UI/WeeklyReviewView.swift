@@ -16,16 +16,26 @@ enum WeekLabel {
     }
 }
 
+extension Sequence where Element == StoredStrengthSession {
+    /// Kraft- und andere Einheiten für die Gesamtwoche (Beine schwer zählt nur bei Krafteinheiten).
+    var reviewItems: [WeeklyReview.SessionItem] {
+        map { WeeklyReview.SessionItem(date: $0.start, durationSeconds: $0.durationSeconds, isOther: $0.isOtherSport,
+                                       heavyLegs: !$0.isOtherSport && $0.session.effectiveLegShare == .heavy) }
+    }
+}
+
 /// Highlight card on Heute (Sunday 16:00 through Tuesday): the headline and sentences of the finished week.
 struct WeeklyReviewCard: View {
     var weekStart: Date
     var rides: [RideSummary]
     var workouts: [StoredWorkout]
     @Environment(AppModel.self) private var model
+    @Query private var strengthSessions: [StoredStrengthSession]
     @State private var hidden = false
 
     var body: some View {
-        if !hidden, let review = model.weeklyReviews(rides: rides, workouts: workouts, focus: weekStart, count: 1).first {
+        if !hidden, let review = model.weeklyReviews(rides: rides, workouts: workouts, focus: weekStart, count: 1).first
+            .map({ $0.addingSessions(strengthSessions.reviewItems) }) {
             NavigationLink {
                 WeeklyReviewView(focus: weekStart)
             } label: {
@@ -75,10 +85,13 @@ struct WeeklyReviewView: View {
     @Environment(AppModel.self) private var model
     @Query(sort: \StoredRide.startDate) private var storedRides: [StoredRide]
     @Query(sort: \StoredWorkout.date) private var workouts: [StoredWorkout]
+    @Query private var strengthSessions: [StoredStrengthSession]
 
     var body: some View {
         let rides = storedRides.map(\.summary)
+        let items = strengthSessions.reviewItems
         let reviews = model.weeklyReviews(rides: rides, workouts: workouts, focus: focus, count: 9)
+            .map { $0.addingSessions(items) }
         ScrollView {
             VStack(spacing: 16) {
                 if let current = reviews.first {
@@ -91,7 +104,7 @@ struct WeeklyReviewView: View {
                         .accessibilityAddTraits(.isHeader)
                     ForEach(reviews.dropFirst()) { WeeklyReviewDetailCard(review: $0, ftp: model.profile.ftp, prominent: false) }
                 }
-                Text("Quellen: deine Fahrten (Strava, MyWhoosh, FIT-Import) und dein Plan in IndoorCoach. TSS aus Leistung und FTP, Relative Effort wie auf der Verlaufsseite.")
+                Text("Quellen: deine Fahrten (Strava, MyWhoosh, FIT-Import), deine Kraft- und anderen Einheiten und dein Plan in IndoorCoach. Die Gesamtwoche addiert nur Stunden und Anzahl – Rad und Kraft werden nicht umgerechnet. TSS aus Leistung und FTP, Relative Effort wie auf der Verlaufsseite.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -117,7 +130,12 @@ private struct WeeklyReviewDetailCard: View {
                     .font(prominent ? .title3.weight(.bold) : .headline)
                     .accessibilityAddTraits(.isHeader)
                 ForEach(review.sentences, id: \.self) { Text($0).font(.subheadline).foregroundStyle(.secondary) }
-                if !review.isEmpty {
+                if review.rideCount > 0, let total = review.total.text {
+                    Text("Gesamtwoche: \(total)")
+                        .font(.subheadline.weight(.semibold))
+                        .accessibilityIdentifier("weeklyReview.total")
+                }
+                if review.rideCount > 0 {
                     HStack(alignment: .top) {
                         StatTile(title: "Fahrten", value: "\(review.rideCount)")
                         StatTile(title: "Zeit", value: Formatters.duration(Int((review.hours * 3600).rounded())))

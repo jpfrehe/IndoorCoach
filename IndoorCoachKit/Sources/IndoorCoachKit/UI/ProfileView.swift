@@ -35,6 +35,13 @@ struct ProfileView: View {
                     }
                     .accessibilityIdentifier("profile.strength")
                 }
+                // ANCHOR-W3D (Profil → Datenquellen)
+                Section("Daten") {
+                    NavigationLink { DataSourcesView() } label: {
+                        Label("Datenquellen", systemImage: "heart.text.square").frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("profile.dataSources")
+                }
                 // ANCHOR-K2-PROFIL (Erinnerungen)
                 ReminderSection()
 
