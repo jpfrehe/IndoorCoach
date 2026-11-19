@@ -74,6 +74,7 @@ class AuditCase: XCTestCase {
             return false
         }
         if !element.isHittable { scrollTo(element) }
+        clearOfTabBar(element)
         let target = selector(element) // read before the tap; the element may disappear
         element.tap()
         log("Tapped \(description)", target)
@@ -100,6 +101,21 @@ class AuditCase: XCTestCase {
             n += 1
             // Overshot: the lazy Form dropped the row above the visible area – come back once and stop.
             if existed && !element.exists { app.swipeDown(velocity: .slow); break }
+        }
+    }
+
+    /// The floating tab bar lies over the scroll content: an element can be "hittable" while its centre sits under
+    /// the bar, and the tap then lands on a tab. Scroll in small steps until the centre is clear of the bar.
+    func clearOfTabBar(_ element: XCUIElement) {
+        let bar = app.tabBars.firstMatch
+        // Not under a sheet (bar not hittable) and not for the tab buttons themselves.
+        guard bar.exists, bar.isHittable, element.exists, !bar.frame.contains(element.frame) else { return }
+        var n = 0
+        while element.exists, element.frame.midY > bar.frame.minY - 12, n < 4 {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+            let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+            from.press(forDuration: 0.05, thenDragTo: to)
+            n += 1
         }
     }
 

@@ -146,7 +146,9 @@ final class AuditWalkthroughTests: AuditCase {
               "Button wechselt zu „Kalender aktualisieren“")
         shot("after-calendar")
 
+        // Seit dem Direkt-Upload (B21) steckt der .zwo-Export im aufklappbaren Bereich „Alternativ: .zwo-Datei“.
         let export = button(containing: "MyWhoosh exportieren")
+        if !export.exists { tap(button(containing: "Alternativ: .zwo-Datei"), "Alternativ: .zwo-Datei aufklappen") }
         tap(export, "Für MyWhoosh exportieren (.zwo)")
         let sheet = app.otherElements["ActivityListView"].waitForExistence(timeout: 6)
             || app.navigationBars["UIActivityContentView"].waitForExistence(timeout: 2)
@@ -729,10 +731,17 @@ final class AuditWalkthroughTests: AuditCase {
             check(!app.descendants(matching: .any)["weeklyReview.card"].firstMatch.waitForExistence(timeout: 1),
                   "Ausgeblendeter Rückblick macht Platz für die Challenge")
         }
+        // Das Highlight hängt vom Datum ab: Es erscheint nur bei einer laufenden Challenge oder einer, die in ≤ 7 Tagen
+        // startet (mit den Demo-Daten z. B. nicht vom 16. bis 24. November). Sonst über die Winter-Arc-Karte weiter.
         let highlight = app.descendants(matching: .any)["challenge.highlight"].firstMatch
-        check(scrollUntilExists(highlight, maxSwipes: 3).exists, "Challenge-Highlight auf Heute")
-        shot("challenge-highlight")
-        tap(highlight, "Challenge-Highlight öffnen")
+        if scrollUntilExists(highlight, maxSwipes: 3).exists {
+            check(true, "Challenge-Highlight auf Heute")
+            shot("challenge-highlight")
+            tap(highlight, "Challenge-Highlight öffnen")
+        } else {
+            log("No challenge highlight today (date-dependent)", "")
+            tap(button(containing: "Winter Arc"), "Winter-Arc-Karte")
+        }
         route = "winterarc"
         check(waitFast(app.navigationBars["Winter Arc"]), "Winter-Arc-Detail öffnet")
         let challenges = app.descendants(matching: .any)["challenges.card"].firstMatch
