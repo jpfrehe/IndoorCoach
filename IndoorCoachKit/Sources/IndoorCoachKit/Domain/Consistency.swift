@@ -4,7 +4,8 @@ import Foundation
 ///
 /// A week (ISO, Monday–Sunday) is *fulfilled* when (a) ≥ 80 % of the weekly budget was ridden, (b) every planned
 /// workout of the week is done (≥ 1 planned), or (c) it is a recovery week: planned TSS < 70 % of the mean of the
-/// three preceding plan weeks and ≥ 50 % of it ridden. Every 4 fulfilled weeks in a row earn a joker (max. 2); a
+/// three preceding plan weeks and ≥ 50 % of it ridden, or (d) it holds ≥ 2 units of any kind (rides, strength, other)
+/// with at least one strength/other unit – a rest week with nothing stays a rest week. Every 4 fulfilled weeks in a row earn a joker (max. 2); a
 /// missed week uses one automatically and the streak goes on; without a joker the streak breaks. The running week is
 /// never judged.
 public enum Consistency {
@@ -15,13 +16,14 @@ public enum Consistency {
     public static let maxJokers = 2
 
     public enum Reason: String, Sendable {
-        case budget, plan, recovery
+        case budget, plan, recovery, sessions
 
         public var label: String {
             switch self {
             case .budget: "Wochenbudget erreicht"
             case .plan: "Alle geplanten Einheiten erledigt"
             case .recovery: "Erholungswoche"
+            case .sessions: "Mindestens 2 Einheiten (Rad, Kraft, Andere)"
             }
         }
     }
@@ -36,6 +38,12 @@ public enum Consistency {
         public var seconds: Double
         public var tss: Double
         public init(date: Date, seconds: Double, tss: Double) { self.date = date; self.seconds = seconds; self.tss = tss }
+    }
+
+    /// A strength or other unit (not a ride); only its date matters for the rules.
+    public struct Session: Sendable {
+        public var date: Date
+        public init(date: Date) { self.date = date }
     }
 
     /// A planned workout; `done` = status done or linked to a ride.
@@ -118,7 +126,8 @@ public enum Consistency {
     /// Evaluates every complete week from `seasonStart` (a partial first week is skipped) up to and including the
     /// running week of `now`.
     public static func evaluate(weeklyBudgetSeconds: Double, rides: [Ride], planned: [PlannedItem], seasonStart: Date,
-                                now: Date, calendar base: Calendar = .current, manualJokerWeeks: Set<Date> = []) -> Result {
+                                now: Date, calendar base: Calendar = .current, manualJokerWeeks: Set<Date> = [],
+                                sessions: [Session] = []) -> Result {
         let cal = isoCalendar(base)
         let startDay = cal.startOfDay(for: seasonStart)
         var first = weekStart(startDay, cal)
@@ -126,9 +135,12 @@ public enum Consistency {
         let current = weekStart(now, cal)
         guard first <= current else { return .empty }
 
+        var sessionCount: [Date: Int] = [:], rideCount: [Date: Int] = [:]
+        for s in sessions { sessionCount[weekStart(s.date, cal), default: 0] += 1 }
         var seconds: [Date: Double] = [:], rideTSS: [Date: Double] = [:]
         for r in rides {
             let k = weekStart(r.date, cal)
+            rideCount[k, default: 0] += 1
             seconds[k, default: 0] += r.seconds
             rideTSS[k, default: 0] += r.tss
         }
@@ -151,6 +163,7 @@ public enum Consistency {
                 let mean = prior.reduce(0, +) / Double(prior.count)
                 if plan < mean * recoveryPlanShare, rideTSS[w, default: 0] >= plan * recoveryRideShare { return .recovery }
             }
+            if sessionCount[w, default: 0] >= 1, sessionCount[w, default: 0] + rideCount[w, default: 0] >= 2 { return .sessions }
             return nil
         }
 

@@ -17,6 +17,51 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
         public var rideID: Int
     }
 
+    /// A strength or other unit reduced to what the week total needs.
+    public struct SessionItem: Equatable, Sendable {
+        public var date: Date
+        public var durationSeconds: Int
+        /// „Andere Einheit“ (nicht Krafttraining).
+        public var isOther: Bool
+        public var heavyLegs: Bool
+        public init(date: Date, durationSeconds: Int, isOther: Bool, heavyLegs: Bool) {
+            self.date = date; self.durationSeconds = durationSeconds; self.isOther = isOther; self.heavyLegs = heavyLegs
+        }
+    }
+
+    /// Stunden und Anzahl je Art, einfach addiert – keine Umrechnung zwischen Rad und Kraft.
+    public struct WeekTotal: Equatable, Sendable {
+        public var rideSeconds: Double
+        public var strengthCount: Int
+        public var strengthSeconds: Double
+        public var heavyLegCount: Int
+        public var otherCount: Int
+        public var otherSeconds: Double
+        public static let empty = WeekTotal(rideSeconds: 0, strengthCount: 0, strengthSeconds: 0, heavyLegCount: 0,
+                                            otherCount: 0, otherSeconds: 0)
+
+        public var hasSessions: Bool { strengthCount > 0 || otherCount > 0 }
+        public var totalHours: Double { (rideSeconds + strengthSeconds + otherSeconds) / 3600 }
+
+        /// „Rad 3 h · Kraft 2× (Beine schwer 1×) · Andere 1,5 h · gesamt 6 h“; nil ohne Kraft/Andere.
+        public var text: String? {
+            guard hasSessions else { return nil }
+            var parts: [String] = []
+            if rideSeconds > 0 { parts.append("Rad \(Self.hours(rideSeconds / 3600))") }
+            if strengthCount > 0 {
+                parts.append("Kraft \(strengthCount)×" + (heavyLegCount > 0 ? " (Beine schwer \(heavyLegCount)×)" : ""))
+            }
+            if otherCount > 0 { parts.append("Andere \(Self.hours(otherSeconds / 3600))") }
+            parts.append("gesamt \(Self.hours(totalHours))")
+            return parts.joined(separator: " · ")
+        }
+
+        static func hours(_ value: Double) -> String {
+            let rounded = (value * 10).rounded() / 10
+            return (rounded == rounded.rounded() ? Formatters.decimal(rounded) : Formatters.decimal(rounded, digits: 1)) + " h"
+        }
+    }
+
     /// Local midnight of the Monday.
     public var weekStart: Date
     public var rideCount: Int
@@ -34,9 +79,12 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
     public var records: [Record]
     public var headline: String
     public var sentences: [String]
+    /// Gesamtwoche (Rad, Kraft, Andere); leer, bis `addingSessions` sie füllt.
+    public var total: WeekTotal = .empty
 
     public var id: Date { weekStart }
-    public var isEmpty: Bool { rideCount == 0 }
+    /// Ruhewoche: weder Fahrt noch Kraft- oder andere Einheit.
+    public var isEmpty: Bool { rideCount == 0 && !total.hasSessions }
     /// done ÷ planned; nil when nothing was planned.
     public var adherence: Double? { plannedCount > 0 ? Double(doneCount) / Double(plannedCount) : nil }
     public var effortStatus: RelativeEffort.RangeStatus? { effortRange?.status(for: effortTotal) }
@@ -138,6 +186,27 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
                       thresholdHeartRate: thresholdHeartRate, heartRate: heartRate, now: now, calendar: calendar)
             }
         }
+    }
+
+    /// Ergänzt die Gesamtwoche um Kraft- und andere Einheiten dieser Woche. Eine Woche ohne Fahrt, aber mit Einheiten
+    /// ist keine Ruhewoche: Überschrift und Sätze nennen dann die Gesamtwoche.
+    public func addingSessions(_ items: [SessionItem], calendar: Calendar = .current) -> WeeklyReview {
+        let iso = Self.isoCalendar(calendar)
+        let next = iso.date(byAdding: .weekOfYear, value: 1, to: weekStart) ?? weekStart.addingTimeInterval(7 * 86_400)
+        let week = items.filter { $0.date >= weekStart && $0.date < next }
+        let strength = week.filter { !$0.isOther }
+        let other = week.filter(\.isOther)
+        var copy = self
+        copy.total = WeekTotal(rideSeconds: hours * 3600, strengthCount: strength.count,
+                               strengthSeconds: Double(strength.reduce(0) { $0 + max(0, $1.durationSeconds) }),
+                               heavyLegCount: strength.filter(\.heavyLegs).count, otherCount: other.count,
+                               otherSeconds: Double(other.reduce(0) { $0 + max(0, $1.durationSeconds) }))
+        if rideCount == 0, let line = copy.total.text {
+            let n = copy.total.strengthCount + copy.total.otherCount
+            copy.headline = "Aktive Woche ohne Rad: \(n) \(n == 1 ? "Einheit" : "Einheiten")"
+            copy.sentences = ["Gesamtwoche: " + line, "Erholung vom Rad gehört dazu – Kraft und andere Einheiten zählen mit."]
+        }
+        return copy
     }
 
     // MARK: Texts
