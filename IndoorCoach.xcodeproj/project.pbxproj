@@ -514,6 +514,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
+				CODE_SIGN_ENTITLEMENTS = App/IndoorCoach.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = app.indoorcoach.personal;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -547,6 +548,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
+				CODE_SIGN_ENTITLEMENTS = App/IndoorCoach.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = app.indoorcoach.personal;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
