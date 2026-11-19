@@ -22,7 +22,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>IndoorCoach sucht im WLAN nach der IndoorCoach Brücke auf deinem Mac, um deine MyWhoosh-Fahrten mit Sekundendaten zu holen.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>IndoorCoach liest deine Workouts anderer Sportarten, Ruhepuls, Schlafdauer und Gewicht, damit dein Rad-Plan die ganze Woche kennt. Nichts wird geschrieben oder geteilt.</string>
+	<string>IndoorCoach liest deine Workouts anderer Sportarten, Ruhepuls, Schlafdauer und Gewicht, damit dein Rad-Plan die ganze Woche kennt. Die Daten bleiben auf deinem iPhone; an Claude gehen höchstens Zusammenfassungen, wenn du das erlaubst.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Nur wenn du es einschaltest: IndoorCoach speichert deine eigenen Einheiten (Kraft, andere Sportarten, Rad-Aufzeichnung) als Workout mit Puls in Health. Leistungswerte werden nicht geschrieben.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
