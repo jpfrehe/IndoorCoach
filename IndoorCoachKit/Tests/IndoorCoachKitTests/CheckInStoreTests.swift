@@ -82,9 +82,22 @@ struct CheckInStoreTests {
         #expect(w.definition.segments.contains { $0.kind == .steady })
         #expect(w.originalSegmentsData == originalData)
         #expect(w.adjustmentNote?.contains("Grundlage") == true)
+        #expect(w.title == "Grundlage 65 min (getauscht)")
+        #expect(w.type == .endurance)
         #expect(model.todaysCheckIn()?.chosen == .swapToBase)
         await model.restoreOriginal(w)
         #expect(w.segmentsData == originalData)
+        #expect(w.title == "VO₂ 5×4")
+        #expect(w.type == .vo2max)
+        #expect(w.originalTitle == nil && w.originalTypeRaw == nil)
+    }
+
+    @Test func restoreAfterPlainAdjustKeepsTitleAndType() async throws {
+        let (model, container) = try makeModel()
+        let w = planned(container)
+        await model.adjust(w, minutes: 45, easierBy: nil)
+        await model.restoreOriginal(w)
+        #expect(w.title == "VO₂ 5×4" && w.type == .vo2max)
     }
 
     @Test func swapAfterAdjustKeepsTrueOriginal() async throws {
@@ -94,16 +107,50 @@ struct CheckInStoreTests {
         await model.adjust(w, minutes: 45, easierBy: nil)
         await model.applyCheckInOffer(.swapToBase, to: w)
         #expect(w.originalSegmentsData == originalData)
+        #expect(w.originalTitle == "VO₂ 5×4" && w.originalTypeRaw == "vo2max")
+        await model.applyCheckInOffer(.swapToBase, to: w)   // second swap must not overwrite the true original
+        #expect(w.originalTitle == "VO₂ 5×4")
     }
 
-    @Test func jokerIsOnlyLogged() async throws {
+    /// Four fulfilled past weeks (all planned done) earn one joker.
+    func earnJoker(_ model: AppModel, _ container: ModelContainer, now: Date = .now) {
+        let cal = Calendar.current
+        let thisWeek = cal.dateInterval(of: .weekOfYear, for: now)!.start
+        model.profile.arcStart = cal.date(byAdding: .weekOfYear, value: -5, to: thisWeek)
+        for n in 1...4 {
+            let w = planned(container, date: cal.date(byAdding: .weekOfYear, value: -n, to: thisWeek)!.addingTimeInterval(3 * 86400))
+            w.status = .done
+        }
+    }
+
+    @Test func jokerOfferUsesJokerForCurrentWeek() async throws {
         let (model, container) = try makeModel()
+        earnJoker(model, container)
         let w = planned(container)
         let data = w.segmentsData
+        #expect(model.consistency(rides: []).jokers == 1)
         _ = model.saveCheckIn(bad, jokersAvailable: 1)
         await model.applyCheckInOffer(.joker, to: w)
         #expect(w.segmentsData == data)
         #expect(model.todaysCheckIn()?.chosen == .joker)
+        #expect(model.consistency(rides: []).jokers == 0)
+        #expect(model.consistency(rides: []).weeks.last?.state == .joker)
+    }
+
+    @Test func useJokerIsIdempotentPerWeek() throws {
+        let (model, container) = try makeModel()
+        earnJoker(model, container)
+        #expect(model.useJoker(rides: []))
+        #expect(model.useJoker(rides: []))
+        #expect(model.consistency(rides: []).jokers == 0)
+    }
+
+    @Test func useJokerFailsWithoutJoker() throws {
+        let (model, container) = try makeModel()
+        withExtendedLifetime(container) {}
+        #expect(!model.useJoker(rides: []))
+        #expect(model.consistency(rides: []).weeks.last?.state != .joker)
+        withExtendedLifetime(container) {}
     }
 
     @Test func schemaContainsCheckIn() {

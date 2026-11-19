@@ -96,6 +96,11 @@ public enum Consistency {
         return c
     }
 
+    /// Start (Monday) of the ISO week containing `date`; the key for manually spent jokers.
+    public static func weekStart(of date: Date, calendar base: Calendar = .current) -> Date {
+        weekStart(date, isoCalendar(base))
+    }
+
     private static func weekStart(_ date: Date, _ cal: Calendar) -> Date {
         cal.dateInterval(of: .weekOfYear, for: date)?.start ?? cal.startOfDay(for: date)
     }
@@ -113,7 +118,7 @@ public enum Consistency {
     /// Evaluates every complete week from `seasonStart` (a partial first week is skipped) up to and including the
     /// running week of `now`.
     public static func evaluate(weeklyBudgetSeconds: Double, rides: [Ride], planned: [PlannedItem], seasonStart: Date,
-                                now: Date, calendar base: Calendar = .current) -> Result {
+                                now: Date, calendar base: Calendar = .current, manualJokerWeeks: Set<Date> = []) -> Result {
         let cal = isoCalendar(base)
         let startDay = cal.startOfDay(for: seasonStart)
         var first = weekStart(startDay, cal)
@@ -154,8 +159,14 @@ public enum Consistency {
         var w = first
         while w <= current {
             let state: State
-            if w == current {
+            if w == current, !manualJokerWeeks.contains(w) {
                 state = .running
+            } else if manualJokerWeeks.contains(w) {
+                // Joker spent on purpose: the week counts as held (idempotent, the set holds each week once).
+                state = .joker
+                jokers = max(0, jokers - 1)
+                streak += 1
+                fulfilledInARow = 0
             } else if let reason = fulfilledReason(w) {
                 state = .fulfilled(reason)
                 streak += 1

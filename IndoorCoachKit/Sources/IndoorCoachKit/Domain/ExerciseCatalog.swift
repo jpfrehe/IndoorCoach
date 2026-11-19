@@ -79,6 +79,7 @@ public enum ExerciseCatalog {
         Exercise(id: "lateral_raise", name: "Seitheben", muscles: [.shoulders], legs: .none),
         Exercise(id: "face_pull", name: "Face Pull", muscles: [.shoulders, .back], legs: .none),
         Exercise(id: "biceps_curl", name: "Bizeps-Curl", muscles: [.arms], legs: .none),
+        Exercise(id: "dips", name: "Dips", muscles: [.chest, .arms], legs: .none),
         Exercise(id: "triceps_pushdown", name: "Trizeps-Drücken", muscles: [.arms], legs: .none),
         // Sonder-Eintrag
         Exercise(id: "climbing", name: "Bouldern/Klettern", muscles: [.back, .arms, .core], legs: .light, isSpecial: true),

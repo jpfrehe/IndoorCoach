@@ -9,7 +9,27 @@ extension AppModel {
         let start = calendar.startOfDay(for: profile.arcStart ?? season.start)
         return Consistency.evaluate(weeklyBudgetSeconds: profile.weeklyHours * 3600,
                                     rides: consistencyRides(rides.filter { $0.startDate >= start }),
-                                    planned: consistencyPlanned(), seasonStart: start, now: now, calendar: calendar)
+                                    planned: consistencyPlanned(), seasonStart: start, now: now, calendar: calendar,
+                                    manualJokerWeeks: manualJokerWeeks)
+    }
+
+    static let manualJokerKey = "consistency.manualJokerWeeks.v1"
+
+    /// Weeks (Monday) in which the rider spent a joker on purpose; lives in UserDefaults.
+    var manualJokerWeeks: Set<Date> {
+        Set((defaults.array(forKey: Self.manualJokerKey) as? [Double] ?? []).map { Date(timeIntervalSince1970: $0) })
+    }
+
+    /// Spends a joker for the current week: the week counts as held. Idempotent per week; false without an available joker.
+    @discardableResult
+    public func useJoker(rides: [RideSummary], now: Date = .now) -> Bool {
+        let week = Consistency.weekStart(of: now)
+        var weeks = manualJokerWeeks
+        if weeks.contains(week) { return true }
+        guard consistency(rides: rides, now: now).jokers > 0 else { return false }
+        weeks.insert(week)
+        defaults.set(weeks.map(\.timeIntervalSince1970), forKey: Self.manualJokerKey)
+        return true
     }
 
     func consistencyRides(_ rides: [RideSummary]) -> [Consistency.Ride] {

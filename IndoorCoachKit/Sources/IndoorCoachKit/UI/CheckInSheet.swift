@@ -149,7 +149,8 @@ struct CheckInSheet: View {
     private func choose(_ action: CheckIn.Action) {
         let target = workout
         dismiss()
-        Task { await model.applyCheckInOffer(action, to: target) }
+        let summaries = rides.map(\.summary)
+        Task { await model.applyCheckInOffer(action, to: target, rides: summaries) }
     }
 
     static func title(_ action: CheckIn.Action) -> String {

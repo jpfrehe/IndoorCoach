@@ -10,6 +10,9 @@ extension AppModel {
               let data = try? JSONEncoder().encode(result.definition.segments) else { return }
         if workout.originalSegmentsData == nil { workout.originalSegmentsData = workout.segmentsData }
         workout.segmentsData = data
+        // Derived from the original again, so a title/type changed by a swap goes back.
+        if let originalTitle = workout.originalTitle { workout.title = originalTitle }
+        if let originalTypeRaw = workout.originalTypeRaw { workout.typeRaw = originalTypeRaw }
         workout.adjustmentNote = result.description
         try? context.save()
         let failed = await propagateChange(of: workout)
@@ -21,6 +24,10 @@ extension AppModel {
         guard workout.status == .planned, !workout.isDeleted, let original = workout.originalSegmentsData else { return }
         workout.segmentsData = original
         workout.originalSegmentsData = nil
+        if let originalTitle = workout.originalTitle { workout.title = originalTitle }
+        if let originalTypeRaw = workout.originalTypeRaw { workout.typeRaw = originalTypeRaw }
+        workout.originalTitle = nil
+        workout.originalTypeRaw = nil
         workout.adjustmentNote = nil
         try? context.save()
         let failed = await propagateChange(of: workout)
@@ -29,7 +36,7 @@ extension AppModel {
 
     /// Updates the calendar event and replaces the MyWhoosh workout, if the workout was sent before.
     /// A failure keeps the local change and shows the usual error banner. Returns true if anything failed.
-    private func propagateChange(of workout: StoredWorkout) async -> Bool {
+    func propagateChange(of workout: StoredWorkout) async -> Bool {
         let id = workout.persistentModelID
         var failed = false
         if let eventID = workout.calendarEventID {

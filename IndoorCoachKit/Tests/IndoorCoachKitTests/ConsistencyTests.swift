@@ -158,4 +158,23 @@ struct ConsistencyTests {
         #expect(Consistency.summary(streak: 1, jokers: 0) == "1 Woche in Folge")
         #expect(Consistency.summary(streak: 0, jokers: 2) == nil)
     }
+
+    @Test func manualJokerCoversRunningWeekAndConsumesJoker() {
+        let rides = (0..<4).map { ride(week: $0, hours: 5) }
+        let base = eval(rides, now: midweek(4))
+        #expect(base.jokers == 1 && base.weeks.last?.state == .running)
+        let r = Consistency.evaluate(weeklyBudgetSeconds: budget, rides: rides, planned: [], seasonStart: season, now: midweek(4),
+                                     calendar: cal, manualJokerWeeks: [monday(4)])
+        #expect(r.weeks.last?.state == .joker)
+        #expect(r.jokers == 0)
+        #expect(r.streak == 5)
+    }
+
+    @Test func manualJokerOnPastMissedWeekBehavesLikeAutomatic() {
+        let rides = (0..<4).map { ride(week: $0, hours: 5) }
+        let r = Consistency.evaluate(weeklyBudgetSeconds: budget, rides: rides, planned: [], seasonStart: season, now: midweek(6),
+                                     calendar: cal, manualJokerWeeks: [monday(4)])
+        #expect(r.weeks[4].state == .joker)
+        #expect(r.weeks[5].state == .missed)   // joker already used for week 4
+    }
 }

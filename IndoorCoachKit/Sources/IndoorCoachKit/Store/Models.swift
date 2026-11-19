@@ -141,6 +141,9 @@ public final class StoredWorkout {
     // "Einheit anpassen" – optional for lightweight migration. The original segments are kept once, so the change can be undone.
     public var originalSegmentsData: Data?
     public var adjustmentNote: String?
+    // "Gegen Grundlage tauschen" – optional for lightweight migration: original title and type, kept once like the segments.
+    public var originalTitle: String?
+    public var originalTypeRaw: String?
 
     public init(proposal: PlannedWorkoutProposal, source: WorkoutSource, weekFocus: String?) {
         id = UUID()
@@ -173,7 +176,8 @@ public final class StoredWorkout {
     /// The workout as originally planned (before "Anpassen"), nil if it was never adjusted.
     public var originalDefinition: WorkoutDefinition? {
         guard let originalSegmentsData, let segments = try? JSONDecoder().decode([Segment].self, from: originalSegmentsData) else { return nil }
-        return WorkoutDefinition(title: title, type: type, summary: summary, segments: segments)
+        let originalType = originalTypeRaw.flatMap(WorkoutType.init(rawValue:)) ?? type
+        return WorkoutDefinition(title: originalTitle ?? title, type: originalType, summary: summary, segments: segments)
     }
 
     public var proposal: PlannedWorkoutProposal {
