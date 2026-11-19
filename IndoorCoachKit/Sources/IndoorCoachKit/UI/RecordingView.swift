@@ -217,6 +217,8 @@ public struct RecordingResultCard: View {
     var result: RecordingResult
     var outcome: RecordingOutcome?
     @Environment(AppModel.self) private var model
+    /// Die angehängte Fahrt, einmal gezielt geladen (nicht bei jedem Neuzeichnen alle Fahrten lesen).
+    @State private var attachedRide: RideSummary?
 
     public init(result: RecordingResult, outcome: RecordingOutcome?) {
         self.result = result
@@ -250,14 +252,17 @@ public struct RecordingResultCard: View {
             if result.kind == .ride, let definition = result.definitionForAnalysis(model) { ergCard(definition) }
         }
         .padding(.top, 8)
+        .task(id: outcome) {
+            if case .attached(let rideID) = outcome { attachedRide = model.ride(id: rideID) } else { attachedRide = nil }
+        }
         .accessibilityIdentifier("recording.result")
     }
 
     @ViewBuilder
     private var rideStatus: some View {
         switch outcome {
-        case .attached(let rideID):
-            let ride = model.allRides().first { $0.id == rideID }
+        case .attached:
+            let ride = attachedRide
             Card(title: "Zur Fahrt gehängt", systemImage: "link") {
                 Text("Der Puls liegt jetzt an deiner Fahrt „\(ride?.name ?? "Fahrt")“.").font(.subheadline)
                 if let ride, let source = model.recordingSource(for: ride) {

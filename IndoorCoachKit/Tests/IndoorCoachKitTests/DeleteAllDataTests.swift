@@ -94,4 +94,39 @@ struct DeleteAllDataTests {
         await model.deleteAllData()
         #expect(try container.mainContext.fetchCount(FetchDescriptor<StoredCheckIn>()) == 0)
     }
+
+    @Test func deleteAllDataStopsRunningServices() async throws {
+        let container = try AppEnvironment.makeContainer(inMemory: true)
+        let suite = "delete-all-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(), defaults: defaults)
+        let store = RecordingStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("del-\(UUID().uuidString)"))
+        let presenter = NoopRecordingLivePresenter()
+        let clock = TestClock(Date(timeIntervalSince1970: 1_800_000_000))
+        let recorder = RecordingService(strap: nil, now: { clock.date }, store: store, presenter: { presenter }, autoTick: false)
+        let controller = StubStrapController(autoplay: false)
+        let strap = StrapSession(controller: controller)
+        model.recordingServiceOverride = recorder
+        model.strapSessionOverride = strap
+        recorder.start(kind: .ride, title: "Läuft")
+        clock.advance(40); recorder.tick()                      // Zwischendatei liegt vor
+        #expect(recorder.isRunning && store.load() != nil)
+        let export = Task<Void, Never> { try? await Task.sleep(for: .seconds(60)) }
+        model.healthExportTask = export
+        // Wartende Aufzeichnung (Datei) muss ebenfalls fallen.
+        _ = model.finishRecording(RecordingResult(kind: .ride, title: "x", startedAt: clock.date.addingTimeInterval(-600), endedAt: clock.date,
+                                                  seconds: RideSeconds(power: [UInt16](repeating: 0, count: 600), heartRate: [UInt8](repeating: 120, count: 600))))
+        #expect(model.pendingRecordings.count == 1)
+
+        await model.deleteAllData()
+
+        #expect(!recorder.isRunning)                             // abgebrochen, ohne zu speichern
+        #expect(store.load() == nil)
+        #expect(!presenter.isActive)
+        #expect(controller.forgotten)                            // Gurt getrennt und vergessen
+        #expect(export.isCancelled)
+        #expect(model.pendingRecordings.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: model.pendingRecordingsURL.path))
+    }
 }

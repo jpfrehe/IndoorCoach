@@ -32,6 +32,13 @@ final class ActivityKitBackend: RecordingActivityBackend {
         await box.activity.update(ActivityContent(state: state, staleDate: staleDate))
     }
 
+    func endAll() async {
+        box = nil
+        for activity in Activity<RecordingActivityAttributes>.activities {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
     func end(_ state: RecordingLiveState, dismissAfter: TimeInterval) async {
         guard let box else { return }
         self.box = nil

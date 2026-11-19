@@ -204,4 +204,11 @@ struct RecordingAttachTests {
         #expect(model.pendingRecordings.count == 2)
         #expect(defaults.data(forKey: AppModel.Keys.recordingPending) == nil)
     }
+
+    @Test("Einzelne Fahrt gezielt laden (ohne alle Fahrten zu lesen)")
+    func rideByID() {
+        model.mergeImportedRides([ride()])
+        #expect(model.ride(id: 77)?.name == "MyWhoosh")
+        #expect(model.ride(id: 123_456) == nil)
+    }
 }

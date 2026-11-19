@@ -9,6 +9,12 @@ public protocol RecordingActivityBackend: AnyObject {
     func request(_ state: RecordingLiveState, staleDate: Date) -> Bool
     func update(_ state: RecordingLiveState, staleDate: Date) async
     func end(_ state: RecordingLiveState, dismissAfter: TimeInterval) async
+    /// Beendet jede noch laufende Aktivität dieser App sofort (Reste eines Absturzes oder Neustarts).
+    func endAll() async
+}
+
+extension RecordingActivityBackend {
+    public func endAll() async {}
 }
 
 /// Setzt `RecordingLivePresenting` auf ein `RecordingActivityBackend` um: toleriert beliebige Aufrufreihenfolgen,
@@ -63,6 +69,15 @@ public final class RecordingLiveController: RecordingLivePresenting {
             backendActive = false
             await backend.end(final, dismissAfter: Self.dismissDelay)
         }
+    }
+
+    /// Beim App-Start: Live Activities beenden, die ein Absturz oder Neustart zurückgelassen hat. Nur, wenn gerade keine
+    /// Aufzeichnung läuft.
+    public func endOrphans() async {
+        guard phase != .running else { return }
+        await tail?.value
+        guard phase != .running else { return }
+        await backend.endAll()
     }
 
     /// Wartet, bis alle bisherigen Aufrufe beim Backend angekommen sind (für Tests).

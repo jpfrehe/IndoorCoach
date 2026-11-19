@@ -92,6 +92,9 @@ public final class AppModel {
     /// Datei der wartenden Aufzeichnungen (Application Support, nicht im Backup). Nur in der App selbst am echten Ort,
     /// sonst (Tests, Vorschau) eine eigene temporäre Datei je Modell; Tests mit gemeinsamem „Neustart“ setzen denselben Pfad.
     @ObservationIgnored var pendingRecordingsURL = AppModel.defaultPendingRecordingsURL()
+    /// Laufende Dienste, die „Alle Daten löschen“ beenden muss; Standard sind die gemeinsamen Instanzen (Tests setzen Stubs).
+    @ObservationIgnored var recordingServiceOverride: RecordingService?
+    @ObservationIgnored var strapSessionOverride: StrapSession?
     /// Ersetzt das Speichern des Kontexts (nur Tests: Speicherfehler auslösen).
     @ObservationIgnored var saveOverride: (() throws -> Void)?
     /// Zählt gescheiterte Speichervorgänge (`saveReportingErrors`): Abläufe, die Zeiger vorrücken, prüfen, ob unterwegs einer scheiterte.
@@ -718,6 +721,13 @@ public final class AppModel {
 
     // MARK: - Data access
 
+    /// Eine Fahrt gezielt laden (statt `allRides()` in Views).
+    public func ride(id: Int) -> RideSummary? {
+        var descriptor = FetchDescriptor<StoredRide>(predicate: #Predicate { $0.stravaID == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first?.summary
+    }
+
     public func allRides() -> [RideSummary] {
         let descriptor = FetchDescriptor<StoredRide>(sortBy: [SortDescriptor(\.startDate)])
         return ((try? context.fetch(descriptor)) ?? []).map(\.summary)
@@ -980,6 +990,15 @@ public final class AppModel {
     /// "Alle Daten löschen" (Profil → Daten): rides, workouts, the app's calendar entries and calendar,
     /// all Keychain items and the app's UserDefaults. Data on Strava and at Anthropic is not touched.
     public func deleteAllData() async {
+        // Zuerst laufende Dienste stoppen, sonst schreiben sie nach dem Löschen weiter: Aufzeichnung abbrechen (ohne zu
+        // speichern, samt Zwischendatei und Live Activity), Gurt trennen und vergessen, Health-Export beenden.
+        let recorder = recordingServiceOverride ?? RecordingService.shared
+        recorder.cancel()
+        recorder.discardInterrupted()
+        (strapSessionOverride ?? StrapSession.shared).forget()
+        healthExportTask?.cancel()
+        healthExportTask = nil
+        savePendingRecordings([])
         let eventIDs = ((try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? []).compactMap(\.calendarEventID)
         try? context.delete(model: StoredRide.self)
         try? context.delete(model: StoredWorkout.self)
