@@ -638,7 +638,7 @@ R5:  B32 + B53 ─▶ B57                B58
 
 Die Roadmap R0–R5 wurde in Wellen von Sonnet-Subagents (TDD, je Paket eigener Worktree, exklusive Dateien) umgesetzt. Der PO hat integriert, geprüft und entschieden. Danach liefen ein Code-Review (12 Befunde, alle behoben) und ein QA-Paket für die UI-Walkthroughs. Es gibt nichts gepusht; alles liegt lokal auf `main`.
 
-**Qualität:** 939 Unit-Tests in 114 Suiten grün (vor der Roadmap 455). iOS-Build mit Widget-Extension grün. Die neuen UI-Walkthroughs (Check-in, Aufwärm-Check, Gurt, Aufzeichnung, Kraft, Kraft-Aufzeichnung, Datenquellen, Morgenmessung, Einheit anpassen) laufen mit 0 weichen Fehlern (`CHECK|FAIL`).
+**Qualität:** 939 Unit-Tests in 114 Suiten grün (vor der Roadmap 455). iOS-Build mit Widget-Extension grün. Die neuen UI-Walkthroughs (Check-in, Aufwärm-Check, Gurt, Aufzeichnung, Kraft, Kraft-Aufzeichnung, Datenquellen, Morgenmessung, Einheit anpassen) laufen mit 0 weichen Fehlern (`CHECK|FAIL`). In den älteren Walkthroughs bleibt ein weicher Fehler: Der Simulator hat keinen Kalenderzugriff („Kalender aktualisieren“).
 
 ### 11.1 Stand je Aufgabe
 
