@@ -6,6 +6,7 @@ import TipKit
 struct TodayView: View {
     @Binding var tab: AppTab
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase // ANCHOR-W3B
     @Query(sort: \StoredRide.startDate) private var storedRides: [StoredRide]
     @Query(sort: \StoredWorkout.date) private var workouts: [StoredWorkout]
 
@@ -21,6 +22,12 @@ struct TodayView: View {
             .navigationDestination(for: StoredWorkout.self) { WorkoutDetailView(workout: $0) }
             .refreshable {
                 await model.syncRides(userInitiated: true)
+                await model.syncHealth() // ANCHOR-W3B
+            }
+            // ANCHOR-W3B: Health abgleichen beim Start und wenn die App wieder in den Vordergrund kommt (nur mit aktiviertem Health).
+            .task { await model.syncHealth() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await model.syncHealth() } }
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -55,6 +62,7 @@ struct TodayDashboard: View {
             nextWorkoutCard(next)
             CheckInCard() // ANCHOR-CHECKIN
             StrengthQuickStartRow() // ANCHOR-STRENGTH (Schnellstart Kraft / Andere Einheit)
+            HealthAnnotationCard() // ANCHOR-W3B (Kraft aus Apple Health: wie hart? Beine?)
             // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
             // At most one highlight (docs/10, U1): the weekly review (Sun 16:00 – Tue) wins over the challenge.
             // ANCHOR-K2-HEUTE (Wochenrückblick)
