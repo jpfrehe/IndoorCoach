@@ -53,6 +53,7 @@ struct TodayDashboard: View {
 
             if model.isDemoMode && !Self.showcase { demoHint }
             nextWorkoutCard(next)
+            CheckInCard() // ANCHOR-CHECKIN
             // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
             // At most one highlight (docs/10, U1): the weekly review (Sun 16:00 – Tue) wins over the challenge.
             // ANCHOR-K2-HEUTE (Wochenrückblick)

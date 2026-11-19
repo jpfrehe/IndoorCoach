@@ -27,6 +27,7 @@ struct WorkoutDetailView: View {
         .background(Theme.canvas)
         .navigationTitle(workout.title)
         .inlineNavigationTitle()
+        .checkInOnOpen(workout) // ANCHOR-CHECKIN
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
