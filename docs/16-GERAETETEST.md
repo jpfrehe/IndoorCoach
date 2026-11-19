@@ -13,10 +13,9 @@ Im Simulator und per Loopback ist alles automatisch geprüft, siehe [Brücke §7
 
 | # | Schritt | Erwartung | ✓ |
 |---|---|---|---|
-| 0.1 | `git pull`, Xcode öffnen. In der lokalen Projektdatei ist dein Team (TFXTNCJQB7) auch für **IndoorCoachBridge** eingetragen (lokal, nicht committet). Unter *Signing & Capabilities* von IndoorCoachBridge „Automatically manage signing“ prüfen. | Xcode legt die App-ID `app.indoorcoach.personal.bridge` an, signiert ohne Fehler | ☐ |
+| 0.1 | `git pull`, Xcode öffnen | Projekt öffnet ohne Fehler | ☐ |
 | 0.2 | Scheme **IndoorCoach** → dein iPhone → Run | App startet auf dem iPhone | ☐ |
-| 0.3 | Scheme **IndoorCoachBridge** → *My Mac* → Run (oder *Product → Archive → Distribute → Copy App* nach `/Programme`) | In der Menüleiste erscheint das Fahrrad-Symbol, das Fenster „Einrichtung“ geht auf | ☐ |
-| 0.4 | Aufräumen aus den Tests vom 18.11.: In der *Schlüsselbundverwaltung* nach `app.indoorcoach.bridge` suchen und den alten Eintrag löschen, falls vorhanden | kein alter Eintrag mehr (optional) | ☐ |
+| 0.3 | Brücke: **bereits installiert am 19.11.** (`/Programme/IndoorCoach Brücke.app`, signiert mit deinem Apple-Development-Zertifikat). Neu installieren nach Änderungen: `scripts/install-bridge.sh` | In der Menüleiste erscheint das Fahrrad-Symbol, das Fenster „Einrichtung“ geht auf | ☐ |
 
 ## 1. Mac-Brücke einrichten (Journey-Schritte 3–4, 6)
 

@@ -23,12 +23,14 @@ public struct Keychain: Sendable {
     }
 
     public func data(_ key: Key) -> Data? {
-        var query = baseQuery(key)
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else { return nil }
-        return item as? Data
+        withFallback(alsoWhenNotFound: true) { useDataProtection in
+            var query = baseQuery(key, dataProtection: useDataProtection)
+            query[kSecReturnData as String] = true
+            query[kSecMatchLimit as String] = kSecMatchLimitOne
+            var item: CFTypeRef?
+            let status = SecItemCopyMatching(query as CFDictionary, &item)
+            return (status, status == errSecSuccess ? item as? Data : nil)
+        }
     }
 
     public func string(_ key: Key) -> String? {
@@ -37,22 +39,40 @@ public struct Keychain: Sendable {
 
     @discardableResult
     public func set(_ data: Data?, for key: Key) -> Bool {
-        let query = baseQuery(key)
-        guard let data else {
-            let status = SecItemDelete(query as CFDictionary)
-            return status == errSecSuccess || status == errSecItemNotFound
+        // A delete must also reach an item that lives in the login keychain.
+        withFallback(alsoWhenNotFound: data == nil) { useDataProtection in
+            let query = baseQuery(key, dataProtection: useDataProtection)
+            guard let data else {
+                let status = SecItemDelete(query as CFDictionary)
+                return (status, status == errSecSuccess || status == errSecItemNotFound)
+            }
+            let attributes: [String: Any] = [
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            ]
+            var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+            if status == errSecItemNotFound {
+                var add = query
+                add.merge(attributes) { $1 }
+                status = SecItemAdd(add as CFDictionary, nil)
+            }
+            return (status, status == errSecSuccess)
         }
-        let attributes: [String: Any] = [
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        ]
-        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if status == errSecItemNotFound {
-            var add = query
-            add.merge(attributes) { $1 }
-            return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+    }
+
+    /// macOS: the data-protection keychain needs an application identifier (a provisioning profile). A build without
+    /// one – locally signed, Developer ID without profile, the unsigned test runner – gets errSecMissingEntitlement and
+    /// uses the login keychain instead. With a stable code signature that keychain does not ask again after rebuilds.
+    /// Searches without the entitlement report "not found" rather than the missing entitlement, so reads and deletes
+    /// also look in the login keychain then.
+    private func withFallback<T>(alsoWhenNotFound: Bool = false, _ operation: (Bool) -> (OSStatus, T)) -> T {
+        let first = operation(dataProtection)
+        #if os(macOS)
+        if dataProtection, first.0 == errSecMissingEntitlement || (alsoWhenNotFound && first.0 == errSecItemNotFound) {
+            return operation(false).1
         }
-        return status == errSecSuccess
+        #endif
+        return first.1
     }
 
     @discardableResult
@@ -61,7 +81,7 @@ public struct Keychain: Sendable {
         return set((trimmed?.isEmpty ?? true) ? nil : trimmed!.data(using: .utf8), for: key)
     }
 
-    private func baseQuery(_ key: Key) -> [String: Any] {
+    private func baseQuery(_ key: Key, dataProtection: Bool) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

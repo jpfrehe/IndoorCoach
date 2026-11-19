@@ -70,7 +70,8 @@ jobs:
           xcodebuild build \
             -project IndoorCoach.xcodeproj \
             -scheme IndoorCoachBridge \
-            -destination 'platform=macOS' \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath "$RUNNER_TEMP/dd-bridge" \
             CODE_SIGNING_ALLOWED=NO \
             -quiet | xcbeautify --quieter

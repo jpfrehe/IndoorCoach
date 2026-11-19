@@ -178,7 +178,8 @@ public enum BridgeCrypto {
         let options = tlsOptions.securityProtocolOptions
         sec_protocol_options_add_pre_shared_key(options, dispatchData(psk) as __DispatchData,
                                                 dispatchData(Data(identity.utf8)) as __DispatchData)
-        sec_protocol_options_append_tls_ciphersuite(options, tls_ciphersuite_t(rawValue: TLS_PSK_WITH_AES_128_GCM_SHA256)!)
+        // The C macro is imported as UInt32 (SSLCipherSuite) in some builds, the raw value is UInt16.
+        sec_protocol_options_append_tls_ciphersuite(options, tls_ciphersuite_t(rawValue: UInt16(TLS_PSK_WITH_AES_128_GCM_SHA256))!)
         let parameters = NWParameters(tls: tlsOptions, tcp: NWProtocolTCP.Options())
         parameters.defaultProtocolStack.applicationProtocols.insert(
             NWProtocolFramer.Options(definition: BridgeFramer.definition), at: 0)

@@ -184,13 +184,15 @@ common_app = {
   'MARKETING_VERSION' => '0.1',
   'PRODUCT_BUNDLE_IDENTIFIER' => 'app.indoorcoach.personal.bridge',
   'PRODUCT_MODULE_NAME' => APP_NAME,
+  # codesign cannot sign a bundle whose main executable has a non-ASCII name: keep the binary ASCII.
+  'EXECUTABLE_NAME' => 'IndoorCoachBridge',
   'PRODUCT_NAME' => 'IndoorCoach Brücke',
   'SDKROOT' => 'macosx',
   'SUPPORTED_PLATFORMS' => 'macosx',
   'SWIFT_EMIT_LOC_STRINGS' => 'YES',
   'SWIFT_VERSION' => '6.0'
 }
-host = '$(BUILT_PRODUCTS_DIR)/IndoorCoach Brücke.app/Contents/MacOS/IndoorCoach Brücke'
+host = '$(BUILT_PRODUCTS_DIR)/IndoorCoach Brücke.app/Contents/MacOS/IndoorCoachBridge'
 common_test = {
   'BUNDLE_LOADER' => '$(TEST_HOST)',
   'CODE_SIGN_STYLE' => 'Automatic',

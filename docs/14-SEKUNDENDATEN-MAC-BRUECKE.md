@@ -129,9 +129,15 @@ IndoorCoach (iOS)                                                               
 | MEDIUM | Unbegrenzte Online-Versuche im Kopplungsfenster | Nach 10 fehlgeschlagenen Handshakes schließt das Fenster, höchstens 4 gleichzeitige Kopplungsverbindungen |
 | MEDIUM | `updateSecret`: Scheitert der Neustart, bleibt der alte Listener (altes Geheimnis) offen | Erst schließen, dann mit bis zu 5 Wiederholungen neu starten |
 | MEDIUM | Zwei Telefone mit korrektem Code bekamen gleichzeitig das Geheimnis | Höchstens eine Kopplung pro Fenster (Flag unter Lock) |
-| MEDIUM | Release-Build ohne Keychain-Zugriff erzeugte bei jedem Start ein neues Geheimnis, ohne dass es auffiel | `keychain-access-groups`-Entitlement, Warnung in der Menüleiste („nach einem Neustart neu koppeln“) |
+| MEDIUM | Release-Build ohne Keychain-Zugriff erzeugte bei jedem Start ein neues Geheimnis, ohne dass es auffiel | Schlüsselbund: erst Data-Protection, ohne Berechtigung (kein Profil) der Anmelde-Schlüsselbund, der bei gleicher Signatur nicht erneut fragt. Warnung in der Menüleiste, falls beides scheitert („nach einem Neustart neu koppeln“). Debug-Builds (wechselnde Signatur) nutzen die Einstellungen. *(Das zunächst ergänzte `keychain-access-groups` erzwang ein Provisioning-Profil und damit ein Entwicklerkonto in Xcode; am 19.11. durch den Rückfall ersetzt.)* |
 | LOW | `network.client`-Entitlement unnötig | entfernt |
 
 **Offen:**
 - B25: Gerätetest mit signiertem Build, also echter Freigabe-Dialog des MyWhoosh-Containers, Netzwerk-Abfrage, Login-Item und eine echte MyWhoosh-FIT-Datei. Das Format von MyWhoosh-FIT-Dateien ist über die Community belegt, eine echte Datei war hier nicht lesbar.
 - B24: iCloud-Transport und Verteilung der Mac-App.
+
+**Installation auf dem Entwickler-Mac (19.11.2026)** – zwei weitere Funde beim ersten signierten Release-Build:
+1. **Umlaut im Namen der Binärdatei:** codesign kann ein Bundle nicht signieren, dessen ausführbare Datei „IndoorCoach Brücke“ heißt („code object is not signed at all … In subcomponent“). Die Binärdatei heißt jetzt `IndoorCoachBridge` (`EXECUTABLE_NAME`), der App-Name bleibt „IndoorCoach Brücke“.
+2. **Release-Build brach ab:** `TLS_PSK_WITH_AES_128_GCM_SHA256` wird je nach Architektur als `UInt32` importiert. Die CI baut nur Debug für eine Architektur und hat das nicht bemerkt; ein App-Store-Archiv wäre gescheitert. Die Umwandlung ist jetzt explizit.
+
+Dazu `scripts/install-bridge.sh` (Release bauen, mit Apple-Development-Zertifikat signieren, nach `/Programme` installieren, starten). Neuinstallation mit derselben Signatur liest das Geheimnis ohne Rückfrage.

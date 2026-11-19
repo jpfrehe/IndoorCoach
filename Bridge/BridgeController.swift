@@ -226,11 +226,12 @@ final class BridgeController {
     // MARK: Server
 
     private func loadOrCreateSecret() -> Data {
-        if let existing = keychain.data(.bridgeSecret), existing.count == 32 { return existing }
         #if DEBUG
-        // Unsigned debug builds have no data-protection keychain: keep the secret in the defaults so pairing
-        // survives restarts during development. Release builds are signed and never take this path.
+        // Debug builds are unsigned/ad hoc: their signature changes with every build, so the login keychain would ask
+        // for access each time (and block the test host). They keep the secret in the defaults instead.
         if let existing = defaults.data(forKey: Key.debugSecret), existing.count == 32 { return existing }
+        #else
+        if let existing = keychain.data(.bridgeSecret), existing.count == 32 { return existing }
         #endif
         let fresh = BridgeCrypto.newPairingSecret()
         storeSecret(fresh)
@@ -238,11 +239,10 @@ final class BridgeController {
     }
 
     private func storeSecret(_ secret: Data) {
-        if keychain.set(secret, for: .bridgeSecret) { secretStorageError = nil; return }
         #if DEBUG
         defaults.set(secret, forKey: Key.debugSecret)
-        Log.notice(.bridge, "Schlüsselbund nicht verfügbar (unsignierter Debug-Build) – Geheimnis in den Einstellungen")
         #else
+        if keychain.set(secret, for: .bridgeSecret) { secretStorageError = nil; return }
         Log.error(.bridge, "Schlüsselbund nicht verfügbar – Geheimnis nur im Speicher")
         secretStorageError = "Schlüsselbund nicht verfügbar – nach einem Neustart musst du dein iPhone neu koppeln."
         #endif

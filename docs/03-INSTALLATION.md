@@ -54,7 +54,7 @@ Die Startzeit wird für Kalendereinträge verwendet.
 2. Nach der Anmeldung lädt die App deine Fahrten der letzten 210 Tage aus MyWhoosh. Danach holt sie bei jedem Start neue nach; „Fahrten aus MyWhoosh laden“ lädt das ganze Fenster neu.
    - MyWhoosh liefert Ø-Leistung, Dauer, Distanz und Ø-Puls, aber keine Sekundendaten.
 3. **Volle Leistungskurve (Sekundendaten), automatisch:** Wer MyWhoosh auf dem Mac fährt, nutzt die **IndoorCoach Brücke** (Menüleisten-App, Scheme `IndoorCoachBridge`):
-   1. In Xcode das Scheme **IndoorCoachBridge** wählen, Ziel **My Mac**, ausführen (oder archivieren und nach `/Programme` kopieren).
+   1. Im Terminal `scripts/install-bridge.sh` ausführen: baut die Release-Version, signiert sie mit deinem Apple-Development-Zertifikat (ohne Entwicklerkonto in Xcode, ohne Profil; ohne Zertifikat ad hoc), installiert sie nach `/Programme` und startet sie. Alternativ in Xcode das Scheme **IndoorCoachBridge** auf **My Mac** ausführen.
    2. Im Fenster „Einrichtung“ **MyWhoosh-Ordner freigeben**. Der Dialog steht schon in `~/Library/Containers/com.whoosh.whooshgame/…/MyWhoosh/Content/Data`, also auf „Freigeben“ klicken. Fragt macOS, ob die Brücke auf Daten anderer Apps zugreifen darf, auf „Erlauben“ klicken.
    3. **iPhone koppeln** zeigt einen 6-stelligen Code. Fragt macOS nach dem **lokalen Netzwerk**, auf „Erlauben“ klicken.
    4. Auf dem iPhone **Profil → MyWhoosh → Sekundendaten vom Mac** (oder Verlauf → Leistung → „Einrichten“) öffnen, den Mac antippen und den Code eingeben. Auch iOS fragt nach dem lokalen Netzwerk.
