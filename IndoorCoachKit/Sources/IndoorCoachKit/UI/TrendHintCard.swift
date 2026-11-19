@@ -60,6 +60,7 @@ struct TrendHintCard: View {
             }
         }
         .accessibilityElement(children: .contain)
+        .onAppear { model.recordTrendHintShown() } // Pilot-Zähler „Karte angezeigt“ (einmal je Tag)
     }
 
     /// Kurze Titel der Angebote: Tauschen, Leichter, Joker.

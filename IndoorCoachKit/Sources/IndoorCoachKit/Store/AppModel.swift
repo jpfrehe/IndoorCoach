@@ -146,7 +146,7 @@ public final class AppModel {
                           weeklyReviewDismissed, onboardingStep, bridgeMacName, bridgeLastSync, bridgeKnownIDs,
                           recordingPending, recordingAttached, // ANCHOR-REC
                           legLoadKept, manualJokerWeeks, strengthTemplates, strengthDays, strapPeripheral,
-                          healthExportSettings, healthExportLedger]
+                          healthExportSettings, healthExportLedger, planFeedback]
         /// Hinweis „Achtung Leistung“ je Einheit behalten (LegLoad), Joker-Wochen (Konstanz), Kraft-Vorlagen und Studio-Tage,
         /// gekoppelter Gurt, Health-Export (Einstellung und Protokoll).
         static let legLoadKept = "legload.kept.v1"
@@ -154,6 +154,8 @@ public final class AppModel {
         static let strengthTemplates = "strength.templates.v1"
         static let strengthDays = "strength.days.v1"
         static let strapPeripheral = StrapStore.key
+        /// Plan-Feedback je Woche (👍/👎, B33).
+        static let planFeedback = "weeklyReview.planFeedback.v1"
         static let healthExportSettings = HealthExportService.settingsKey
         static let healthExportLedger = HealthExportService.ledgerKey
     }

@@ -64,6 +64,8 @@ public struct PilotMetrics: Sendable {
         public var healthMerged = 0
         public var guardShadowHits = 0
         public var guardShadowDays = 0
+        /// Tage, an denen die Karte des Trend-Wächters sichtbar war.
+        public var guardCardShownDays = 0
         /// nil = es gibt (noch) keine Plan-Rückmeldung in der App.
         public var planFeedback: Feedback?
         public var claudeConsent = false
@@ -128,7 +130,7 @@ public struct PilotMetrics: Sendable {
         out.append("iPhone-Aufzeichnungen: \(recordings) gesamt, \(recordingsWithGap) mit Lücke über \(Self.gapThresholdSeconds) s")
         out.append("Krafteinheiten: \(strengthTotal) gesamt, \(strengthComplete) mit Härte und Beinen")
         out.append("Health-Workouts: \(input.healthImported) importiert, \(input.healthMerged) zusammengeführt")
-        out.append("Trend-Wächter: sichtbar nicht erfasst, Schatten \(input.guardShadowHits) Treffer an \(input.guardShadowDays) Tagen")
+        out.append("Trend-Wächter: Karte angezeigt an \(input.guardCardShownDays) Tagen, Schatten \(input.guardShadowHits) Treffer an \(input.guardShadowDays) Tagen")
         if let feedback = input.planFeedback { out.append("Plan-Feedback: \(feedback.up) positiv, \(feedback.down) negativ") }
         out.append("Claude-Einwilligung: \(input.claudeConsent ? "ja" : "nein")")
         return out

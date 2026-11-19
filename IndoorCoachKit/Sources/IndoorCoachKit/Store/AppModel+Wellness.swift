@@ -31,8 +31,10 @@ extension AppModel {
     static let wellnessShadowLastHitKey = "wellness.shadow.lastHit.v1"
     static let wellnessShadowLastEvalKey = "wellness.shadow.lastEval.v1"
     static let wellnessDismissedKey = "wellness.hint.dismissedDay.v1"
+    static let wellnessShownDaysKey = "wellness.hint.shownDays.v1"
+    static let wellnessShownLastKey = "wellness.hint.shownLastDay.v1"
     static let wellnessStateKeys = [wellnessShadowKey, wellnessShadowHitsKey, wellnessShadowDaysKey, wellnessShadowLastHitKey,
-                                    wellnessShadowLastEvalKey, wellnessDismissedKey]
+                                    wellnessShadowLastEvalKey, wellnessDismissedKey, wellnessShownDaysKey, wellnessShownLastKey]
     static let wellnessCacheFile = "wellness-cache.v1.json"
 
     /// Kennzahlen, die der Cache hält.
@@ -244,6 +246,17 @@ extension AppModel {
     /// „Passt schon“: die Karte bleibt für heute weg.
     public func dismissTrendHint(now: Date = .now) {
         defaults.set(Calendar.current.startOfDay(for: now).timeIntervalSince1970, forKey: Self.wellnessDismissedKey)
+    }
+
+    /// Tage, an denen die Karte sichtbar war (nur Zähler, für den Pilot-Export).
+    public var trendGuardCardShownDays: Int { defaults.integer(forKey: Self.wellnessShownDaysKey) }
+
+    /// Die Karte ist sichtbar geworden: höchstens ein Zählschritt pro Tag.
+    public func recordTrendHintShown(now: Date = .now) {
+        let day = Calendar.current.startOfDay(for: now).timeIntervalSince1970
+        guard defaults.object(forKey: Self.wellnessShownLastKey) as? Double != day else { return }
+        defaults.set(day, forKey: Self.wellnessShownLastKey)
+        defaults.set(trendGuardCardShownDays + 1, forKey: Self.wellnessShownDaysKey)
     }
 
     // MARK: Schattenmodus

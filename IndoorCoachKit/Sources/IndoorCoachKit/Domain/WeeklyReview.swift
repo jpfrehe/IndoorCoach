@@ -8,7 +8,11 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
         public var date: Date
         public var tss: Double
         public var done: Bool
-        public init(date: Date, tss: Double, done: Bool) { self.date = date; self.tss = tss; self.done = done }
+        /// Über „Anpassen“ oder „Gegen Grundlage tauschen“ verändert (statt auszufallen).
+        public var adjusted: Bool
+        public init(date: Date, tss: Double, done: Bool, adjusted: Bool = false) {
+            self.date = date; self.tss = tss; self.done = done; self.adjusted = adjusted
+        }
     }
 
     public struct Record: Equatable, Sendable {
@@ -81,6 +85,28 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
     public var sentences: [String]
     /// Gesamtwoche (Rad, Kraft, Andere); leer, bis `addingSessions` sie füllt.
     public var total: WeekTotal = .empty
+    /// Angepasste oder getauschte Einheiten dieser Woche (nicht ausgelassen).
+    public var adjustedCount = 0
+    /// Aufwärm-Check-Trend, nur für den Rückblick der aktuellen Woche gesetzt.
+    public var warmupDirection: WarmupCheck.Trend.Direction?
+
+    /// Würdigung „angepasst statt ausgefallen“; nil ohne angepasste Einheiten.
+    public var adjustedLine: String? {
+        guard adjustedCount > 0 else { return nil }
+        return "\(adjustedCount) \(adjustedCount == 1 ? "Einheit" : "Einheiten") angepasst statt ausgefallen – so bleibst du dran."
+    }
+
+    /// Aufwärm-Check-Trend in einem Satz; nil ohne Trend und in Ruhewochen.
+    public var warmupLine: String? {
+        guard !isEmpty, let warmupDirection else { return nil }
+        let prefix = "Aufwärm-Check: Der Puls bei deiner Referenzleistung "
+        switch warmupDirection {
+        case .falling: return prefix + "sinkt – ein gutes Zeichen."
+        case .stable: return prefix + "bleibt stabil."
+        case .rising: return prefix + "steigt etwas – gönn dir genug Erholung."
+        case .notEnough: return nil
+        }
+    }
 
     public var id: Date { weekStart }
     /// Ruhewoche: weder Fahrt noch Kraft- oder andere Einheit.
@@ -121,7 +147,8 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
 
     public static func build(weekStart: Date, rides: [RideSummary], planned: [PlannedItem], series: FitnessFreshness.Series,
                              ftp: Int, thresholdHeartRate: Int?, heartRate: RelativeEffort.HeartRateProfile,
-                             now: Date = .now, calendar: Calendar = .current) -> WeeklyReview {
+                             now: Date = .now, calendar: Calendar = .current,
+                             warmup: WarmupCheck.Trend.Direction? = nil) -> WeeklyReview {
         let iso = isoCalendar(calendar)
         let start = weekStart
         let next = iso.date(byAdding: .weekOfYear, value: 1, to: start) ?? start.addingTimeInterval(7 * 86_400)
@@ -169,6 +196,8 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
             fitnessChange: change, form: form,
             effortTotal: effort(in: start, to: next), effortRange: RelativeEffort.weeklyRange(previousWeeks: previousTotals),
             records: bestByDuration.values.sorted { $0.duration < $1.duration }, headline: "", sentences: [])
+        review.adjustedCount = weekPlan.filter(\.adjusted).count
+        review.warmupDirection = warmup
         review.headline = review.makeHeadline()
         review.sentences = review.makeSentences()
         return review
@@ -268,4 +297,9 @@ public struct WeeklyReview: Equatable, Sendable, Identifiable {
         if seconds < 3600 { return "\(seconds / 60) min" }
         return seconds % 3600 == 0 ? "\(seconds / 3600) h" : "\(seconds / 60) min"
     }
+}
+
+/// Rückmeldung zum Plan einer Woche (👍/👎), lokal gespeichert und im Pilot-Export nur gezählt.
+public enum PlanFeedback: String, Codable, Sendable, CaseIterable {
+    case up, down
 }

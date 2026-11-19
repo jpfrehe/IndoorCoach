@@ -48,6 +48,9 @@ struct WeeklyReviewCard: View {
                         ForEach(review.sentences, id: \.self) { sentence in
                             Text(sentence).font(.subheadline).foregroundStyle(.secondary)
                         }
+                        ForEach(review.recognitionLines, id: \.self) { line in
+                            Text(line).font(.subheadline).foregroundStyle(.secondary)
+                        }
                         Text("Alle Details ansehen")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Theme.accent)
@@ -130,6 +133,7 @@ private struct WeeklyReviewDetailCard: View {
                     .font(prominent ? .title3.weight(.bold) : .headline)
                     .accessibilityAddTraits(.isHeader)
                 ForEach(review.sentences, id: \.self) { Text($0).font(.subheadline).foregroundStyle(.secondary) }
+                ForEach(review.recognitionLines, id: \.self) { Text($0).font(.subheadline).foregroundStyle(.secondary) }
                 if review.rideCount > 0, let total = review.total.text {
                     Text("Gesamtwoche: \(total)")
                         .font(.subheadline.weight(.semibold))
@@ -160,6 +164,7 @@ private struct WeeklyReviewDetailCard: View {
                         }
                     }
                 }
+                if prominent, !review.isEmpty { PlanFeedbackRow(weekStart: review.weekStart) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -172,5 +177,53 @@ private struct WeeklyReviewDetailCard: View {
             text += " · üblicher Bereich \(Int(range.lower.rounded()))–\(Int(range.upper.rounded()))"
         }
         return text
+    }
+}
+
+extension WeeklyReview {
+    /// Würdigungen unter den Sätzen: angepasst statt ausgefallen, Aufwärm-Check-Trend.
+    var recognitionLines: [String] { [adjustedLine, warmupLine].compactMap { $0 } }
+}
+
+/// „Passte der Plan diese Woche?“ – 👍/👎, je Woche gespeichert; ein zweiter Tipp auf dieselbe Antwort nimmt sie zurück.
+private struct PlanFeedbackRow: View {
+    var weekStart: Date
+    @Environment(AppModel.self) private var model
+    @State private var answer: PlanFeedback?
+    @State private var loaded = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("Passte der Plan diese Woche?").font(.subheadline.weight(.semibold))
+            Spacer(minLength: 8)
+            button(.up, symbol: "hand.thumbsup", label: "Plan passte")
+            button(.down, symbol: "hand.thumbsdown", label: "Plan passte nicht")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("weeklyReview.feedback")
+        .onAppear {
+            guard !loaded else { return }
+            answer = model.planFeedback(forWeek: weekStart)
+            loaded = true
+        }
+    }
+
+    private func button(_ value: PlanFeedback, symbol: String, label: String) -> some View {
+        let selected = answer == value
+        return Button {
+            let next: PlanFeedback? = selected ? nil : value
+            answer = next
+            model.setPlanFeedback(next, forWeek: weekStart)
+        } label: {
+            Image(systemName: selected ? "\(symbol).fill" : symbol)
+                .font(.title3)
+                .foregroundStyle(selected ? Theme.accent : Theme.rowSecondary)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("weeklyReview.feedback.\(value.rawValue)")
     }
 }

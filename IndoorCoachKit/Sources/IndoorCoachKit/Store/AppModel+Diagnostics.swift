@@ -106,6 +106,8 @@ extension AppModel {
         input.healthMerged = stored.filter { $0.mergedHealthUUID != nil }.count
         input.guardShadowHits = trendGuardShadowStats.hits
         input.guardShadowDays = trendGuardShadowStats.days
+        input.guardCardShownDays = trendGuardCardShownDays
+        input.planFeedback = planFeedbackTotals
         input.claudeConsent = claudeConsent != nil
         return PilotMetrics.compute(input)
     }
