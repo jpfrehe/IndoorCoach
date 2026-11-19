@@ -779,6 +779,9 @@ public final class AppModel {
         var result = PlanContext(profile: profile, today: today, horizonStart: start, horizonEnd: end,
                                  load: series.last, weeks: weeks, recentRides: recent, alreadyPlanned: planned, wish: wish)
         result.winterArc = winterArc(rides: rides, now: now)
+        result.strength = strengthWeekSummary(now: now, horizonStart: start, horizonEnd: end, calendar: calendar) // ANCHOR-W3C
+        result.otherSports = OtherSportSummary.summaries(from: rides, ftp: profile.ftp, thresholdHeartRate: profile.thresholdHeartRate,
+                                                         today: today, calendar: calendar) // ANCHOR-W3C
         return result
     }
 

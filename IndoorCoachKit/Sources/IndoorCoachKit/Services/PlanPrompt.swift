@@ -21,6 +21,66 @@ public struct PlanProposal: Sendable, Hashable {
     public var rejected: [String]
 }
 
+/// Krafteinheiten der letzten 7 Tage und geplante Studio-Tage (docs/17 §8.2). Keine Roh-Pulswerte, keine Gerätenamen.
+public struct StrengthWeekSummary: Sendable, Equatable {
+    public struct Entry: Sendable, Equatable {
+        public var date: Date
+        /// Härte CR-10, `nil` = nicht angegeben.
+        public var exertion: Int?
+        public var minutes: Int
+        public var legs: LegInvolvement
+
+        public init(date: Date, exertion: Int?, minutes: Int, legs: LegInvolvement) {
+            self.date = date; self.exertion = exertion; self.minutes = minutes; self.legs = legs
+        }
+    }
+
+    public var sessions: [Entry]
+    /// Geplante Studio-Tage im Planungszeitraum (Start des Tages).
+    public var studioDays: [Date]
+
+    public init(sessions: [Entry], studioDays: [Date]) {
+        self.sessions = sessions; self.studioDays = studioDays
+    }
+}
+
+/// Aerobe Fremdsportart (Laufen, Schwimmen …) der letzten 14 Tage mit geschätzter TSS.
+public struct OtherSportSummary: Sendable, Equatable {
+    public var date: Date
+    public var sport: String
+    public var minutes: Int
+    public var estimatedTSS: Int
+
+    public init(date: Date, sport: String, minutes: Int, estimatedTSS: Int) {
+        self.date = date; self.sport = sport; self.minutes = minutes; self.estimatedTSS = estimatedTSS
+    }
+
+    /// Strava-/HealthKit-Typ → deutsche Bezeichnung; unbekannte Typen fallen über `SportClassification` heraus.
+    private static let labels: [String: String] = [
+        "run": "Laufen", "running": "Laufen", "trailrun": "Laufen", "walk": "Gehen", "walking": "Gehen",
+        "hike": "Wandern", "hiking": "Wandern", "swim": "Schwimmen", "swimming": "Schwimmen",
+        "rowing": "Rudern", "elliptical": "Crosstrainer", "nordicski": "Langlauf", "crosscountryskiing": "Langlauf",
+        "alpineski": "Ski", "downhillskiing": "Ski", "snowboard": "Snowboard", "snowboarding": "Snowboard"
+    ]
+
+    /// Aerobe Fremdsportarten der letzten 14 Tage (inklusive heute), neueste zuerst. Rad und Kraft sind ausgeschlossen.
+    public static func summaries(from rides: [RideSummary], ftp: Int, thresholdHeartRate: Int?, today: Date,
+                                 calendar: Calendar = .current) -> [OtherSportSummary] {
+        let start = calendar.date(byAdding: .day, value: -13, to: calendar.startOfDay(for: today)) ?? today
+        return rides
+            .filter { $0.startDate >= start && !$0.isIndoor }
+            .compactMap { r -> OtherSportSummary? in
+                let key = SportClassification.normalize(r.sportType)
+                let label = labels[key]
+                guard label != nil || SportClassification.category(for: r.sportType).feedsAerobicLoad else { return nil }
+                let est = TrainingLoad.estimateTSS(for: r, ftp: ftp, thresholdHeartRate: thresholdHeartRate)
+                return OtherSportSummary(date: r.startDate, sport: label ?? r.sportType, minutes: Int((Double(r.movingTime) / 60).rounded()),
+                                         estimatedTSS: Int(est.tss.rounded()))
+            }
+            .sorted { $0.date > $1.date }
+    }
+}
+
 /// Everything the coach needs to know – built from local data, no personal identifiers.
 public struct PlanContext: Sendable {
     public var profile: AthleteProfile
@@ -34,6 +94,10 @@ public struct PlanContext: Sendable {
     public var wish: String
     /// Season progress towards the spring goal (optional, gives the coach the long-term frame).
     public var winterArc: WinterArc.Status? = nil
+    /// Krafteinheiten der letzten 7 Tage und Studio-Tage (W3-C), `nil` = keine Daten.
+    public var strength: StrengthWeekSummary? = nil
+    /// Aerobe Fremdsportarten der letzten 14 Tage (W3-C).
+    public var otherSports: [OtherSportSummary] = []
 
     public init(profile: AthleteProfile, today: Date, horizonStart: Date, horizonEnd: Date,
                 load: TrainingLoad.DayLoad?, weeks: [TrainingLoad.WeekSummary], recentRides: [RideSummary],
@@ -71,6 +135,15 @@ public enum PlanPrompt {
     - Aufwärm-Check: Direkt nach dem Einfahren (warmup) steht in jeder Einheit ein Block kind "steady", 360 Sekunden, \
     power = Referenzleistung des Athleten als Anteil der FTP (siehe Abschnitt Athlet), cadence 90, text "Aufwärm-Check". \
     Ändere diese Leistung nie und lass den Block nicht weg; er ist ein fester Vergleichspunkt, kein Training.
+    - Kraft und andere Sportarten (Abschnitt "Kraft & andere Sportarten", falls vorhanden) sind weiche Vorgaben, keine harten Sperren; \
+    nenne in der Begründung (rationale) das Wort "Faustregel", wenn eine davon die Planung beeinflusst hat:
+      · Schwere Beine (Kraft mit hohem Beinanteil) liegen weniger als 24 Stunden vor einer VO₂max-, Schwellen- oder anaeroben Einheit: \
+        vermeiden (Faustregel); stattdessen Grundlage oder Ruhe, die Schlüsseleinheit verschieben.
+      · Am selben Tag Intervalle vor Kraft, mit mindestens 3 Stunden Abstand.
+      · Nach schweren Beinen folgt Grundlage oder Ruhe.
+      · Geplante Studio-Tage einplanen: Studio-Tage gelten vorsorglich als Beintage, am Folgetag eines Studio-Tags keine harte \
+        Einheit (Sweet Spot und härter), wenn vermeidbar.
+      · Fremdbelastung (z. B. Laufen) zählt zur Wochenlast und zur Erholungsbilanz; plane danach entsprechend weniger Rad-TSS.
     - Optional "text" in Segmenten für kurze Hinweise, die während der Fahrt eingeblendet werden (max. 60 Zeichen).
     """
 
@@ -175,6 +248,28 @@ public enum PlanPrompt {
             parts.append("TSS \(Int(est.tss.rounded()))")
             if let intensity = est.intensityFactor { parts.append("IF \(Formatters.decimal(intensity, digits: 2))") }
             lines.append("- " + parts.joined(separator: ", "))
+        }
+
+        if (ctx.strength.map { !$0.sessions.isEmpty || !$0.studioDays.isEmpty } ?? false) || !ctx.otherSports.isEmpty {
+            lines.append("")
+            lines.append("## Kraft & andere Sportarten")
+            if let strength = ctx.strength {
+                if !strength.sessions.isEmpty { lines.append("Krafteinheiten der letzten 7 Tage (neueste zuerst):") }
+                for e in strength.sessions.sorted(by: { $0.date > $1.date }) {
+                    let hardness = e.exertion.map { "Härte \($0) × \(e.minutes) min = \($0 * e.minutes)" } ?? "Härte unbekannt, \(e.minutes) min"
+                    lines.append("- \(day.string(from: e.date)): \(hardness), Beine \(e.legs.label)")
+                }
+                if !strength.studioDays.isEmpty {
+                    let days = strength.studioDays.sorted().map { day.string(from: $0) }.joined(separator: ", ")
+                    lines.append("Geplante Studio-Tage im Zeitraum: \(days)")
+                }
+            }
+            if !ctx.otherSports.isEmpty {
+                lines.append("Andere Sportarten der letzten 14 Tage (neueste zuerst):")
+                for o in ctx.otherSports.sorted(by: { $0.date > $1.date }).prefix(10) {
+                    lines.append("- \(day.string(from: o.date)): \(o.sport), \(o.minutes) min, TSS \(o.estimatedTSS) (geschätzt)")
+                }
+            }
         }
 
         if !ctx.alreadyPlanned.isEmpty {

@@ -112,6 +112,7 @@ struct WorkoutDetailContent: View {
             }
 
             if workout.status == .planned {
+                LegLoadBanner(workout: workout) // ANCHOR-W3C
                 AdjustSection(workout: workout) { showAdjust = true }
             }
 
