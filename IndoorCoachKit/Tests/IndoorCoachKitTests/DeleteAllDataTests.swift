@@ -39,6 +39,7 @@ struct DeleteAllDataTests {
         model.healthWriter = StubHealthWorkoutWriter()
         try await model.healthExport.setEnabled(.strength, true)
         defaults.set(["e"], forKey: AppModel.Keys.healthExportLedger)
+        model.setPlanFeedback(.up, forWeek: .now) // B33: Plan-Feedback je Woche
         model.bridge.load(defaults: defaults)
         model.onboardingStep = 2
         model.setClaudeAPIKey("placeholder-claude-key")

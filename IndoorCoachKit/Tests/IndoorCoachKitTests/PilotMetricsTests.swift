@@ -61,7 +61,7 @@ struct PilotMetricsTests {
         #expect(lines.first == "== Pilot-Kennzahlen ==")
         #expect(lines.contains("Claude-Einwilligung: ja"))
         #expect(lines.contains("Health-Workouts: 4 importiert, 1 zusammengeführt"))
-        #expect(lines.contains("Trend-Wächter: sichtbar nicht erfasst, Schatten 3 Treffer an 20 Tagen"))
+        #expect(lines.contains("Trend-Wächter: Karte angezeigt an 0 Tagen, Schatten 3 Treffer an 20 Tagen"))
         #expect(!lines.contains { $0.contains("Plan-Feedback") })
         input.planFeedback = .init(up: 5, down: 2)
         #expect(PilotMetrics.compute(input).lines.contains("Plan-Feedback: 5 positiv, 2 negativ"))
