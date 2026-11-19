@@ -74,6 +74,13 @@ struct StrengthSessionTests {
         for g in MuscleGroup.allCases { #expect(!ExerciseCatalog.exercises(for: g).isEmpty, "leer: \(g)") }
     }
 
+    @Test func dipsAreChestTricepsWithoutLegs() {
+        let dips = ExerciseCatalog.exercise(id: "dips")
+        #expect(dips?.name == "Dips")
+        #expect(dips?.muscles.contains(.chest) == true && dips?.muscles.contains(.arms) == true)
+        #expect(dips?.legInvolvement == LegInvolvement.none)
+    }
+
     @Test func legInvolvementOfKeyExercises() {
         #expect(ExerciseCatalog.exercise(id: "squat")?.legInvolvement == .heavy)
         #expect(ExerciseCatalog.exercise(id: "deadlift")?.legInvolvement == .heavy)

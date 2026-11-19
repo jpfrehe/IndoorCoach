@@ -43,16 +43,22 @@ extension AppModel {
         try? context.save()
     }
 
-    /// Logs the chosen action (measure for Z1) and carries it out. The joker only confirms: the streak logic uses it
-    /// automatically for a missed week.
-    public func applyCheckInOffer(_ action: CheckIn.Action, to workout: StoredWorkout, now: Date = .now) async {
+    /// Logs the chosen action (measure for Z1) and carries it out. The joker is spent for the current week
+    /// (`useJoker`, needs the rides for the streak evaluation).
+    public func applyCheckInOffer(_ action: CheckIn.Action, to workout: StoredWorkout, rides: [RideSummary] = [],
+                                  now: Date = .now) async {
         todaysCheckIn(now: now)?.chosenRaw = action.raw
         try? context.save()
         switch action {
         case .shorten(let minutes, let easier): await adjust(workout, minutes: minutes, easierBy: easier)
         case .easier(let percent): await adjust(workout, minutes: nil, easierBy: percent)
         case .swapToBase: await swapToBase(workout)
-        case .joker: show("Joker ist vorgemerkt. Ruh dich aus, deine Serie bleibt.", error: false)
+        case .joker:
+            if useJoker(rides: rides, now: now) {
+                show("Joker eingesetzt. Ruh dich aus, deine Serie bleibt.", error: false)
+            } else {
+                show("Kein Joker verfügbar.", error: true)
+            }
         }
     }
 
@@ -64,36 +70,16 @@ extension AppModel {
         guard let base = WorkoutSwap.base(for: original),
               let data = try? JSONEncoder().encode(base.segments) else { return }
         if workout.originalSegmentsData == nil { workout.originalSegmentsData = workout.segmentsData }
+        if workout.originalTitle == nil {
+            workout.originalTitle = workout.title
+            workout.originalTypeRaw = workout.typeRaw
+        }
         workout.segmentsData = data
+        workout.title = "Grundlage \(WorkoutAdjust.minutes(base.totalDuration)) min (getauscht)"
+        workout.typeRaw = base.type.rawValue
         workout.adjustmentNote = "Gegen Grundlage getauscht · Z2, \(WorkoutAdjust.minutes(base.totalDuration)) min"
         try? context.save()
-        let failed = await propagateSwap(of: workout)
+        let failed = await propagateChange(of: workout)
         if !failed { show("Gegen Grundlage getauscht.", error: false) }
-    }
-
-    /// Same best-effort follow-up as "Einheit anpassen": calendar event, then MyWhoosh replace. True if anything failed.
-    private func propagateSwap(of workout: StoredWorkout) async -> Bool {
-        let id = workout.persistentModelID
-        var failed = false
-        if let eventID = workout.calendarEventID {
-            do {
-                let newID = try await calendarService.upsert(eventID: eventID, title: "🚴 \(workout.title)", start: startDate(for: workout),
-                                                             durationSeconds: workout.definition.totalDuration, notes: calendarNotes(for: workout))
-                if let w = context.model(for: id) as? StoredWorkout, !w.isDeleted, w.calendarEventID != newID {
-                    w.calendarEventID = newID
-                    try? context.save()
-                }
-            } catch {
-                Log.error(.calendar, "Tausch nicht im Kalender: \(type(of: error))")
-                show(error.localizedDescription, error: true)
-                failed = true
-            }
-        }
-        if workout.myWhooshWorkoutID != nil, isMyWhooshConnected, let w = context.model(for: id) as? StoredWorkout, !w.isDeleted {
-            if !failed { banner = nil }
-            await sendToMyWhoosh([w])
-            if banner?.isError == true { failed = true }
-        }
-        return failed
     }
 }
