@@ -117,6 +117,10 @@ struct HeartInWinterArcTests {
         #expect(make(dailies: dailies).seasonLines == ["Ruhepuls 58 → 53"])
     }
 
+    @Test func demoModeYieldsASensibleCard() async throws {
+        try await HeartInWinterArcDemoCheck.run()
+    }
+
     @Test func seasonSummaryCarriesTheLines() {
         let now = day(2027, 1, 20)
         let status = WinterArc.status(start: day(2026, 11, 1), goal: day(2027, 3, 21), today: now, startCTL: 24, currentCTL: 34,
