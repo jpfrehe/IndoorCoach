@@ -78,6 +78,18 @@ public final class AppModel {
     public private(set) var proposalSource: WorkoutSource = .demo
     /// IndoorCoach Brücke state (pairing, last sync, transport) – see AppModel+Bridge.swift. ANCHOR-BRIDGE
     public let bridge = BridgeState()
+    // ANCHOR-W3B (Apple Health, Logik in AppModel+Health.swift)
+    /// Nutzer hat Health als Datenquelle aktiviert (`setHealthEnabled`).
+    public internal(set) var healthEnabled = false
+    /// Offene Kraft-/Kletter-/Misch-Workouts aus Health, die auf Härte und Beine warten (neueste zuerst).
+    public internal(set) var healthCandidates: [HealthLedgerEntry] = []
+    /// 7-Tage-Mittel des Körpergewichts aus Health (zuletzt gelesen); nil ohne Wert.
+    public internal(set) var healthWeightKg: Double?
+    /// Health-Quelle; Tests und `-uiHealthStub` setzen einen Stub. Standard: HealthKit auf iOS, sonst nicht verfügbar.
+    @ObservationIgnored public var healthSource: any HealthDataSource = HealthDataSourceFactory.make()
+    @ObservationIgnored var healthSyncing = false
+    @ObservationIgnored var healthSyncPending = false
+    @ObservationIgnored var healthObserverStarted = false
 
     public let context: ModelContext
     let secrets: SecretStore
@@ -137,6 +149,7 @@ public final class AppModel {
         hasImportedRides = defaults.bool(forKey: Keys.ridesImported)
         lastMyWhooshImport = defaults.object(forKey: Keys.myWhooshLastImport) as? Date
         bridge.load(defaults: defaults)
+        loadHealthState() // ANCHOR-W3B
         refreshCredentialState()
         needsOnboarding = Self.resolveOnboarding(defaults: defaults, isExistingInstall: isExistingInstall)
         #if DEBUG
@@ -353,6 +366,7 @@ public final class AppModel {
         // Every UI test starts clean: also forget dismissed reviews, import state and sync dates from earlier runs
         // (onboarding has its own override, see applyUITestOnboardingOverride).
         for key in Keys.all where key != Keys.onboardingCompleted { defaults.removeObject(forKey: key) }
+        resetHealthState() // ANCHOR-W3B
         lastSync = nil
         hasImportedRides = false
         lastMyWhooshImport = nil
@@ -621,6 +635,7 @@ public final class AppModel {
                 guard let index = working.firstIndex(where: { $0.id == id }) else { result.skipped += 1; continue }
                 let merged = RideMerge.enriched(working[index], with: ride)
                 working[index] = merged
+                absorbHealthRide(byID[id], by: ride) // ANCHOR-W3B: ein Health-Workout geht in der echten Fahrt auf
                 byID[id]?.update(from: merged)
                 // ANCHOR-REC: seconds of a pulse-only recording are replaced by measured ones (pulse kept)
                 if let s = seconds[ride.id], let row = byID[id], let upgraded = upgradedSeconds(s, over: row) { row.secondsData = upgraded.encoded() }
@@ -662,7 +677,8 @@ public final class AppModel {
         guard let workouts = try? context.fetch(FetchDescriptor<StoredWorkout>()),
               let rides = try? context.fetch(FetchDescriptor<StoredRide>()) else { return }
         for w in workouts where w.status == .planned && w.date <= today {
-            let sameDay = rides.filter { calendar.isDate($0.startDate, inSameDayAs: w.date) }
+            // ANCHOR-W3B: Laufen/Wandern aus Health erfüllt keine Radeinheit.
+            let sameDay = rides.filter { $0.foreignSport == nil && calendar.isDate($0.startDate, inSameDayAs: w.date) }
             if let ride = sameDay.first(where: { $0.summary.isIndoor }) ?? sameDay.first {
                 w.status = .done
                 w.linkedRideID = ride.stravaID
@@ -929,6 +945,7 @@ public final class AppModel {
         try? context.delete(model: StoredWorkout.self)
         try? context.save()
         deleteAllStrengthData() // ANCHOR-STRENGTH
+        resetHealthState() // ANCHOR-W3B
         calendarService.removeAppData(eventIDs: eventIDs)
         reminderCenter.cancel(id: WeeklyReviewReminder.identifier)
         await reminderCenter.cancelAll(withPrefix: WorkoutReminder.idPrefix)
