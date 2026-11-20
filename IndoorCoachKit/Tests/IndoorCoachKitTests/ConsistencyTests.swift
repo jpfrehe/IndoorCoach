@@ -137,7 +137,7 @@ struct ConsistencyTests {
         let a = Consistency.adherence(weekStart: monday(0), rides: [ride(week: 0, hours: 4, tss: 220)], planned: planned, calendar: cal)
         #expect(a.planned == 4 && a.done == 3)
         #expect(a.tssPercent == 92)
-        #expect(a.text == "3 von 4 Einheiten · 92 % TSS")
+        #expect(a.text == "3 von 4 Einheiten erledigt · 92 % vom Plan-TSS")
     }
 
     @Test func adherenceIsNilWithoutPlannedWorkouts() {
@@ -150,7 +150,7 @@ struct ConsistencyTests {
         let planned = [plan(week: 0, done: true), plan(week: 1, done: false)]
         let a = Consistency.adherence(weekStart: monday(0), rides: [ride(week: 1, hours: 2)], planned: planned, calendar: cal)
         #expect(a.planned == 1 && a.done == 1)
-        #expect(a.text == "1 von 1 Einheiten · 0 % TSS")
+        #expect(a.text == "1 von 1 Einheit erledigt · 0 % vom Plan-TSS")
     }
 
     @Test func summaryText() {

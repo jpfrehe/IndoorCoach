@@ -14,6 +14,7 @@ struct TodayView: View {
         NavigationStack {
             ScrollView {
                 TodayDashboard(rides: storedRides.map(\.summary), workouts: workouts, tab: $tab)
+                    .refreshesOnNewDay()
                     .padding(.horizontal)
                     .padding(.bottom, 24)
             }
@@ -110,7 +111,7 @@ struct TodayDashboard: View {
                 Image(systemName: "sparkles").font(.title2).foregroundStyle(Theme.sunset)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Demo-Modus").font(.headline)
-                    Text("Du siehst Beispieldaten. Verbinde Strava oder MyWhoosh (oder importiere FIT-Dateien) und hinterlege deinen Claude-API-Key im Profil, um mit deinen echten Fahrten zu planen.")
+                    Text("Du siehst Beispieldaten. Verbinde im Profil Strava, MyWhoosh oder FIT-Dateien und deinen Claude-Key, dann plant der Coach mit deinen echten Fahrten.")
                         .font(.subheadline).foregroundStyle(.secondary)
                     Button { tab = .profile } label: {
                         Text("Zum Profil").frame(minHeight: 44).contentShape(Rectangle())
@@ -227,7 +228,7 @@ struct TodayDashboard: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         StatTile(title: "Zeit", value: Formatters.duration(week.seconds))
-                        StatTile(title: "Ziel", value: Formatters.decimal(model.profile.weeklyHours, digits: 1), unit: "h")
+                        StatTile(title: "Ziel", value: Formatters.duration(Int((model.profile.weeklyHours * 3600).rounded())))
                     }
                     HStack {
                         StatTile(title: "TSS", value: "\(Int(week.tss.rounded()))")
@@ -239,23 +240,19 @@ struct TodayDashboard: View {
     }
 
     private func volumeCard(_ weeks: [TrainingLoad.WeekSummary]) -> some View {
-        Card(title: "Wochenumfang · 8 Wochen", systemImage: "chart.bar") {
+        // Legend and bars only for kinds that occur in the 8 weeks (no empty "Andere" entry).
+        let kinds = VolumeKind.allCases.filter { kind in weeks.contains { kind.seconds(in: $0) > 0 } }
+        return Card(title: "Wochenumfang · 8 Wochen", systemImage: "chart.bar") {
             Chart(weeks) { w in
-                BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
-                        y: .value("Stunden", Double(w.indoorSeconds) / 3600))
-                    .foregroundStyle(by: .value("Art", "Indoor"))
-                    .cornerRadius(5)
-                BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
-                        y: .value("Stunden", Double(w.seconds - w.indoorSeconds - w.otherSeconds) / 3600))
-                    .foregroundStyle(by: .value("Art", "Outdoor"))
-                    .cornerRadius(5)
-                BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
-                        y: .value("Stunden", Double(w.otherSeconds) / 3600))
-                    .foregroundStyle(by: .value("Art", "Andere"))
-                    .cornerRadius(5)
+                ForEach(kinds, id: \.self) { kind in
+                    BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
+                            y: .value("Stunden", Double(kind.seconds(in: w)) / 3600))
+                        .foregroundStyle(by: .value("Art", kind.rawValue))
+                        .cornerRadius(5)
+                }
             }
             // Deeper tones so the bars keep ≥ 3:1 against the white card.
-            .chartForegroundStyleScale(["Indoor": Theme.indoorMark, "Outdoor": Theme.outdoorMark, "Andere": Theme.otherMark])
+            .chartForegroundStyleScale(domain: kinds.map(\.rawValue), range: kinds.map(\.color))
             .chartYAxisLabel("h")
             .chartXAxis {
                 AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { _ in
@@ -264,6 +261,27 @@ struct TodayDashboard: View {
                 }
             }
             .frame(height: 150)
+        }
+    }
+}
+
+/// Arten im Wochenumfang-Diagramm.
+private enum VolumeKind: String, CaseIterable {
+    case indoor = "Indoor", outdoor = "Outdoor", other = "Andere"
+
+    func seconds(in week: TrainingLoad.WeekSummary) -> Int {
+        switch self {
+        case .indoor: week.indoorSeconds
+        case .outdoor: max(0, week.seconds - week.indoorSeconds - week.otherSeconds)
+        case .other: week.otherSeconds
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .indoor: Theme.indoorMark
+        case .outdoor: Theme.outdoorMark
+        case .other: Theme.otherMark
         }
     }
 }

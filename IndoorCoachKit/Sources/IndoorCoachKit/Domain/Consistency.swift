@@ -63,12 +63,12 @@ public enum Consistency {
         /// Ridden TSS against planned TSS in %, nil without planned TSS.
         public var tssPercent: Int? { plannedTSS > 0 ? Int((rideTSS / plannedTSS * 100).rounded()) : nil }
 
-        /// "3 von 4 Einheiten · 92 % TSS"; nil when nothing was planned.
+        /// "3 von 4 Einheiten erledigt · 92 % vom Plan-TSS"; nil when nothing was planned.
         public var text: String? {
             guard planned > 0 else { return nil }
-            let base = "\(done) von \(planned) Einheiten"
+            let base = "\(done) von \(planned) \(planned == 1 ? "Einheit" : "Einheiten") erledigt"
             guard let percent = tssPercent else { return base }
-            return "\(base) · \(percent) % TSS"
+            return "\(base) · \(percent) % vom Plan-TSS"
         }
     }
 

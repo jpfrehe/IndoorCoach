@@ -73,6 +73,7 @@ struct PlanView: View {
                     }
                 }
             }
+            .refreshesOnNewDay()   // „Morgen“/„Diese Woche“ stimmen auch nach Mitternacht
             .scrollContentBackground(.hidden)
             .background(Theme.canvas)
             .navigationTitle("Plan")
