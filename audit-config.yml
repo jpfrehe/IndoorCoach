@@ -36,6 +36,15 @@ console_allow:
   # highlight slot, no visible effect – framework-internal navigation-bar snapshot of zero height.
   - "/^Failed to create \\d+x0 image slot/"
   - "/^Snapshot request 0x[0-9a-f]+ complete with error/"  # FrontBoard app-switcher snapshot on Home press
+  # Audit 3 (20.11.2026, iOS 27.2): framework-only, no app API involved (the app never touches UIScreen or snapshots).
+  - "Invalid UIScreen coordinate space conversion"        # UIKit bar geometry while a scene/keyboard transition runs (Home press, code sheet)
+  - "/^Snapshotting a view \\(0x[0-9a-f]+, (_UINavigationBarLargeTitleView|UIKeyboardImpl)\\)/"  # UIKit app-switcher snapshot
+  - "_dictationButton not yet initialized"                # UIKit keyboard, large content viewer at AX sizes
+  - "QUARANTINED DUE TO HIGH LOGGING VOLUME"              # unified logging rate limit of the capture itself
+  - "Accessibility error kAXErrorInvalidUIElement"        # XCTest automation querying an element that just disappeared
+  - "unable to make sandbox extension"                    # LaunchServices, share sheet / open URL in the simulator
+  - "Updating content for activity"                       # ActivityKit logs every Live Activity update at error level
+  - "No scene exists for this identity"                   # FrontBoard, share sheet service scene teardown
 
 network_allow: []  # demo mode makes no network requests
 

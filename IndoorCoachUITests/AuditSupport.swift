@@ -86,11 +86,43 @@ class AuditCase: XCTestCase {
             check(false, "Eingabefeld nicht gefunden: \(description)")
             return
         }
+        // Audit 3: a field under the open keyboard (or its "Fertig" bar) still counts as hittable; the tap would land
+        // on the keyboard. Close it first, as a user would, then bring the field into view.
+        // Drag the list in the area above the keyboard until the field is clear (like a user scrolling).
+        let keyboard = app.keyboards.firstMatch
+        var lifts = 0
+        while keyboard.exists, element.exists, !element.frame.isEmpty, element.frame.maxY > keyboard.frame.minY - 52, lifts < 5 {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.42))
+            let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.22))
+            from.press(forDuration: 0.05, thenDragTo: to)
+            lifts += 1
+        }
         if !element.isHittable { scrollTo(element) }
+        clearOfTabBar(element)   // audit 3, iPhone SE: the key field can sit behind the floating tab bar
         let target = selector(element)
         element.tap()
+        // Audit 3 (iPhone SE): while the keyboard slides in, the list moves the field; a tap during that animation
+        // can miss. Wait for focus and tap once more instead of typing into nothing.
+        if !waitForKeyboardFocus(element) {
+            if !element.isHittable { scrollTo(element) }
+            element.tap()
+            _ = waitForKeyboardFocus(element)
+        }
         element.typeText(text)
         log("Typed \"\(text)\" into \(description)", target)
+    }
+
+    /// iPhone SE: an element under a fixed bottom bar (onboarding "Weiter") still counts as hittable. Swipe it clear.
+    func lift(_ element: XCUIElement, above bar: XCUIElement, maxSwipes: Int = 4) {
+        var n = 0
+        while element.exists, bar.exists, element.frame.maxY > bar.frame.minY - 8, n < maxSwipes {
+            app.swipeUp(velocity: .slow); n += 1
+        }
+    }
+
+    func waitForKeyboardFocus(_ element: XCUIElement, timeout: TimeInterval = 2) -> Bool {
+        let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: element)
+        return XCTWaiter.wait(for: [focused], timeout: timeout) == .completed
     }
 
     func scrollTo(_ element: XCUIElement, maxSwipes: Int = 8) {

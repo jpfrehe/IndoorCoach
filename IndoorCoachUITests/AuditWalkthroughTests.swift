@@ -208,8 +208,11 @@ final class AuditWalkthroughTests: AuditCase {
             let tssSegment = app.segmentedControls.buttons["TSS"]
             log("Metric segment frame", "\(tssSegment.frame)")
             tap(tssSegment, "Metrik-Segment TSS")
-            usleep(500_000)
-            check(tssSegment.isSelected, "Metrik zeigt TSS nach einem Tap")
+            // The glass segment animates for ~0.5 s; wait for the selected state instead of a fixed sleep (audit 3).
+            let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "isSelected == true"), object: tssSegment)
+            _ = XCTWaiter.wait(for: [selected], timeout: 2)
+            log("TSS-Segment nach Tap", tssSegment.debugDescription.replacingOccurrences(of: "\n", with: " ").prefix(200).description)
+            check(tssSegment.isSelected || tssSegment.debugDescription.contains("Selected"), "Metrik zeigt TSS nach einem Tap")
             if !tssSegment.isSelected {
                 tssSegment.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
                 log("Tapped TSS segment by coordinate", "\(tssSegment.frame)")
@@ -248,8 +251,12 @@ final class AuditWalkthroughTests: AuditCase {
         shot("goal-typed")
 
         // The Winter-Arc section sits above the training days and the Form is lazy: scroll them into existence.
-        if app.keyboards.firstMatch.exists { app.swipeDown(velocity: .fast) }
-        tap(scrollUntilExists(app.buttons["Montag"]), "Trainingstag Montag")
+        // Audit 3: the profile keyboard has "Fertig" (Ziel is multi-line; on the SE the emoji keyboard covered the list).
+        let done = app.buttons["keyboard.done"]
+        check(done.exists, "Tastatur hat „Fertig“")
+        if done.exists { tap(done, "Fertig") } else if app.keyboards.firstMatch.exists { app.swipeDown(velocity: .fast) }
+        check(!app.keyboards.firstMatch.exists, "„Fertig“ schließt die Tastatur")
+        tap(scrollUntilExists(app.buttons["Montag"], maxSwipes: 14), "Trainingstag Montag")   // SE: längeres Formular
         check(app.buttons["Montag"].isSelected, "Montag ist als gewählt markiert")
 
         // Close the goal keyboard first (Form does not scroll the key field into view while it is up).
@@ -506,6 +513,8 @@ final class AuditWalkthroughTests: AuditCase {
         log("Typed \"54321\" into Strava Client-ID (frisch)", selector(clientID))
         check((clientID.value as? String)?.contains("54321") == true, "Client-ID übernimmt Eingabe")
         let secret = app.secureTextFields["Client-Secret"]
+        // SE: close the Client-ID keyboard first, as a user would with "Fertig", so the tap lands on a still field.
+        if app.buttons["keyboard.done"].exists { tap(app.buttons["keyboard.done"], "Fertig") }
         type(secret, "abc123secret\n", "Strava Client-Secret (frisch) + Return")
         shot("strava-typed")
         openTab("Plan")
@@ -980,8 +989,11 @@ final class AuditWalkthroughTests: AuditCase {
         tap(ftp.buttons.element(boundBy: 1), "FTP +5")
         // The value lives in the stepper's label ("200 W, FTP"), not in a separate static text.
         check(ftp.label.contains("200 W") || text(containing: "200 W").exists, "FTP steigt auf 200 W")
-        tap(app.buttons["Montag"], "Trainingstag Montag")
-        check(app.buttons["Montag"].isSelected, "Montag ist als gewählt markiert")
+        // SE: the days sit under the fixed "Weiter" bar and still count as hittable; scroll them clear first (audit 3).
+        let monday = app.buttons["Montag"]
+        lift(monday, above: app.buttons["onboarding.next"])
+        tap(monday, "Trainingstag Montag")
+        check(monday.isSelected, "Montag ist als gewählt markiert")
         shot("2-training")
         accessibilityAudit("Onboarding-Training")
 
@@ -1280,7 +1292,9 @@ final class AuditOpeningTests: AuditCase {
         tap(app.buttons["onboarding.next"], "Weiter")
 
         check(waitFast(text(containing: "Dein Coach")), "Coach")
-        type(anyElement("claude.key.field"), "sk-ant-test-0000000000000000000000", "Claude-Test-Key")
+        let testKeyField = scrollUntilExists(anyElement("claude.key.field"), maxSwipes: 6)
+        lift(testKeyField, above: app.buttons["onboarding.noClaude"])
+        type(testKeyField, "sk-ant-test-0000000000000000000000", "Claude-Test-Key")
         tap(app.buttons["claude.key.save"], "Prüfen & speichern")
         check(waitFast(anyElement("claude.key.saved"), timeout: 10), "Key geprüft und gespeichert")
         shot("4-key-gespeichert")
@@ -1318,7 +1332,9 @@ final class AuditOpeningTests: AuditCase {
         tap(app.buttons["onboarding.later"], "Später")
         check(waitFast(text(containing: "Dein Coach")), "Coach")
 
-        type(anyElement("claude.key.field"), "sk-ant-wrong-0000000000000000", "falscher Claude-Key")
+        let keyField = scrollUntilExists(anyElement("claude.key.field"), maxSwipes: 6)
+        lift(keyField, above: app.buttons["onboarding.noClaude"])
+        type(keyField, "sk-ant-wrong-0000000000000000", "falscher Claude-Key")
         tap(app.buttons["claude.key.save"], "Prüfen & speichern")
         check(waitFast(anyElement("claude.key.error"), timeout: 10), "Fehlertext bei falschem Key")
         check(!anyElement("claude.key.saved").exists, "Falscher Key wird nicht gespeichert")
@@ -1389,7 +1405,9 @@ final class AuditOpeningTests: AuditCase {
         check(waitFast(app.descendants(matching: .any)["feedback.kind"].firstMatch), "Art-Auswahl sichtbar")
         shot("feedback-leer")
         accessibilityAudit("Feedback-leer")
-        check(submit.exists && !submit.isEnabled, "„Weiter zu GitHub“ ist ohne Text deaktiviert")
+        // SE: the lazy form creates the button only once it scrolls into view (audit 3).
+        check(scrollUntilExists(submit, maxSwipes: 4).exists && !submit.isEnabled, "„Weiter zu GitHub“ ist ohne Text deaktiviert")
+        for _ in 0..<3 where !app.segmentedControls.buttons["Wunsch"].isHittable { app.swipeDown(velocity: .fast) }
 
         let wish = app.segmentedControls.buttons["Wunsch"]
         if wish.exists { tap(wish, "Art Wunsch") } else { tap(app.buttons["Wunsch"], "Art Wunsch") }
@@ -1397,7 +1415,7 @@ final class AuditOpeningTests: AuditCase {
         let bodyField = app.textViews["feedback.body"]
         type(bodyField, "Dies ist ein automatischer UI-Test ohne echte Daten.", "Beschreibung")
         if app.keyboards.count > 0 { app.swipeDown() }
-        let preview = scrollUntilExists(app.descendants(matching: .any)["feedback.preview"].firstMatch, maxSwipes: 4)
+        let preview = scrollUntilExists(app.descendants(matching: .any)["feedback.preview"].firstMatch, maxSwipes: 8)
         check(preview.exists, "Vorschau erscheint")
         check(text(containing: "[Wunsch] Testwunsch bitte ignorieren").exists, "Vorschau zeigt Präfix und Titel")
         check(app.switches["feedback.appInfo"].exists, "Schalter „App-Version und Gerät anhängen“")

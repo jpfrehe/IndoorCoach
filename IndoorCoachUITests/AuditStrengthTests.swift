@@ -48,7 +48,7 @@ final class AuditStrengthTests: AuditCase {
         tap(element("strength.start.template.Push"), "Vorlage Push")
         tap(element("strength.start.manual"), "Nachtragen")
         let details = element("strength.entry.exercises")
-        check(details.waitForExistence(timeout: 3), "Übungen mit Vorlage vorbelegt")
+        check(details.waitForExistence(timeout: 3) || scrollUntilExists(details, maxSwipes: 4).exists, "Übungen mit Vorlage vorbelegt")
         tap(element("strength.checklist.bench_press"), "Bankdrücken abhaken")
         tap(element("strength.exertion.7"), "Härte 7")
         tap(element("strength.entry.save"), "Speichern")

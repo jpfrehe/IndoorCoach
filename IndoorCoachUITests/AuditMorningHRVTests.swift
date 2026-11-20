@@ -26,7 +26,11 @@ final class AuditMorningHRVTests: AuditCase {
         let toggle = scrollUntilExists(anyElement("morning.toggle"), maxSwipes: 6)
         check(toggle.exists, "Schalter „Morgenmessung“ (RR vorhanden)")
         check(text(containing: "3× pro Woche reicht").exists, "Hinweis 3× pro Woche")
-        tap(toggle, "Morgenmessung aktivieren")
+        // A Toggle row's centre is its label; only the switch itself flips it (audit 3: stayed off).
+        clearOfTabBar(toggle)
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        log("Tapped Morgenmessung aktivieren (Schalter)", "morning.toggle")
+        check((toggle.value as? String) == "1", "Schalter steht auf an")
         shot("aktiviert")
 
         openTab("Heute")

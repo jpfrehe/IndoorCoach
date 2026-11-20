@@ -21,7 +21,7 @@ final class AuditRecordingTests: AuditCase {
     }
 
     func test40_RecordRideWithStubStrap() {
-        launch(extra: ["-uiStrapStub", "YES"])
+        launch(extra: ["-uiStrapStub", "YES", "-uiWorkoutToday", "YES"])
         pairStub()
         openTab("Heute")
         route = "heute"

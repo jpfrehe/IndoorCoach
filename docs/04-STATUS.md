@@ -19,10 +19,11 @@ Stand: v0.2 (Pilot-Vorbereitung, „Die ganze Woche“) · 19.11.2026 · öffent
 | Sekundendaten aus MyWhoosh: Mac-App „IndoorCoach Brücke“ (Menüleiste, liest den MyWhoosh-Ordner, WLAN-Übertragung mit TLS-PSK nach Kopplung per Code), iPhone-Kopplung und Auto-Abgleich, FIT-Import ergänzt vorhandene Fahrten, `.fit` öffnen | ✅ **live auf Mac + iPhone bestätigt (19.11.2026)**: Kopplung, echte MyWhoosh-FIT-Dateien, Sekundendaten der Einheit in der App | [Konzept & User Journey](14-SEKUNDENDATEN-MAC-BRUECKE.md), [Gerätetest](16-GERAETETEST.md); offen: Neustart/Anmeldeobjekt, Sonderfälle |
 | Sekundendaten-Auswertung: Zeit in Leistungs- und Pulszonen je Fahrt, Relative Effort aus Pulssekunden, gemessene Trainingsverteilung, Soll/Ist je Intervall, „Einheit anpassen“ (kürzer/leichter, mit MyWhoosh und Kalender) | ✅ | [Paket-Dokument](15-PAKET-SEKUNDENDATEN-AUSWERTUNG.md), [Gerätetest](16-GERAETETEST.md) |
 | UX-Audit 2 der erweiterten Version | ✅ 6 Befunde behoben | [Bericht](ux-audit-2026-11-17-b.md); formal offen: automatisch gemeldete Kontrast-Knoten (Gerät, B13) |
+| Qualitätssprint (20.11.2026): CI-Release ohne Secrets grün, technische Schulden (AppModel aufgeteilt, Speicherfehler sichtbar, `Locale.de`), UX-Politur, UX-Audit 3 auf 402 pt + iPhone SE | ✅ 10 Befunde behoben | [Bericht](ux-audit-2026-11-20.md); formal offen wie in Audit 2: Kontrast-Knoten der Diagramme ohne Element |
 
 **Tests:**
-- 455 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
-- 43 UI-Tests (Walkthrough, Onboarding-Journey, Tour, Feedback, Mac-Brücke, Zonen, Soll/Ist, Anpassen, Größen- und Dark-Mode-Matrix, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`).
+- 949 Unit-Tests grün (`cd IndoorCoachKit && swift test`).
+- 57 UI-Tests (Walkthrough, Onboarding-Journey, Tour, Feedback, Mac-Brücke, Zonen, Soll/Ist, Anpassen, Kraft, Gurt, Aufzeichnung, Check-in, Morgenmessung, Größen- und Dark-Mode-Matrix inkl. v0.2-Oberflächen, Start-Performance) im iOS-Simulator (`IndoorCoachUITests`), auf iPhone 402 pt und iPhone SE.
 - 7 Unit-Tests der Mac-App (`IndoorCoachBridgeTests`).
 - GitHub Actions: `ci.yml` (Unit-Tests + Simulator-Build + Build der Mac-Brücke) bei jedem Push, `release.yml` für TestFlight.
 
