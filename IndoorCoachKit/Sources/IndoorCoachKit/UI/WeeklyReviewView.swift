@@ -9,7 +9,7 @@ enum WeekLabel {
         calendar.minimumDaysInFirstWeek = 4
         let week = calendar.component(.weekOfYear, from: weekStart)
         let end = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
-        let locale = Locale(identifier: "de_DE")
+        let locale = Locale.de
         let from = weekStart.formatted(.dateTime.day().locale(locale))
         let to = end.formatted(.dateTime.day().month(.abbreviated).locale(locale))
         return "KW \(week) · \(from).–\(to)"

@@ -53,7 +53,7 @@ struct FitnessFreshnessView: View {
 
     private func header(_ p: FitnessFreshness.Point, isToday: Bool, delta: Double) -> some View {
         Card {
-            Text(isToday ? "Heute" : p.date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))))
+            Text(isToday ? "Heute" : p.date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale.de)))
                 .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
             HStack {
                 StatTile(title: "Fitness", value: Formatters.decimal(p.fitness), dot: Theme.fitness)
@@ -116,7 +116,7 @@ struct FitnessFreshnessView: View {
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.day().month(.abbreviated).locale(Locale(identifier: "de_DE")))
+                AxisValueLabel(format: .dateTime.day().month(.abbreviated).locale(Locale.de))
                     .foregroundStyle(Theme.axisLabel)
             }
         }

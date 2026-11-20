@@ -28,7 +28,7 @@ extension AppModel {
 struct HeartInWinterArcCard: View {
     var heart: HeartInWinterArc
 
-    private static let monthStyle = Date.FormatStyle(locale: Locale(identifier: "de_DE")).month(.abbreviated)
+    private static let monthStyle = Date.FormatStyle(locale: Locale.de).month(.abbreviated)
 
     var body: some View {
         if !heart.isEmpty {

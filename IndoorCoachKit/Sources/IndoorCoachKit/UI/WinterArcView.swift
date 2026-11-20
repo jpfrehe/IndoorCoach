@@ -41,7 +41,7 @@ struct WinterArcCard: View {
 
     private var subtitle: String {
         if status.isFinished { return "Ziel-Tag erreicht – Zeit für den Frühling." }
-        let goal = status.goal.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "de_DE")))
+        let goal = status.goal.formatted(.dateTime.day().month(.wide).locale(Locale.de))
         return "Noch \(status.daysLeft) Tage bis \(goal)"
     }
 
@@ -204,7 +204,7 @@ struct WinterArcView: View {
         .chartXAxis {
             AxisMarks(values: .stride(by: .month)) { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale(identifier: "de_DE")))
+                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale.de))
                     .foregroundStyle(Theme.axisLabel)
             }
         }

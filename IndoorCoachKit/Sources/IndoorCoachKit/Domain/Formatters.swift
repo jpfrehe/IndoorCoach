@@ -1,5 +1,10 @@
 import Foundation
 
+extension Locale {
+    /// Die App spricht Deutsch: alle Datums- und Zahlenformate nutzen dieses Locale.
+    public static let de = Locale(identifier: "de_DE")
+}
+
 public enum Formatters {
     /// "1:05 h", "45 min", "30 s".
     public static func duration(_ seconds: Int) -> String {
@@ -17,12 +22,10 @@ public enum Formatters {
         String(format: "%.1f km", meters / 1000).replacingOccurrences(of: ".", with: ",")
     }
 
+    /// "1,25" – deutsches Komma, ohne Tausenderpunkte. FormatStyle statt eines NumberFormatters je Aufruf
+    /// (wird in Listen und Diagrammen oft aufgerufen).
     public static func decimal(_ value: Double, digits: Int = 0) -> String {
-        let f = NumberFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.minimumFractionDigits = digits
-        f.maximumFractionDigits = digits
-        return f.string(from: NSNumber(value: value)) ?? "\(value)"
+        value.formatted(.number.locale(.de).grouping(.never).precision(.fractionLength(digits)))
     }
 
     /// ISO calendar day "yyyy-MM-dd" in the current time zone – the format exchanged with Claude.

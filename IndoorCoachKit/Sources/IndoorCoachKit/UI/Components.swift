@@ -400,7 +400,7 @@ struct WorkoutRow: View {
         if cal.isDateInToday(date) { return "Heute" }
         if cal.isDateInTomorrow(date) { return "Morgen" }
         if cal.isDateInYesterday(date) { return "Gestern" }
-        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale(identifier: "de_DE")))
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Locale.de))
     }
 }
 
@@ -424,7 +424,7 @@ struct RideRow: View {
                     .strokeBorder(ride.isForeignSport ? Theme.rowSecondary : ride.isIndoor ? Theme.indoorMark : Theme.outdoorMark, lineWidth: 1.5))
             VStack(alignment: .leading, spacing: 3) {
                 Text(ride.name).font(.body.weight(.semibold)).lineLimit(2)
-                Text(ride.startDate.formatted(.dateTime.weekday(.abbreviated).day().month().hour().minute().locale(Locale(identifier: "de_DE"))))
+                Text(ride.startDate.formatted(.dateTime.weekday(.abbreviated).day().month().hour().minute().locale(Locale.de)))
                     .font(.subheadline).foregroundStyle(Theme.rowSecondary)
             }
             Spacer()

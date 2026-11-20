@@ -165,7 +165,7 @@ public enum Challenges {
         switch c.state {
         case .upcoming(let d): "\(c.title), \(c.rule). Startet in \(d) \(d == 1 ? "Tag" : "Tagen")."
         case .active(let d): "\(c.title), \(c.progressText), \(c.remainingText), noch \(d) \(d == 1 ? "Tag" : "Tage")."
-        case .completed(let date): "\(c.title), geschafft am \(date.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "de_DE"))))."
+        case .completed(let date): "\(c.title), geschafft am \(date.formatted(.dateTime.day().month(.wide).locale(Locale.de)))."
         case .missed: "\(c.title), diesmal nicht geschafft, \(c.progressText)."
         }
     }

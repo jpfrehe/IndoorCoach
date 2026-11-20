@@ -32,7 +32,7 @@ extension AppModel {
                                     jokersAvailable: jokersAvailable, canSwap: canSwap)
         let row = StoredCheckIn(day: Calendar.current.startOfDay(for: now), answers: answers, offered: offers, createdAt: now)
         context.insert(row)
-        try? context.save()
+        guard saveReportingErrors("Der Check-in") else { return nil }
         return row
     }
 
@@ -40,7 +40,7 @@ extension AppModel {
     public func skipCheckIn(now: Date = .now) {
         guard plannedWorkoutToday(now: now) != nil, todaysCheckIn(now: now) == nil else { return }
         context.insert(StoredCheckIn(day: Calendar.current.startOfDay(for: now), answers: CheckIn.Answers(), offered: [], skipped: true, createdAt: now))
-        try? context.save()
+        saveReportingErrors("Der Check-in")
     }
 
     /// Logs the chosen action (measure for Z1) and carries it out. The joker is spent for the current week
@@ -78,7 +78,7 @@ extension AppModel {
         workout.title = "Grundlage \(WorkoutAdjust.minutes(base.totalDuration)) min (getauscht)"
         workout.typeRaw = base.type.rawValue
         workout.adjustmentNote = "Gegen Grundlage getauscht · Z2, \(WorkoutAdjust.minutes(base.totalDuration)) min"
-        try? context.save()
+        saveReportingErrors("Der Tausch")
         let failed = await propagateChange(of: workout)
         if !failed { show("Gegen Grundlage getauscht.", error: false) }
     }

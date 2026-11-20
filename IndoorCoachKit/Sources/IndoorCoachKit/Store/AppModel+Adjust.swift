@@ -14,7 +14,7 @@ extension AppModel {
         if let originalTitle = workout.originalTitle { workout.title = originalTitle }
         if let originalTypeRaw = workout.originalTypeRaw { workout.typeRaw = originalTypeRaw }
         workout.adjustmentNote = result.description
-        try? context.save()
+        saveReportingErrors("Die Anpassung")
         let failed = await propagateChange(of: workout)
         if !failed { show("Einheit angepasst: \(result.description)", error: false) }
     }
@@ -29,7 +29,7 @@ extension AppModel {
         workout.originalTitle = nil
         workout.originalTypeRaw = nil
         workout.adjustmentNote = nil
-        try? context.save()
+        saveReportingErrors("Das Zurücksetzen")
         let failed = await propagateChange(of: workout)
         if !failed { show("Original wiederhergestellt.", error: false) }
     }

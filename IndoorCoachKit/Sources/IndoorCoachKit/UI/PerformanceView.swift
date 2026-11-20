@@ -24,7 +24,7 @@ enum PerformanceFormat {
     static func watts(_ w: Double) -> String { "\(Int(w.rounded())) W" }
 
     static func date(_ d: Date) -> String {
-        d.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: "de_DE")))
+        d.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale.de))
     }
 }
 
@@ -352,7 +352,7 @@ struct VO2maxCard: View {
             .chartYScale(domain: .automatic(includesZero: false))
             .chartXAxis {
                 AxisMarks(values: points.map(\.windowEnd)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale(identifier: "de_DE")))
+                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
                         .foregroundStyle(Theme.axisLabel)
                 }
             }

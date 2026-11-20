@@ -133,7 +133,7 @@ struct EffortWeekCard: View {
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale(identifier: "de_DE")))
+                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
                         .foregroundStyle(Theme.axisLabel)
                 }
             }

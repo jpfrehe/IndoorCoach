@@ -80,7 +80,7 @@ struct GoalForecastCard: View {
         .chartXAxis {
             AxisMarks(values: .stride(by: .month)) { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale(identifier: "de_DE")))
+                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale.de))
                     .foregroundStyle(Theme.axisLabel)
             }
         }

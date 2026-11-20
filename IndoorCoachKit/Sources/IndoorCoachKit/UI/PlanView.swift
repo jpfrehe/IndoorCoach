@@ -143,7 +143,7 @@ struct PlanView: View {
         let title: String
         if group.start == thisWeek { title = "Diese Woche" }
         else if let thisWeek, group.start == cal.date(byAdding: .weekOfYear, value: 1, to: thisWeek) { title = "Nächste Woche" }
-        else { title = "Woche ab " + group.start.formatted(.dateTime.day().month().locale(Locale(identifier: "de_DE"))) }
+        else { title = "Woche ab " + group.start.formatted(.dateTime.day().month().locale(Locale.de)) }
         let seconds = group.items.reduce(0) { $0 + $1.definition.totalDuration }
         let tss = group.items.reduce(0.0) { $0 + $1.definition.estimatedTSS }
         return VStack(alignment: .leading, spacing: 2) {
@@ -184,7 +184,7 @@ struct PlanGeneratorSheet: View {
     @State private var ctx: PlanContext?
 
     static func shortDay(_ date: Date) -> String {
-        date.formatted(.dateTime.weekday(.abbreviated).day().month(.twoDigits).locale(Locale(identifier: "de_DE")))
+        date.formatted(.dateTime.weekday(.abbreviated).day().month(.twoDigits).locale(Locale.de))
     }
 
     var body: some View {

@@ -161,7 +161,7 @@ struct WorkoutDetailContent: View {
                     .disabled(model.isSendingToMyWhoosh)
                     .popoverTip(SendToMyWhooshTip())
                     if let sent = workout.myWhooshSentAt {
-                        Label("In MyWhoosh seit \(sent.formatted(.dateTime.day().month().hour().minute().locale(Locale(identifier: "de_DE"))))"
+                        Label("In MyWhoosh seit \(sent.formatted(.dateTime.day().month().hour().minute().locale(Locale.de)))"
                               + (workout.myWhooshTaskID != nil ? " · im MyWhoosh-Kalender" : ""),
                               systemImage: "checkmark.circle.fill")
                             .font(.caption).foregroundStyle(Theme.rowSecondary)

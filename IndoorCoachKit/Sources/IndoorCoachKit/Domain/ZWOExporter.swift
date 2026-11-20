@@ -32,7 +32,7 @@ public enum ZWOExporter {
         let day = Formatters.isoDay.string(from: date)
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-"))
         let slug = workout.title
-            .folding(options: [.diacriticInsensitive], locale: Locale(identifier: "de_DE"))
+            .folding(options: [.diacriticInsensitive], locale: Locale.de)
             .components(separatedBy: allowed.inverted)
             .filter { !$0.isEmpty }
             .joined(separator: "_")

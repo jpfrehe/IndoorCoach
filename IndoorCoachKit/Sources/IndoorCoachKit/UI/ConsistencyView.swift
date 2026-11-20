@@ -82,7 +82,7 @@ struct ConsistencyCard: View {
     }
 
     private static func dayLabel(_ date: Date) -> String {
-        date.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "de_DE")))
+        date.formatted(.dateTime.day().month(.wide).locale(Locale.de))
     }
 }
 

@@ -227,7 +227,7 @@ public enum PlanPrompt {
         lines.append("")
         lines.append("## Aktueller Zustand (\(day.string(from: ctx.today)))")
         if let arc = ctx.winterArc {
-            let goal = arc.goal.formatted(.dateTime.day().month(.twoDigits).year().locale(Locale(identifier: "de_DE")))
+            let goal = arc.goal.formatted(.dateTime.day().month(.twoDigits).year().locale(Locale.de))
             lines.append("- Winter Arc: Level \(arc.level.number)/10 („\(arc.level.name)“), Fitness \(Formatters.decimal(arc.currentCTL)) → Ziel \(Formatters.decimal(arc.targetCTL)) bis \(goal), \(arc.daysLeft) Tage übrig, Status: \(arc.pace.label), Kurslinie heute \(Formatters.decimal(arc.paceCTL))")
         }
         if let load = ctx.load {

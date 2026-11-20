@@ -131,7 +131,7 @@ public struct RecoverySummary: Sendable, Equatable {
     }
 
     private static func signed(_ v: Double, digits: Int) -> String {
-        let magnitude = String(format: "%.\(digits)f", locale: Locale(identifier: "de_DE"), abs(v))
+        let magnitude = String(format: "%.\(digits)f", locale: Locale.de, abs(v))
         return (v < 0 ? "−" : "+") + magnitude
     }
 }

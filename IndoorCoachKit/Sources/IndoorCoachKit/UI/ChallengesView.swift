@@ -17,7 +17,7 @@ extension AppModel {
 
 private enum ChallengeFormat {
     static func date(_ d: Date) -> String {
-        d.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "de_DE")))
+        d.formatted(.dateTime.day().month(.abbreviated).locale(Locale.de))
     }
 
     static func days(_ n: Int) -> String { "\(n) \(n == 1 ? "Tag" : "Tage")" }

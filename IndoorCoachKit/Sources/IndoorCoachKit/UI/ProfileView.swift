@@ -127,7 +127,7 @@ struct ProfileView: View {
                                                           set: { model.profile.arcStart = $0 }),
                        displayedComponents: .date)
             LabeledContent("Ziel-Tag", value: (model.winterArc(rides: model.allRides())?.goal ?? season.goal)
-                .formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "de_DE"))))
+                .formatted(.dateTime.day().month(.wide).year().locale(Locale.de)))
             Stepper(value: Binding(get: { Int(model.profile.targetCTL ?? 0) },
                                    set: { model.profile.targetCTL = $0 == 0 ? nil : Double($0) }),
                     in: 0...150, step: 1) {
@@ -195,7 +195,7 @@ struct ProfileView: View {
             if model.isStravaConnected {
                 LabeledContent("Verbunden", value: model.stravaAthleteName ?? "Strava")
                 if let last = model.lastSync {
-                    LabeledContent("Letzter Sync", value: last.formatted(.relative(presentation: .named).locale(Locale(identifier: "de_DE"))))
+                    LabeledContent("Letzter Sync", value: last.formatted(.relative(presentation: .named).locale(Locale.de)))
                 }
                 Button {
                     Task { await model.syncStrava() }
@@ -271,7 +271,7 @@ struct ProfileView: View {
                 }
                 .disabled(model.isSyncing)
                 if let last = model.lastMyWhooshImport {
-                    LabeledContent("Letzter Import", value: last.formatted(.relative(presentation: .named).locale(Locale(identifier: "de_DE"))))
+                    LabeledContent("Letzter Import", value: last.formatted(.relative(presentation: .named).locale(Locale.de)))
                 }
                 Button("Bei MyWhoosh abmelden", role: .destructive) { Task { await model.disconnectMyWhoosh() } }
             } else {

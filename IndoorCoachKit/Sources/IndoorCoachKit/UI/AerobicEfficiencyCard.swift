@@ -60,7 +60,7 @@ struct AerobicEfficiencyCard: View {
         .chartYScale(domain: .automatic(includesZero: false))
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale(identifier: "de_DE")))
+                AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
                     .foregroundStyle(Theme.axisLabel)
             }
         }
@@ -110,7 +110,7 @@ struct AerobicEfficiencyCard: View {
     static func summary(_ series: [AerobicEfficiency.WeekPoint]) -> String {
         guard let first = series.first, let last = series.last else { return "Keine Daten" }
         let day = DateFormatter()
-        day.locale = Locale(identifier: "de_DE")
+        day.locale = Locale.de
         day.dateFormat = "d. MMMM"
         return "\(series.count) Wochen. Erste Woche ab \(day.string(from: first.weekStart)): \(Formatters.decimal(first.ef, digits: 2)). "
             + "Letzte Woche ab \(day.string(from: last.weekStart)): \(Formatters.decimal(last.ef, digits: 2))."

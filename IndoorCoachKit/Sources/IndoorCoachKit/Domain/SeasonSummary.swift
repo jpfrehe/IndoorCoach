@@ -38,7 +38,7 @@ public struct SeasonSummary: Equatable, Sendable {
 
     /// "1. Nov. – 21. März"
     public var periodText: String {
-        let style = Date.FormatStyle(locale: Locale(identifier: "de_DE"), timeZone: timeZone).day().month(.abbreviated)
+        let style = Date.FormatStyle(locale: Locale.de, timeZone: timeZone).day().month(.abbreviated)
         return "\(seasonStart.formatted(style)) – \(seasonEnd.formatted(style))"
     }
 

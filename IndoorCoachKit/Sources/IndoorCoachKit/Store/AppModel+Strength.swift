@@ -75,7 +75,7 @@ extension AppModel {
                                       exercises: exercises, templateName: templateName, note: note)
         let row = StoredStrengthSession(session: session, sportName: sportName, isDemo: isDemo)
         context.insert(row)
-        try? context.save()
+        guard saveReportingErrors("Die Einheit") else { return nil }
         return row
     }
 
@@ -119,20 +119,20 @@ extension AppModel {
             existing.exertion = clamped
             existing.legShareRaw = legs?.rawValue
             existing.sportName = sportName
-            try? context.save()
+            guard saveReportingErrors("Die Einheit") else { return nil }
             return existing
         }
         let session = StrengthSession(start: start, durationSeconds: seconds, source: .healthAnnotation,
                                       exertion: clamped, legShare: legs)
         let row = StoredStrengthSession(session: session, healthUUID: id, sportName: sportName)
         context.insert(row)
-        try? context.save()
+        guard saveReportingErrors("Die Einheit") else { return nil }
         return row
     }
 
     public func deleteStrength(_ row: StoredStrengthSession) {
         context.delete(row)
-        try? context.save()
+        saveReportingErrors("Das Löschen")
     }
 
     // MARK: Vorlagen und Studio-Tage

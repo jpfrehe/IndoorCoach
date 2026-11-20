@@ -12,7 +12,7 @@ struct StrengthRow: View {
                 .font(.title3).foregroundStyle(Theme.accent).frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(StrengthFormat.title(row)).font(.headline)
-                Text("\(row.start.formatted(.dateTime.weekday(.abbreviated).day().month().hour().minute().locale(Locale(identifier: "de_DE")))) · \(Formatters.duration(s.durationSeconds))")
+                Text("\(row.start.formatted(.dateTime.weekday(.abbreviated).day().month().hour().minute().locale(Locale.de))) · \(Formatters.duration(s.durationSeconds))")
                     .font(.caption).foregroundStyle(Theme.rowSecondary)
             }
             Spacer(minLength: 0)
@@ -42,7 +42,7 @@ struct StrengthDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Card(title: "Überblick", systemImage: row.isOtherSport ? "figure.run" : "dumbbell") {
                     VStack(alignment: .leading, spacing: 8) {
-                        fact("Beginn", row.start.formatted(.dateTime.weekday(.wide).day().month(.wide).hour().minute().locale(Locale(identifier: "de_DE"))))
+                        fact("Beginn", row.start.formatted(.dateTime.weekday(.wide).day().month(.wide).hour().minute().locale(Locale.de)))
                         fact("Dauer", Formatters.duration(s.durationSeconds))
                         fact("Härte", StrengthFormat.exertionText(s.validExertion))
                         fact("Muskel-Last", loadText(s))

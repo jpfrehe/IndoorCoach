@@ -53,7 +53,7 @@ struct TodayDashboard: View {
                                        from: Calendar.current.date(byAdding: .weekOfYear, value: -7, to: today)!, to: today)
 
         VStack(spacing: 16) {
-            Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "de_DE"))))
+            Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale.de)))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -191,7 +191,7 @@ struct TodayDashboard: View {
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month)) { _ in
                     AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale(identifier: "de_DE")))
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale.de))
                         .foregroundStyle(Theme.axisLabel)
                 }
             }
@@ -259,7 +259,7 @@ struct TodayDashboard: View {
             .chartYAxisLabel("h")
             .chartXAxis {
                 AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale(identifier: "de_DE")))
+                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
                         .foregroundStyle(Theme.axisLabel)
                 }
             }

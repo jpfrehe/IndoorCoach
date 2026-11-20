@@ -115,7 +115,7 @@ struct ClaudePrivacySection: View {
                 .frame(minHeight: 44)
                 .accessibilityIdentifier("privacy.recoveryToggle")
             if let consent {
-                Text("Erlaubt am \(consent.grantedAt.formatted(.dateTime.day().month(.twoDigits).year().locale(Locale(identifier: "de_DE"))))")
+                Text("Erlaubt am \(consent.grantedAt.formatted(.dateTime.day().month(.twoDigits).year().locale(Locale.de)))")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             Button("Vorschau: Das geht an Claude") { showPreview = true }

@@ -203,7 +203,7 @@ struct MacBridgeView: View {
 
                 LabeledContent("Zuletzt abgeholt") {
                     if let last = model.lastBridgeSync {
-                        Text(last.formatted(.relative(presentation: .named).locale(Locale(identifier: "de_DE"))))
+                        Text(last.formatted(.relative(presentation: .named).locale(Locale.de)))
                     } else {
                         Text("noch nie")
                     }

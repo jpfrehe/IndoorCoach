@@ -87,7 +87,7 @@ public enum GoalForecast {
 
     static func dayText(_ date: Date, calendar: Calendar) -> String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
+        f.locale = Locale.de
         f.calendar = calendar
         f.timeZone = calendar.timeZone
         f.dateFormat = "d. MMMM"

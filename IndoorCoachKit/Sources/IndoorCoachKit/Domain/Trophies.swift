@@ -21,7 +21,7 @@ public struct Trophy: Identifiable, Equatable, Sendable {
     /// Spoken summary for VoiceOver.
     public var summary: String {
         if let earnedOn {
-            let date = earnedOn.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "de_DE")))
+            let date = earnedOn.formatted(.dateTime.day().month(.wide).year().locale(Locale.de))
             return "\(title), erreicht am \(date)\(detail.map { ". \($0)" } ?? "")"
         }
         return "\(title), noch nicht erreicht. \(condition)"

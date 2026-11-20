@@ -104,7 +104,8 @@ struct HistoryView: View {
                         HStack {
                             Text("KW \(Calendar(identifier: .iso8601).component(.weekOfYear, from: group.start))")
                             Spacer()
-                            Text("\(Formatters.duration(group.rides.reduce(0) { $0 + $1.movingTime })) · TSS \(Int(group.rides.reduce(0) { $0 + TrainingLoad.estimateTSS(for: $1, ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate).tss }.rounded()))")
+                            Text(HistoryWeekSummary.text(rides: group.rides, strength: group.strength.map(\.session),
+                                                         ftp: model.profile.ftp, thresholdHeartRate: model.profile.thresholdHeartRate))
                                 .monospacedDigit()
                         }
                     }
@@ -191,7 +192,7 @@ struct HistoryChart: View {
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .weekOfYear, count: 3)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale(identifier: "de_DE")))
+                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
                         .foregroundStyle(Theme.axisLabel)
                 }
             }
@@ -236,7 +237,7 @@ struct RideDetailView: View {
                                   fill: ride.isIndoor ? Theme.indoor : Theme.outdoor)
                     }
                     Text(ride.name).font(.largeTitle.weight(.bold))
-                    Text(ride.startDate.formatted(.dateTime.weekday(.wide).day().month(.wide).year().hour().minute().locale(Locale(identifier: "de_DE"))))
+                    Text(ride.startDate.formatted(.dateTime.weekday(.wide).day().month(.wide).year().hour().minute().locale(Locale.de)))
                         .foregroundStyle(.secondary)
                 }
                 Card {
