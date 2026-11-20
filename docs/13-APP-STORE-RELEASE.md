@@ -41,7 +41,7 @@ Je nach Schutzregel wartet der Lauf auf deine Freigabe.
 `ci.yml` (jeder Push auf `main`, jede Pull Request): `swift test` für IndoorCoachKit und ein App-Build für den Simulator ohne Signierung. Optional manuell: UI-Tests.
 
 `release.yml`:
-1. Secrets prüfen (klare Fehlermeldung, wenn eines fehlt).
+1. Secrets prüfen. Fehlen bei einem Tag-Push **alle vier** (noch kein Developer-Account), endet der Lauf grün mit dem Hinweis „App-Store-Upload übersprungen“; der Tag bleibt ein reines GitHub-Release. Fehlt nur ein Teil oder wurde der Lauf manuell gestartet, bricht er mit klarer Meldung ab.
 2. Version aus dem Tag, Build-Nummer = `github.run_number` + `BUILD_NUMBER_OFFSET` (`scripts/bump-build.sh`).
 3. API-Key nach `$RUNNER_TEMP` schreiben (nur für den Besitzer lesbar), `swift test`.
 4. `scripts/archive.sh` mit `UPLOAD=1`: Archiv, Export mit `method app-store-connect`, `destination upload`, Signierung automatisch über `-allowProvisioningUpdates` und die API-Key-Parameter.
@@ -56,6 +56,7 @@ Technische Grundlage: Runner `xcode-27` (macOS 27, nur arm64, Xcode 27.2 unter `
 | Meldung | Ursache und Abhilfe |
 |---|---|
 | „Secret fehlt“ | Secret im Environment `app-store` (nicht nur im Repo) anlegen; Name exakt. |
+| „App-Store-Upload übersprungen“ (Hinweis) | Kein Fehler: Im Environment `app-store` sind noch keine Secrets gesetzt. Nach Abschnitt 2–3 einrichten und den Tag neu pushen oder den Workflow manuell starten. |
 | „Cloud signing permission error“, „No signing certificate“ | API-Key-Rolle auf Admin; Bundle-ID existiert nicht oder gehört einem anderen Team; Team-ID falsch. |
 | „Authentication failed“ | Key-ID/Issuer-ID vertauscht, Key widerrufen oder Base64 beschädigt (Prüfung auf `BEGIN PRIVATE KEY` schlägt vorher an). |
 | „bundle version must be higher“ / „already used“ | App Store Connect verlangt pro Version eine wachsende Build-Nummer. `run_number` wächst immer; wenn zuvor lokal mit Zeitstempel (`202611171045`) hochgeladen wurde, ist dieser Wert größer: `BUILD_NUMBER_OFFSET` so setzen, dass die Summe darüber liegt. Beim Anlegen einer neuen Version ist die Zählung wieder frei. |

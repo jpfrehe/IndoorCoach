@@ -43,18 +43,30 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Ohne Secrets (noch kein Developer-Account/API-Key) überspringt ein Tag-Push den Upload mit Hinweis,
+      # statt den Lauf rot zu machen. Ein manueller Start bricht weiterhin mit klarer Meldung ab.
       - name: Secrets prüfen
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          missing=0
+          missing=()
           for name in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
-            if [[ -z "${!name}" ]]; then
-              echo "::error title=Secret fehlt::Das Secret $name ist nicht gesetzt (Environment 'app-store', siehe docs/13-APP-STORE-RELEASE.md)."
-              missing=1
-            fi
+            if [[ -z "${!name}" ]]; then missing+=("$name"); fi
           done
-          exit "$missing"
+          if (( ${#missing[@]} == 0 )); then
+            echo "SKIP_RELEASE=0" >> "$GITHUB_ENV"
+          elif [[ "$EVENT_NAME" == "push" && ${#missing[@]} == 4 ]]; then
+            echo "::notice title=App-Store-Upload übersprungen::Im Environment 'app-store' sind keine Secrets gesetzt. Der Tag bleibt ein GitHub-Release ohne TestFlight-Build (siehe docs/13-APP-STORE-RELEASE.md)."
+            echo "SKIP_RELEASE=1" >> "$GITHUB_ENV"
+          else
+            for name in "${missing[@]}"; do
+              echo "::error title=Secret fehlt::Das Secret $name ist nicht gesetzt (Environment 'app-store', siehe docs/13-APP-STORE-RELEASE.md)."
+            done
+            exit 1
+          fi
 
       - name: Version und Build-Nummer bestimmen
+        if: env.SKIP_RELEASE == '0'
         run: |
           if [[ "$REF_TYPE" == "tag" ]]; then
             version="${REF_NAME#v}"
@@ -73,11 +85,13 @@ jobs:
           echo "BUILD_NUMBER=$((GITHUB_RUN_NUMBER + BUILD_OFFSET))" >> "$GITHUB_ENV"
 
       - name: Xcode auswählen
+        if: env.SKIP_RELEASE == '0'
         run: |
           sudo xcode-select -s "$XCODE_APP"
           xcodebuild -version
 
       - name: API-Key bereitstellen
+        if: env.SKIP_RELEASE == '0'
         run: |
           umask 077
           key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
@@ -89,13 +103,16 @@ jobs:
           echo "ASC_KEY_PATH=$key_path" >> "$GITHUB_ENV"
 
       - name: Unit-Tests
+        if: env.SKIP_RELEASE == '0'
         working-directory: IndoorCoachKit
         run: swift test
 
       - name: Build-Nummer setzen
+        if: env.SKIP_RELEASE == '0'
         run: scripts/bump-build.sh "$BUILD_NUMBER"
 
       - name: Archivieren, exportieren, hochladen
+        if: env.SKIP_RELEASE == '0'
         env:
           DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
@@ -104,7 +121,7 @@ jobs:
           scripts/archive.sh 2>&1 | tee build/release.log
 
       - name: Artefakte sichern
-        if: always()
+        if: always() && env.SKIP_RELEASE == '0'
         uses: actions/upload-artifact@v7
         with:
           name: release-${{ github.run_number }}
