@@ -47,7 +47,10 @@ struct WarmupCheckCard: View {
                          + "Schlaf, Hitze, Kaffee und Stress verschieben ihn auch.")
                         .font(.footnote).foregroundStyle(Theme.rowSecondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Button("Neue Basis ab heute") { confirmNewBase = true }
+                    Button { confirmNewBase = true } label: {
+                        // 44 pt tap target (audit 3: the bare text button was 18 pt high).
+                        Text("Neue Basis ab heute").frame(minHeight: 44, alignment: .leading).contentShape(Rectangle())
+                    }
                         .font(.subheadline.weight(.semibold))
                         .accessibilityIdentifier("warmup.newBase")
                         .accessibilityHint("Setzt die Referenzleistung aus der aktuellen FTP neu. Frühere Messungen zählen dann nicht mehr.")

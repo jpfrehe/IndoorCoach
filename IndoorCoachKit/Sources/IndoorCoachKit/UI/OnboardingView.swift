@@ -24,6 +24,7 @@ enum OnboardingStep: Int, CaseIterable {
 struct OnboardingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var whooshEditing = 0
     @AccessibilityFocusState private var titleFocused: Bool
     @State private var whooshBusy = false
     /// While typing, the bottom bar ("Später", "Ohne Claude weiter") would sit right above the keyboard and cover the
@@ -35,6 +36,7 @@ struct OnboardingView: View {
     private var step: OnboardingStep { OnboardingStep(rawValue: model.onboardingStep) ?? .welcome }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 switch step {
@@ -51,6 +53,15 @@ struct OnboardingView: View {
             .frame(maxWidth: .infinity)
         }
         .id(step) // every step starts at the top
+        // iPhone SE: with the e-mail keyboard up, password and "Anmelden" sat half under it (audit 3). Keep the
+        // button in view once the keyboard has moved in.
+        .onChange(of: whooshEditing) {
+            Task {
+                try? await Task.sleep(for: .milliseconds(350))
+                withAnimation { proxy.scrollTo(MyWhooshLoginForm.loginButtonID, anchor: .bottom) }
+            }
+        }
+        }
         .scrollBounceBehavior(.basedOnSize)
         .scrollDismissesKeyboard(.interactively)
         .background(Theme.canvas)
@@ -77,9 +88,16 @@ struct OnboardingView: View {
                 Button { go(to: step.rawValue - 1) } label: {
                     // At accessibility sizes "Zurück" and "Überspringen" no longer fit side by side ("Zu-rück"):
                     // the chevron alone carries the back action (VoiceOver still reads "Zurück").
-                    Label("Zurück", systemImage: "chevron.left")
-                        .labelStyle(typeSize.isAccessibilitySize ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
-                        .frame(minWidth: 44, minHeight: 44, alignment: .leading)
+                    // Branch on the view, not a type-erased style: calling a LabelStyle's makeBody directly reads
+                    // its environment outside a view (SwiftUI runtime warning, audit 3).
+                    Group {
+                        if typeSize.isAccessibilitySize {
+                            Label("Zurück", systemImage: "chevron.left").labelStyle(.iconOnly)
+                        } else {
+                            Label("Zurück", systemImage: "chevron.left").labelStyle(.titleAndIcon)
+                        }
+                    }
+                    .frame(minWidth: 44, minHeight: 44, alignment: .leading)
                 }
                 .disabled(whooshBusy)
                 .accessibilityIdentifier("onboarding.back")
@@ -279,7 +297,7 @@ struct OnboardingView: View {
                 }
             } else {
                 Card(title: "MyWhoosh", systemImage: "figure.indoor.cycle") {
-                    MyWhooshLoginForm(busy: $whooshBusy)
+                    MyWhooshLoginForm(busy: $whooshBusy, onEditing: { whooshEditing += 1 })
                     hint("Dein Passwort wird nur zur Anmeldung gesendet und nicht gespeichert.")
                 }
             }
@@ -534,11 +552,4 @@ private struct StravaSectionScroller: ViewModifier {
             }
         }
     }
-}
-
-/// Type-erased label style, so the style can switch with the text size.
-struct AnyLabelStyle: LabelStyle {
-    private let make: (Configuration) -> AnyView
-    init<S: LabelStyle>(_ style: S) { make = { AnyView(style.makeBody(configuration: $0)) } }
-    func makeBody(configuration: Configuration) -> some View { make(configuration) }
 }

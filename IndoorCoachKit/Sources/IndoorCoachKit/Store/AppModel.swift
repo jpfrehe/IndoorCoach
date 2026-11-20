@@ -380,9 +380,18 @@ public final class AppModel {
         seedDemoStrength() // ANCHOR-STRENGTH
         let ctx = planContext(wish: "", startToday: true)
         let plan = DemoCoach.makePlan(ctx)
-        for w in plan.workouts {
-            context.insert(StoredWorkout(proposal: w, source: .demo, weekFocus: plan.weekFocus))
+        let seeded = plan.workouts.map { StoredWorkout(proposal: $0, source: .demo, weekFocus: plan.weekFocus) }
+        seeded.forEach { context.insert($0) }
+        #if DEBUG
+        // UI tests with `-uiCheckIn YES` or `-uiWorkoutToday YES` need a workout today; the demo plan only uses
+        // training days (not e.g. Fridays), so these tests used to depend on the weekday.
+        let needsToday = UserDefaults.standard.bool(forKey: "uiCheckIn") || UserDefaults.standard.bool(forKey: "uiWorkoutToday")
+        if needsToday, let first = seeded.first,
+           !Calendar.current.isDateInToday(first.date) {
+            let time = Calendar.current.dateComponents([.hour, .minute], from: first.date)
+            first.date = Calendar.current.date(bySettingHour: time.hour ?? 18, minute: time.minute ?? 30, second: 0, of: .now) ?? .now
         }
+        #endif
         try? context.save()
     }
 

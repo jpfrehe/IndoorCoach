@@ -9,6 +9,12 @@ struct ProfileView: View {
     @State private var confirmDisconnect = false
     @State private var confirmDeleteAll = false
     @State private var showFITImporter = false
+    /// iPhone SE: "Client-Secret" wraps onto two lines; a tap on the label line now focuses the field too (audit 3).
+    @FocusState private var stravaSecretFocused: Bool
+    /// Ziel and Hinweise are multi-line (Return adds a line): while one is edited, the section header offers "Fertig"
+    /// (audit 3: on the iPhone SE the keyboard otherwise covered half the list). A keyboard toolbar logged
+    /// "Invalid frame dimension" on every appearance, hence the header.
+    @FocusState private var goalEditing: Bool
 
     var body: some View {
         @Bindable var model = model
@@ -52,6 +58,7 @@ struct ProfileView: View {
                 dataSection(model)
             }
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .background(Theme.canvas)
             .scrollsToStravaSectionOnRequest()
             .fileImporter(isPresented: $showFITImporter, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
@@ -101,6 +108,7 @@ struct ProfileView: View {
         return Section {
             TextField("Ziel", text: $model.profile.goal, prompt: Text("z. B. FTP auf 280 W bis zum Frühjahr"), axis: .vertical)
                 .lineLimit(2...4)
+                .focused($goalEditing)
                 .accessibilityLabel("Ziel")
             Toggle("Zieldatum", isOn: Binding(get: { model.profile.goalDate != nil },
                                              set: { model.profile.goalDate = $0 ? (model.profile.goalDate ?? Calendar.current.date(byAdding: .month, value: 3, to: .now)) : nil }))
@@ -113,8 +121,21 @@ struct ProfileView: View {
                 TextField("Hinweise für den Coach", text: $model.profile.notes,
                           prompt: Text("z. B. Knie schonen, keine Sprints"), axis: .vertical)
                     .lineLimit(1...4)
+                    .focused($goalEditing)
             }
-        } header: { Text("Ziel") } footer: {
+        } header: {
+            HStack {
+                Text("Ziel")
+                Spacer(minLength: 8)
+                if goalEditing {
+                    Button("Fertig") { goalEditing = false }
+                        .font(.subheadline.weight(.semibold))
+                        .textCase(nil)
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("keyboard.done")
+                }
+            }
+        } footer: {
             Text("Ziel und Hinweise werden beim Planen an Claude (Anthropic) gesendet – bitte keine sensiblen Gesundheitsdaten.")
         }
     }
@@ -225,8 +246,11 @@ struct ProfileView: View {
                             .plainTextInput()
                             .credentialInput()
                             .multilineTextAlignment(.trailing)
+                            .focused($stravaSecretFocused)
                             .onSubmit { model.setStravaClientSecret(stravaSecretInput); stravaSecretInput = "" }
                     }
+                    .contentShape(Rectangle())
+                    .onTapGesture { stravaSecretFocused = true }
                 }
                 Button {
                     if !stravaSecretInput.isEmpty {

@@ -241,7 +241,9 @@ struct TodayDashboard: View {
 
     private func volumeCard(_ weeks: [TrainingLoad.WeekSummary]) -> some View {
         // Legend and bars only for kinds that occur in the 8 weeks (no empty "Andere" entry).
-        let kinds = VolumeKind.allCases.filter { kind in weeks.contains { kind.seconds(in: $0) > 0 } }
+        // Never an empty scale (empty seed / no rides yet): Charts logs an invalid configuration otherwise.
+        let present = VolumeKind.allCases.filter { kind in weeks.contains { kind.seconds(in: $0) > 0 } }
+        let kinds = present.isEmpty ? [VolumeKind.indoor] : present
         return Card(title: "Wochenumfang · 8 Wochen", systemImage: "chart.bar") {
             Chart(weeks) { w in
                 ForEach(kinds, id: \.self) { kind in

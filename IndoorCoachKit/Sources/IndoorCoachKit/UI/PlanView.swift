@@ -333,6 +333,14 @@ struct ProposalReview: View {
                             .font(.subheadline)
                     }
                 }
+                if proposal.workouts.isEmpty {
+                    // Audit 3: an empty proposal used to disable every button, "Neu planen" included (dead end).
+                    Card(title: "Keine freien Trainingstage", systemImage: "calendar.badge.exclamationmark") {
+                        Text("Im gewählten Zeitraum sind alle Trainingstage schon belegt. Tippe auf „Neu planen“ und wähle einen längeren Zeitraum oder schalte „Ab heute planen“ aus. Oder entferne vorher Einheiten im Plan.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .accessibilityIdentifier("proposal.empty")
+                }
                 if !proposal.rejected.isEmpty {
                     Card(title: "Aussortiert", systemImage: "exclamationmark.triangle") {
                         ForEach(proposal.rejected, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
@@ -350,16 +358,18 @@ struct ProposalReview: View {
                     Label("Übernehmen & in Kalender", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.jelly)
+                .disabled(proposal.workouts.isEmpty)
                 HStack {
                     Button("Nur übernehmen") { Task { await model.acceptProposal(addToCalendar: false); onDone() } }
+                        .disabled(proposal.workouts.isEmpty)
                     Spacer()
+                    // Always available: the way out of an empty or unwanted proposal.
                     Button("Neu planen", role: .destructive) { model.discardProposal() }
                 }
                 .font(.subheadline.weight(.medium))
             }
             .padding()
             .background(.bar)
-            .disabled(proposal.workouts.isEmpty)
         }
     }
 }

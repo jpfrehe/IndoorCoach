@@ -176,6 +176,9 @@ struct MyWhooshLoginForm: View {
     /// itself disappears once the account is connected.
     @Binding var busy: Bool
     var onConnected: () -> Void = {}
+    /// Called when a field gets focus, so a scrolling parent can keep password and button above the keyboard.
+    var onEditing: () -> Void = {}
+    static let loginButtonID = "whoosh.login.button"
 
     @State private var email = ""
     @State private var password = ""
@@ -205,6 +208,7 @@ struct MyWhooshLoginForm: View {
                 .focused($focus, equals: .password)
                 .submitLabel(.go)
                 .onSubmit { connect() }
+                .onChange(of: focus) { _, field in if field != nil { onEditing() } }
             if let error {
                 FormError(message: error, identifier: "whoosh.error")
             }
@@ -217,6 +221,7 @@ struct MyWhooshLoginForm: View {
             }
             .buttonStyle(.jelly)
             .disabled(busy || email.trimmingCharacters(in: .whitespaces).isEmpty || password.isEmpty)
+            .id(Self.loginButtonID)
             .accessibilityIdentifier("whoosh.login")
         }
     }

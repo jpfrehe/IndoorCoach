@@ -79,9 +79,14 @@ struct WorkoutDetailContent: View {
                 HStack {
                     TypeBadge(type: d.type)
                     if workout.status != .planned {
-                        Label(workout.status.label, systemImage: workout.status.symbol)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(workout.status == .done ? Theme.done : .secondary)
+                        // Text in the row colour (≥ 4.5:1); only the icon carries the green chart tone (audit 3: "Erledigt" failed contrast).
+                        Label {
+                            Text(workout.status.label).foregroundStyle(Theme.rowSecondary)
+                        } icon: {
+                            Image(systemName: workout.status.symbol)
+                                .foregroundStyle(workout.status == .done ? Theme.done : Theme.rowSecondary)
+                        }
+                        .font(.caption.weight(.semibold))
                     }
                     Spacer()
                     if workout.source == .claude {
