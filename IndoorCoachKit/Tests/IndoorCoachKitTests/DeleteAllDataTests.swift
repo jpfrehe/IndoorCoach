@@ -45,6 +45,11 @@ struct DeleteAllDataTests {
         try await model.healthExport.setEnabled(.strength, true)
         defaults.set(["e"], forKey: AppModel.Keys.healthExportLedger)
         model.setPlanFeedback(.up, forWeek: .now) // B33: Plan-Feedback je Woche
+        var momentLedger = MomentLedger()
+        momentLedger.markSeen("level-2-2026")
+        momentLedger.save(to: defaults) // Begeisterung (AP0): gesehene Momente, Schalter, „Dein Warum“
+        model.momentsEnabled = false
+        model.whyNote = "Im Mai die RTF mit Freunden"
         model.bridge.load(defaults: defaults)
         model.onboardingStep = 2
         model.onboardingServices = OnboardingServicesState(answers: ServiceAnswers(rideApps: [.zwift], extras: [.heartStrap]),

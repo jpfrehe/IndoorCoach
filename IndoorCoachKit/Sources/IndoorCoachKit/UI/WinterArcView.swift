@@ -19,6 +19,7 @@ struct WinterArcCard: View {
                     Text(subtitle).font(.caption).foregroundStyle(Theme.rowSecondary)
                 }
             }
+            // ANCHOR-B3-CARD: Chip „+34 min Licht“ (sun.horizon) unter der Level-Zeile, Tipp öffnet den Hub – Agent B
             // Side by side when they fit, otherwise stacked – never clipped (audit 2, A2-05: "5 Wochen in Folge · 1 Joker").
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) { chips }
@@ -89,6 +90,7 @@ struct WinterArcView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if let status = model.winterArc(rides: rides) {   // series is cached in AppModel
+                    // ANCHOR-B3-HUB: Winterlicht-Kopf mit Himmel, Schnee und Tageslicht-Gewinn – Agent B
                     WinterArcCard(status: status)
                     // ANCHOR-K1-WINTERARC (Konstanz-Serie & Joker)
                     ConsistencyCard(result: model.consistency(rides: rides))
@@ -99,6 +101,8 @@ struct WinterArcView: View {
                     TrophiesCard(rides: rides, arc: status)
                     // ANCHOR-P4-WINTERARC (Winter-Reise)
                     WinterJourneyCard(level: status.level.number, levelProgress: status.levelProgress)
+                    // ANCHOR-B2-ALBUM: „Deine Postkarten · n von 10“ (PostcardAlbumView) – Agent B
+                    // ANCHOR-B4-WHY: Karte „Dein Warum“ (WhyCard) – Agent B
                     // ANCHOR-W5 (Dein Herz im Winter Arc)
                     if let heart { HeartInWinterArcCard(heart: heart) }
 

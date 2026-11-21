@@ -1,6 +1,4 @@
-import ImageIO
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// G5 – the image behind "Saisonrückblick teilen": 1080 × 1350 px, Sunset-Jelly, ink on peach/coral/white
 /// (≥ 6.9:1). Pure value input (no environment), so `ImageRenderer` can draw it anywhere. Non-lazy.
@@ -86,23 +84,14 @@ struct SeasonShareCard: View {
     }
 }
 
-/// Renders the share image to a PNG in the temporary directory.
+/// Renders the season share image (1080 × 1350) through the shared `ShareImageRenderer`.
 enum SeasonShareRenderer {
-    struct Rendered {
-        var url: URL
-        var preview: Image
-    }
+    typealias Rendered = ShareImageRenderer.Rendered
 
     @MainActor
     static func render(_ summary: SeasonSummary) -> Rendered? {
-        let renderer = ImageRenderer(content: SeasonShareCard(summary: summary))
-        renderer.scale = 1   // 1 pt = 1 px → exactly 1080 × 1350
-        guard let image = renderer.cgImage else { return nil }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("IndoorCoach-Saisonrückblick.png")
-        guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else { return nil }
-        CGImageDestinationAddImage(destination, image, nil)
-        guard CGImageDestinationFinalize(destination) else { return nil }
-        return Rendered(url: url, preview: Image(decorative: image, scale: 1))
+        ShareImageRenderer.render(SeasonShareCard(summary: summary), size: SeasonShareCard.size,
+                                  filename: "IndoorCoach-Saisonrückblick.png")
     }
 }
 

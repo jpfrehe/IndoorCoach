@@ -286,6 +286,7 @@ struct RideDetailView: View {
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("ride.pr")
                 }
+                // ANCHOR-B1-RIDE: Zeile „Gipfelmoment dieser Fahrt ansehen“, wenn zur Fahrt ein Moment gehört – Agent A
                 // ANCHOR-K3-FAHRT (Challenge-Fortschritt/Trophäe)
                 RideChallengeNote(ride: ride)
 

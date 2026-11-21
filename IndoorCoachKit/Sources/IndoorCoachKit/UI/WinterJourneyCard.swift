@@ -27,6 +27,7 @@ struct WinterJourneyCard: View {
                 Text("Geschafft: Du bist am Gardasee.").font(.subheadline).foregroundStyle(Theme.rowSecondary)
             }
         }
+        // ANCHOR-B2-JOURNEY: Link „Postkarten“ zum Album – Agent B
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(position.accessibilityLabel)
         .accessibilityIdentifier("journey.card")

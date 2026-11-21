@@ -25,6 +25,7 @@ struct WinterArcSettingsView: View {
                 Text("Vom Saisonstart bis zum Ziel-Tag baust du Fitness auf. Ziel-Tag ist dein Zieldatum, wenn es höchstens 8 Monate nach dem Start liegt, sonst der 21. März. „Automatisch“ setzt das Ziel auf +35 % der Start-Fitness, mindestens +15.")
             }
         }
+        // ANCHOR-B1-SETTING: Schalter „Feiern nach der Fahrt“ (`model.momentsEnabled`) als eigene Section im Form – Agent A
         .scrollContentBackground(.hidden)
         .background(Theme.canvas)
         .navigationTitle("Winter Arc")

@@ -42,6 +42,17 @@ public final class AppModel {
     public var profile: AthleteProfile { didSet { persistProfile() } }
     public var stravaClientID: String { didSet { defaults.set(stravaClientID, forKey: Keys.stravaClientID) } }
 
+    // MARK: Begeisterung (docs/22, AP0-Verträge)
+    /// Gipfelmomente, die auf ihre Feier warten (füllt `AppModel+Moments`, Agent A); leer, wenn nichts ansteht.
+    public var pendingMoments: MomentBatch = .empty
+    /// „Feiern nach der Fahrt“ (Profil → Winter Arc), standardmäßig an; Schlüssel `moments.enabled`.
+    public var momentsEnabled: Bool { didSet { defaults.set(momentsEnabled, forKey: Keys.momentsEnabled) } }
+    /// „Dein Warum“ (Agent B): ein eigener Satz, nur lokal. Nie Teil des Claude-Prompts oder des Diagnose-Exports.
+    /// Schlüssel `why.note`; nil = nicht gesetzt.
+    public var whyNote: String? {
+        didSet { if let whyNote { defaults.set(whyNote, forKey: Keys.whyNote) } else { defaults.removeObject(forKey: Keys.whyNote) } }
+    }
+
     // MARK: State
     public private(set) var stravaAthleteName: String?
     public private(set) var isStravaConnected = false
@@ -194,7 +205,8 @@ public final class AppModel {
                           weeklyReviewDismissed, onboardingStep, onboardingServices, bridgeMacName, bridgeLastSync, bridgeKnownIDs,
                           recordingPending, recordingAttached, // ANCHOR-REC
                           legLoadKept, manualJokerWeeks, strengthTemplates, strengthDays, strapPeripheral,
-                          healthExportSettings, healthExportLedger, planFeedback]
+                          healthExportSettings, healthExportLedger, planFeedback,
+                          momentsLedger, momentsEnabled, whyNote]
         /// Hinweis „Achtung Leistung“ je Einheit behalten (LegLoad), Joker-Wochen (Konstanz), Kraft-Vorlagen und Studio-Tage,
         /// gekoppelter Gurt, Health-Export (Einstellung und Protokoll).
         static let legLoadKept = "legload.kept.v1"
@@ -206,10 +218,43 @@ public final class AppModel {
         static let planFeedback = "weeklyReview.planFeedback.v1"
         static let healthExportSettings = HealthExportService.settingsKey
         static let healthExportLedger = HealthExportService.ledgerKey
+        /// Begeisterung (docs/22): gesehene Gipfelmomente, Schalter „Feiern nach der Fahrt“, „Dein Warum“.
+        static let momentsLedger = MomentLedger.defaultsKey
+        static let momentsEnabled = "moments.enabled"
+        static let whyNote = "why.note"
     }
 
     /// Reine Anzeige-Merker in @AppStorage (z. B. „Gurt-Erklärung gesehen“): fallen mit „Alle Daten löschen“ ebenfalls.
-    static let uiFlagKeys = ["strapExplainerSeen"]
+    static let uiFlagKeys = ["strapExplainerSeen", Keys.momentsLedger, Keys.momentsEnabled, Keys.whyNote]
+
+    // MARK: Heute (nur für die neuen Begeisterungs-Funktionen)
+
+    /// UserDefaults-/Startargument `-uiToday yyyy-MM-dd` (nur DEBUG): „heute“ für die Funktionen aus docs/22
+    /// (Winterlicht, Willkommen zurück, Momente), damit UI-Tests feste Daten prüfen können.
+    static let uiTodayKey = "uiToday"
+
+    /// „Jetzt“ für die neuen Funktionen. Bestehender Code liest weiter `Date.now`. In Release immer `Date.now`; in
+    /// DEBUG mit `-uiToday 2027-01-10` der 10.1.2027 um 12:00 Uhr (lokale Zeitzone).
+    public static var today: Date { today(defaults: .standard, now: .now, calendar: .current) }
+
+    static func today(defaults: UserDefaults, now: Date, calendar: Calendar) -> Date {
+        #if DEBUG
+        if let raw = defaults.string(forKey: uiTodayKey), let day = parseUIToday(raw, calendar: calendar) { return day }
+        #endif
+        return now
+    }
+
+    /// `yyyy-MM-dd` (streng, gültiger Kalendertag) → dieser Tag um 12:00 Uhr; sonst nil.
+    static func parseUIToday(_ raw: String, calendar: Calendar) -> Date? {
+        let parts = raw.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
+              let y = Int(parts[0]), let m = Int(parts[1]), let d = Int(parts[2]) else { return nil }
+        let comps = DateComponents(year: y, month: m, day: d, hour: 12)
+        guard let date = calendar.date(from: comps),
+              calendar.dateComponents([.year, .month, .day], from: date) == DateComponents(year: y, month: m, day: d)
+        else { return nil }
+        return date
+    }
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
                 transport: HTTPTransport = URLSessionTransport(),
@@ -234,6 +279,8 @@ public final class AppModel {
             profile = AthleteProfile()
         }
         stravaClientID = defaults.string(forKey: Keys.stravaClientID) ?? ""
+        momentsEnabled = defaults.object(forKey: Keys.momentsEnabled) as? Bool ?? true
+        whyNote = defaults.string(forKey: Keys.whyNote)
         onboardingStep = Self.loadOnboardingStep(defaults: defaults)
         onboardingServices = defaults.data(forKey: Keys.onboardingServices)
             .flatMap { try? JSONDecoder().decode(OnboardingServicesState.self, from: $0) } ?? OnboardingServicesState()
@@ -510,6 +557,9 @@ public final class AppModel {
         for key in Keys.all where key != Keys.onboardingCompleted { defaults.removeObject(forKey: key) }
         for key in Self.uiFlagKeys { defaults.removeObject(forKey: key) } // z. B. „Gurt-Erklärung gesehen“
         resetHealthState() // ANCHOR-W3B
+        pendingMoments = .empty
+        momentsEnabled = true
+        whyNote = nil
         lastSync = nil
         hasImportedRides = false
         lastMyWhooshImport = nil
@@ -862,6 +912,9 @@ public final class AppModel {
         seriesCache = nil
         onboardingStep = 0
         onboardingServices = OnboardingServicesState()
+        pendingMoments = .empty
+        momentsEnabled = true
+        whyNote = nil
         for key in Keys.all { defaults.removeObject(forKey: key) }
         RecordingStore().clear() // ANCHOR-REC: interim file of an unfinished recording
         // Feedback draft (FeedbackView keeps it in @AppStorage so it survives the trip to GitHub).

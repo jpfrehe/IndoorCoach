@@ -356,3 +356,34 @@ extension XCUIAccessibilityAuditType {
         }
     }
 }
+
+// MARK: - Begeisterung (docs/22, AP0): Identifier-Vertrag
+//
+// Gemeinsame Accessibility-Identifier der Elemente B1–B4. Die Views setzen genau diese Werte, die Audit-Tests lesen
+// sie hier. Neue Identifier nur ergänzen, nie umbenennen.
+enum BegeisterungID {
+    // B1 · Gipfelmoment
+    static let momentSheet = "moment.sheet"
+    static let momentHeadline = "moment.headline"
+    static let momentCoachNote = "moment.coachNote"
+    static let momentContinue = "moment.continue"
+    static let momentShare = "moment.share"
+    // B2 · Postkarten
+    static let postcardView = "postcard.view"
+    static let postcardAlbum = "postcard.album"
+    static let postcardShare = "postcard.share"
+    // B3 · Winterlicht
+    static let winterlightLine = "winterlight.line"
+    // B4 · Dein Warum, Willkommen zurück
+    static let whyCard = "why.card"
+    static let whyField = "why.field"
+    static let comebackCard = "comeback.card"
+    static let comebackStart = "comeback.start"
+}
+
+/// Startargumente der neuen Funktionen (nur DEBUG): `-uiToday yyyy-MM-dd` setzt „heute“ (`AppModel.today`),
+/// `-uiMoment levelUp|record|comeback|week` löst einen Beispiel-Moment aus (Agent A).
+enum BegeisterungLaunch {
+    static func today(_ day: String) -> [String] { ["-uiToday", day] }
+    static func moment(_ kind: String) -> [String] { ["-uiMoment", kind] }
+}
