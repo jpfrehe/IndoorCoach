@@ -34,6 +34,7 @@ extension AppModel {
         try? context.save()
         defaults.removeObject(forKey: Keys.lastSync)
         lastSync = nil
+        syncErrors[.strava] = nil
         refreshCredentialState()
         bootstrap()
         show(isDemoMode ? "Strava getrennt – Demo-Daten aktiv." : "Strava getrennt.", error: false)
@@ -77,11 +78,23 @@ extension AppModel {
             Log.notice(.sync, "Sync beendet: \(rides.count) Fahrten geladen, \(inserted) neu, \(rides.count - inserted) aktualisiert, \(byID.count) gesamt, \(Self.elapsed(since: started))")
             lastSync = .now
             defaults.set(lastSync, forKey: Keys.lastSync)
+            syncErrors[.strava] = nil
             show(rides.isEmpty ? "Strava: keine neuen Fahrten." : "Strava: \(rides.count) Fahrten synchronisiert.", error: false)
         } catch {
             Log.error(.sync, "Sync fehlgeschlagen nach \(Self.elapsed(since: started)): \(type(of: error)) – \(error.localizedDescription)")
             refreshCredentialState()
+            syncErrors[.strava] = Self.stravaErrorText(error)
             show(error.localizedDescription, error: true)
+        }
+    }
+
+    /// Kurzer Text für die Verbindungszeile (der Banner trägt die lange Meldung).
+    static func stravaErrorText(_ error: Error) -> String {
+        switch error as? StravaError {
+        case .notConnected?: "Zugang abgelaufen – bitte neu verbinden."
+        case .rateLimited?: "Strava-Limit erreicht – später erneut versuchen."
+        case .unavailable?: "Strava ist gerade nicht erreichbar."
+        default: "Synchronisierung fehlgeschlagen."
         }
     }
 }

@@ -42,6 +42,7 @@ struct DeleteAllDataTests {
         model.setPlanFeedback(.up, forWeek: .now) // B33: Plan-Feedback je Woche
         model.bridge.load(defaults: defaults)
         model.onboardingStep = 2
+        model.syncErrors[.strava] = "Synchronisierung fehlgeschlagen"
         model.setClaudeAPIKey("placeholder-claude-key")
         model.setStravaClientSecret("client-secret")
         secrets.saveTokens(StravaTokens(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, athleteName: "Test"))
@@ -66,6 +67,7 @@ struct DeleteAllDataTests {
         #expect(model.profile == AthleteProfile())
         #expect(model.stravaClientID.isEmpty && model.lastSync == nil)
         #expect(!model.isStravaConnected && !model.hasClaudeKey && !model.hasStravaSecret)
+        #expect(model.syncErrors.isEmpty)
         #expect(model.banner?.message == "Alle Daten gelöscht.")
         #expect(model.banner?.isError == false)
     }

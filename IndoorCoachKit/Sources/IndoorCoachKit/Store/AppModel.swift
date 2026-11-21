@@ -53,6 +53,9 @@ public final class AppModel {
     /// Rides came from MyWhoosh or FIT files (ends demo mode without Strava).
     public internal(set) var hasImportedRides = false
     public internal(set) var lastMyWhooshImport: Date?
+    /// Letzter Fehler je Dienst (kurz, deutsch), nur im Speicher: Sync-Fehler setzen ihn, ein Erfolg, Trennen und
+    /// „Alle Daten löschen“ leeren ihn. Grundlage für `ConnectionStatus.error`.
+    public internal(set) var syncErrors: [ConnectionID: String] = [:]
     /// Bumped on "Ausblenden": the dismissed list lives in UserDefaults (not observed), so Heute re-renders via this.
     var weeklyReviewDismissRevision = 0
     public var banner: Banner?
@@ -287,6 +290,7 @@ public final class AppModel {
 
     public func disconnectMyWhoosh() async {
         await myWhoosh.logout()
+        syncErrors[.myWhoosh] = nil
         refreshCredentialState()
     }
 
@@ -741,6 +745,7 @@ public final class AppModel {
         UserDefaults.standard.removeObject(forKey: "mywhoosh.deviceId")
         secrets.setSecret(nil, for: .bridgeSecret)
         bridge.reset()
+        syncErrors = [:]
 
         // In-memory state first: the property observers would write the defaults back.
         profile = AthleteProfile()

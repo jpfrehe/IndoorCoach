@@ -49,6 +49,11 @@ extension AppModel {
                 defaults.set(lastMyWhooshImport, forKey: Keys.myWhooshLastImport)
             }
             Log.notice(.sync, "MyWhoosh-Import: \(fresh.count) neu gelistet, \(inserted) gespeichert, \(unreadable) ohne Daten, \(Self.elapsed(since: started))")
+            if unreadable > 0 && inserted == 0 {
+                syncErrors[.myWhoosh] = "\(unreadable) \(unreadable == 1 ? "Fahrt" : "Fahrten") ohne auswertbare Daten."
+            } else {
+                syncErrors[.myWhoosh] = nil
+            }
             if inserted > 0 {
                 show("MyWhoosh: \(inserted) \(inserted == 1 ? "Fahrt" : "Fahrten") importiert.", error: false)
             } else if unreadable > 0 {
@@ -61,8 +66,18 @@ extension AppModel {
             refreshCredentialState()
             // At app start a history that MyWhoosh refuses is only logged – the user saw it once already.
             if announce || error as? MyWhooshError != .historyUnavailable {
+                syncErrors[.myWhoosh] = Self.myWhooshErrorText(error)
                 show(error.localizedDescription, error: true)
             }
+        }
+    }
+
+    /// Kurzer Text für die Verbindungszeile (der Banner trägt die lange Meldung).
+    static func myWhooshErrorText(_ error: Error) -> String {
+        switch error as? MyWhooshError {
+        case .sessionExpired?, .notConnected?: "Anmeldung abgelaufen – bitte neu anmelden."
+        case .historyUnavailable?: "Fahrtenliste nicht verfügbar – importiere FIT-Dateien."
+        default: "Import fehlgeschlagen."
         }
     }
 
