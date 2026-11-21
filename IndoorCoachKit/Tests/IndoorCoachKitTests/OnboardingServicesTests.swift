@@ -299,8 +299,6 @@ struct OnboardingServicesTests {
         #expect(later.accessibilityLabel == "Fahrten im Detail vom Mac: später unter Profil, Dienste und Geräte, Sekundendaten vom Mac")
         let open = OnboardingSummary.ServiceLine(id: .strap, name: "Brustgurt", hubName: "Brustgurt", state: .notConnected)
         #expect(open.visualDetail == later.visualDetail.replacingOccurrences(of: "Sekundendaten vom Mac", with: "Brustgurt"))
-        // Die drei alten Zeilen bleiben unverändert.
-        #expect(makeModel().onboardingSummary.items.map(\.title) == ["Profil", "MyWhoosh", "Coach"])
     }
 
     @Test func serviceLineNamesMatchTheIntroWording() {
@@ -311,6 +309,88 @@ struct OnboardingServicesTests {
         let line = model.onboardingSummary.services.first { $0.id == .macBridge }
         #expect(line?.name == "Fahrten im Detail vom Mac")
         #expect(line?.hubName == "Sekundendaten vom Mac")
+    }
+
+    // MARK: Review-Befunde
+
+    /// Befund 3: Strava zählt nur, solange der Dienst in der Liste steht.
+    @Test func stravaAfterwardsCountsOnlyWhileStravaIsListed() {
+        var state = OnboardingServicesState()
+        state.stravaAfterwards = true
+        let listed = ServiceRecommender.recommend(ServiceAnswers(extras: [.strava]),
+                                                  ServiceAvailability(intervalsOAuth: false, bridgeDownload: false, health: false))
+        #expect(AppModel.stravaAfterwardsActive(state, in: listed))
+        #expect(!AppModel.stravaAfterwardsActive(state, in: listed.filter { $0.id != .strava }))
+        state.stravaAfterwards = false
+        #expect(!AppModel.stravaAfterwardsActive(state, in: listed))
+    }
+
+    @Test func summaryStravaFollowsTheStoredToggle() {
+        let model = makeModel()
+        model.onboardingServices.answers = ServiceAnswers(extras: [.strava])
+        model.onboardingServices.stravaAfterwards = true
+        #expect(model.onboardingSummary.stravaAfterwards && model.stravaAfterwardsActive)
+    }
+
+    /// Befund 3: „Später“ für einen Dienst, der nicht mehr angeboten wird, taucht nirgends auf.
+    @Test func staleDeferredServiceIsNotListed() {
+        let model = makeModel()
+        model.healthSource = StubHealthDataSource(isAvailable: false)
+        model.onboardingServices.answers = ServiceAnswers(extras: [.appleWatch])
+        model.onboardingServices.deferred = [.appleHealth, .macBridge]   // beide nicht verfügbar → nie in der Liste
+        #expect(model.onboardingSummary.services.isEmpty)
+    }
+
+    @Test func laterLineIsMarked() {
+        let later = OnboardingSummary.ServiceLine(id: .strap, name: "Brustgurt", hubName: "Brustgurt", state: .later)
+        let open = OnboardingSummary.ServiceLine(id: .strap, name: "Brustgurt", hubName: "Brustgurt", state: .notConnected)
+        #expect(later.isLater && !open.isLater)
+    }
+
+    /// Befund 4: HealthKit verrät nicht, ob gelesen werden darf.
+    @Test func healthSummaryDoesNotClaimAGrantedPermission() async {
+        let model = makeModel()
+        model.healthSource = StubHealthDataSource()
+        await model.setHealthEnabled(true)
+        model.onboardingServices.answers = ServiceAnswers(extras: [.appleWatch])
+        let line = model.onboardingSummary.services.first { $0.id == .appleHealth }
+        #expect(line?.visualDetail == "Verbunden – Freigaben prüfst du in der Health-App")
+        #expect(line?.isConnected == true)
+    }
+
+    /// Befund 11: Unbekannte Werte (neuere oder ältere App-Version) verwerfen nicht den ganzen Zustand.
+    @Test func unknownRawValuesAreSkippedWhenDecoding() throws {
+        let json = #"{"answers":{"rideApps":["myWhoosh","tacx"],"myWhooshDevice":"toaster","extras":["strava","ring"],"showAll":true},"deferred":["strap","hologram"],"stravaAfterwards":true,"fitImportedCount":2}"#
+        let state = try JSONDecoder().decode(OnboardingServicesState.self, from: Data(json.utf8))
+        #expect(state.answers.rideApps == [.myWhoosh])
+        #expect(state.answers.myWhooshDevice == nil)
+        #expect(state.answers.extras == [.strava])
+        #expect(state.answers.showAll)
+        #expect(state.deferred == [.strap])
+        #expect(state.stravaAfterwards && state.fitImportedCount == 2)
+        // Fehlende Schlüssel: Standardwerte.
+        #expect(try JSONDecoder().decode(OnboardingServicesState.self, from: Data("{}".utf8)) == OnboardingServicesState())
+    }
+
+    @Test func storedStateWithUnknownValueIsStillRestored() {
+        let json = #"{"answers":{"rideApps":["zwift","nope"],"extras":[]},"deferred":[],"stravaAfterwards":false}"#
+        defaults.set(Data(json.utf8), forKey: AppModel.Keys.onboardingServices)
+        #expect(makeModel().onboardingServices.answers.rideApps == [.zwift])
+    }
+
+    @Test func stateRoundTripsThroughJSON() throws {
+        var state = OnboardingServicesState()
+        state.answers = ServiceAnswers(rideApps: [.zwift], myWhooshDevice: .mac, extras: [.heartStrap], showAll: true)
+        state.deferred = [.fitImport]
+        state.fitImportedCount = 3
+        let back = try JSONDecoder().decode(OnboardingServicesState.self, from: JSONEncoder().encode(state))
+        #expect(back == state)
+    }
+
+    /// Befund 5: Der Import meldet, wie viele Fahrten übernommen oder ergänzt wurden; unlesbare Dateien zählen nicht.
+    @Test func fitImportOfUnreadableFilesReportsZero() {
+        let model = makeModel()
+        #expect(model.importFITFiles([URL(fileURLWithPath: "/nonexistent/x.fit")]) == 0)
     }
 
     // MARK: Debug-Hooks (reines Parsen)

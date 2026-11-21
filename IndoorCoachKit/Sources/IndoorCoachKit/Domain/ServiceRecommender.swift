@@ -25,6 +25,15 @@ public struct ServiceAnswers: Codable, Equatable, Sendable {
         self.extras = extras
         self.showAll = showAll
     }
+
+    /// Tolerant: Unbekannte Werte (andere App-Version) werden übersprungen, fehlende Schlüssel nehmen den Standardwert.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        rideApps = c.decodeLenientSet(RideApp.self, forKey: .rideApps)
+        myWhooshDevice = (try? c.decodeIfPresent(String.self, forKey: .myWhooshDevice)).flatMap(RideDevice.init(rawValue:))
+        extras = c.decodeLenientSet(ExtraGear.self, forKey: .extras)
+        showAll = (try? c.decodeIfPresent(Bool.self, forKey: .showAll)) ?? false
+    }
 }
 
 /// Was auf diesem Gerät und in diesem Build überhaupt angeboten werden kann.

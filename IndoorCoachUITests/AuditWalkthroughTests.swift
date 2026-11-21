@@ -1461,9 +1461,9 @@ final class AuditOpeningTests: AuditCase {
         shot("5-verbunden")
         accessibilityAudit("Onboarding-Verbunden")
 
-        // Apple Health: erst die Erklärung, „Weiter zur Freigabe“, danach „Freigabe erteilt“.
+        // Apple Health: erst die Erklärung, „Weiter zur Freigabe“, danach „Verbunden“.
         obTap("onboarding.service.appleHealth.connect", "Health „Weiter zur Freigabe“")
-        check(obWaitLabel(obEl("onboarding.service.appleHealth.status"), contains: "Freigabe erteilt"), "Health-Status „Freigabe erteilt“")
+        check(obWaitLabel(obEl("onboarding.service.appleHealth.status"), contains: "Verbunden"), "Health-Status „Verbunden“")
 
         // Mac-Brücke: „Später“.
         obTap("onboarding.service.macBridge.later", "Brücke „Später“")
@@ -1485,7 +1485,7 @@ final class AuditOpeningTests: AuditCase {
 
         obExpect(step: 6, title: "Alles bereit")
         check(obEl("onboarding.status.mywhoosh").label.lowercased().contains("verbunden"), "MyWhoosh in der Checkliste verbunden (\(obEl("onboarding.status.mywhoosh").label))")
-        check(obEl("onboarding.status.applehealth").label.contains("Freigabe erteilt"), "Health in der Checkliste „Freigabe erteilt“ (\(obEl("onboarding.status.applehealth").label))")
+        check(obEl("onboarding.status.applehealth").label.contains("Verbunden"), "Health in der Checkliste „Verbunden“ (\(obEl("onboarding.status.applehealth").label))")
         check(obEl("onboarding.status.macbridge").label.contains("Sekundendaten vom Mac"), "Brücke in der Checkliste: Ort „Sekundendaten vom Mac“ (\(obEl("onboarding.status.macbridge").label))")
         check(obEl("onboarding.status.coach").label.contains("Claude-Key gespeichert"), "Coach in der Checkliste eingerichtet (\(obEl("onboarding.status.coach").label))")
         check(obEl("onboarding.openConnections").exists, "„Übersprungenes jetzt einrichten“ vorhanden")

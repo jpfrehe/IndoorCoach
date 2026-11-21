@@ -19,26 +19,29 @@ public struct OnboardingServicesState: Codable, Equatable, Sendable {
     public var deferred: Set<ConnectionID> = []
     /// „Nach der Einführung einrichten“ bei Strava.
     public var stravaAfterwards = false
+    /// Fahrten, die der FIT-Import in der Einführung übernommen oder ergänzt hat (0 = noch nichts).
+    public var fitImportedCount = 0
 
-    public init(answers: ServiceAnswers = ServiceAnswers(), deferred: Set<ConnectionID> = [], stravaAfterwards: Bool = false) {
+    public init(answers: ServiceAnswers = ServiceAnswers(), deferred: Set<ConnectionID> = [], stravaAfterwards: Bool = false,
+                fitImportedCount: Int = 0) {
         self.answers = answers
         self.deferred = deferred
         self.stravaAfterwards = stravaAfterwards
+        self.fitImportedCount = fitImportedCount
+    }
+
+    /// Tolerant: Unbekannte Werte in den Mengen werden übersprungen, fehlende Schlüssel nehmen den Standardwert.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        answers = (try? c.decodeIfPresent(ServiceAnswers.self, forKey: .answers)) ?? ServiceAnswers()
+        deferred = c.decodeLenientSet(ConnectionID.self, forKey: .deferred)
+        stravaAfterwards = (try? c.decodeIfPresent(Bool.self, forKey: .stravaAfterwards)) ?? false
+        fitImportedCount = (try? c.decodeIfPresent(Int.self, forKey: .fitImportedCount)) ?? 0
     }
 }
 
 /// "Fertig" step: what the athlete set up during onboarding.
 public struct OnboardingSummary: Equatable, Sendable {
-    public struct Item: Equatable, Sendable, Identifiable {
-        public let title: String
-        public let symbol: String
-        public let isDone: Bool
-        public let detail: String
-        public var id: String { title }
-        /// One spoken sentence for VoiceOver.
-        public var accessibilityLabel: String { "\(title): \(detail)" }
-    }
-
     /// Eine Dienstzeile der Zusammenfassung (nur empfohlene, angefasste oder verbundene Dienste).
     public struct ServiceLine: Equatable, Sendable, Identifiable {
         public enum State: Equatable, Sendable {
@@ -56,6 +59,7 @@ public struct OnboardingSummary: Equatable, Sendable {
         public let state: State
 
         public var isConnected: Bool { if case .connected = state { true } else { false } }
+        public var isLater: Bool { state == .later }
 
         /// Text unter dem Namen.
         public var visualDetail: String {
@@ -75,22 +79,12 @@ public struct OnboardingSummary: Equatable, Sendable {
     }
 
     public var profileReady: Bool
-    public var myWhooshConnected: Bool
     public var coachReady: Bool
     public var rideCount: Int
     /// Dienstzeilen in der Reihenfolge der Empfehlungen (ohne Strava, das hat `stravaAfterwards`).
     public var services: [ServiceLine] = []
     /// „Strava nach der Einführung einrichten“ wurde gewählt.
     public var stravaAfterwards = false
-
-    public var items: [Item] {
-        [Item(title: "Profil", symbol: "person.crop.circle", isDone: profileReady,
-              detail: profileReady ? "eingerichtet" : "Trainingstag fehlt"),
-         Item(title: "MyWhoosh", symbol: "figure.indoor.cycle", isDone: myWhooshConnected,
-              detail: myWhooshConnected ? (rideCount > 0 ? "verbunden, \(rideCount) Fahrten geladen" : "verbunden") : "nicht verbunden"),
-         Item(title: "Coach", symbol: "sparkles", isDone: coachReady,
-              detail: coachReady ? "Claude-Key gespeichert" : "nicht eingerichtet, Demo-Plan")]
-    }
 }
 
 extension AppModel {
@@ -119,9 +113,10 @@ extension AppModel {
     /// Download der Mac-App „IndoorCoach Brücke“ (E1); nil, solange es keinen Bezugsweg gibt.
     public var bridgeDownloadURL: URL? {
         #if DEBUG
+        if let bridgeDownloadURLOverride { return bridgeDownloadURLOverride }
         if UserDefaults.standard.bool(forKey: "uiBridgeAvailable") { return URL(string: "https://example.invalid/bridge") }
         #endif
-        return bridgeDownloadURLOverride ?? AppConfig.bridgeDownloadURL
+        return AppConfig.bridgeDownloadURL
     }
 
     /// Persönliche Liste „Für dich passt“, berechnet aus Antworten und Verfügbarkeit.
@@ -144,12 +139,19 @@ extension AppModel {
         (try? context.fetchCount(FetchDescriptor<StoredRide>(predicate: #Predicate { !$0.isDemo }))) ?? 0
     }
 
+    /// „Strava nach der Einführung“ gilt nur, solange Strava in der Liste steht (sonst bliebe ein veralteter Wunsch stehen).
+    public var stravaAfterwardsActive: Bool {
+        Self.stravaAfterwardsActive(onboardingServices, in: serviceRecommendations)
+    }
+
+    static func stravaAfterwardsActive(_ state: OnboardingServicesState, in recommendations: [ServiceRecommendation]) -> Bool {
+        state.stravaAfterwards && recommendations.contains { $0.id == .strava }
+    }
+
     public var onboardingSummary: OnboardingSummary {
         let rides = importedRideCount
-        return OnboardingSummary(profileReady: !profile.trainingDays.isEmpty, myWhooshConnected: isMyWhooshConnected,
-                                 coachReady: hasClaudeKey, rideCount: rides,
-                                 services: summaryServiceLines(rideCount: rides),
-                                 stravaAfterwards: onboardingServices.stravaAfterwards)
+        return OnboardingSummary(profileReady: !profile.trainingDays.isEmpty, coachReady: hasClaudeKey, rideCount: rides,
+                                 services: summaryServiceLines(rideCount: rides), stravaAfterwards: stravaAfterwardsActive)
     }
 
     /// Empfohlene Dienste, angefasste („Später“) und verbundene; Strava und FIT-Import zählen nie als „verbunden“.
@@ -178,7 +180,7 @@ extension AppModel {
                                  : "Verbunden · noch keine Fahrten gefunden"
         case .intervalsICU: return statusDetail.map { "Verbunden als \($0)" } ?? "Verbunden"
         case .macBridge: return statusDetail.map { "Gekoppelt mit \($0)" } ?? "Gekoppelt"
-        case .appleHealth: return "Freigabe erteilt"
+        case .appleHealth: return "Verbunden – Freigaben prüfst du in der Health-App"
         case .strap: return statusDetail ?? "Gekoppelt"
         case .strava, .fitImport: return "Verbunden"
         }
@@ -225,3 +227,11 @@ extension ServiceAnswers {
     }
 }
 #endif
+
+extension KeyedDecodingContainer {
+    /// Liest eine Menge von Raw-Values und lässt unbekannte Einträge weg, statt das ganze Dokument zu verwerfen.
+    func decodeLenientSet<T: RawRepresentable & Hashable>(_ type: T.Type, forKey key: Key) -> Set<T> where T.RawValue == String {
+        guard let raws = try? decodeIfPresent([String].self, forKey: key) else { return [] }
+        return Set(raws.compactMap(T.init(rawValue:)))
+    }
+}

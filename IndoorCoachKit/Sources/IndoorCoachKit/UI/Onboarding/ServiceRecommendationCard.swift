@@ -110,21 +110,22 @@ struct ServiceRecommendationCard<Content: View>: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
+            // Nur der Dienstname ist die Überschrift; Nutzen und Hinweis werden als eigener Text vorgelesen.
             Label {
                 Text(name).font(.headline).fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: symbol).foregroundStyle(Theme.accent)
             }
-            Text(recommendation.benefit)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(tierPrefix)\(name)")
+            .accessibilityAddTraits(.isHeader)
+            Text.protectingBrands(recommendation.benefit)
                 .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
             if let note = recommendation.note {
                 OnboardingHint(note, symbol: "info.circle")
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
-        .accessibilityLabel("\(tierPrefix)\(name). \(recommendation.benefit)\(recommendation.note.map { " \($0)" } ?? "")")
     }
 
     // MARK: Status

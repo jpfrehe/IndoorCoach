@@ -159,24 +159,16 @@ struct OnboardingJourneyTests {
         let model = makeModel()
         var summary = model.onboardingSummary
         #expect(summary.profileReady)
-        #expect(!summary.myWhooshConnected && !summary.coachReady)
+        #expect(!summary.coachReady)
         model.setClaudeAPIKey("sk-ant-test-0000000000000000000000")
         summary = model.onboardingSummary
-        #expect(summary.coachReady && !summary.myWhooshConnected)
-        #expect(summary.items.map(\.isDone) == [true, false, true])
+        #expect(summary.coachReady && summary.profileReady)
     }
 
     @Test func summaryNeedsAtLeastOneTrainingDay() {
         let model = makeModel()
         model.profile.trainingDays = []
         #expect(!model.onboardingSummary.profileReady)
-    }
-
-    @Test func summaryLabelsAreSpokenGerman() {
-        let items = makeModel().onboardingSummary.items
-        #expect(items.map(\.title) == ["Profil", "MyWhoosh", "Coach"])
-        #expect(items[1].accessibilityLabel == "MyWhoosh: nicht verbunden")
-        #expect(items[0].accessibilityLabel == "Profil: eingerichtet")
     }
 
     // MARK: MyWhoosh
@@ -189,7 +181,8 @@ struct OnboardingJourneyTests {
         #expect(await model.connectMyWhoosh(username: "a@b.de", password: "pw"))
         #expect(model.isMyWhooshConnected)
         #expect(model.importedRideCount == 1)
-        #expect(model.onboardingSummary.myWhooshConnected)
+        model.onboardingServices.answers = ServiceAnswers(rideApps: [.myWhoosh])
+        #expect(model.onboardingSummary.services.first { $0.id == .myWhoosh }?.isConnected == true)
     }
 
     @Test func failedLoginKeepsTheMessageForTheForm() async {
