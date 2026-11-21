@@ -178,3 +178,5 @@ Vier Sonnet-Subagenten, parallel in eigenen Worktrees (vorher auf `main` vorgesp
 - `docs/PRIVACY.md` vor der Store-Einreichung rechtlich prüfen und den Verantwortlichen eintragen.
 - Die Automatik-Kontrastmeldungen auf unbenannten Knoten wie im UX-Audit 2 auf dem Gerät prüfen (B13).
 - test03 und test22 an die heutige Oberfläche anpassen (vorbestehend).
+
+> **Weiterentwicklung (21.11.2026):** Die Einführung wurde zu 7 Schritten mit Dienste-Empfehlung ausgebaut, siehe [Konzept 20](20-KONZEPT-ONBOARDING-DIENSTE.md).

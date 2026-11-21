@@ -3,6 +3,20 @@
 Ziel: IndoorCoach ohne App Store auf deinem iPhone, verbunden mit Strava und Claude.
 Zeitbedarf: ca. 20 Minuten beim ersten Mal.
 
+## 0. Erster Start: Einführung
+
+Beim ersten Start führt die App in 7 Schritten durch die Einrichtung ([Konzept](20-KONZEPT-ONBOARDING-DIENSTE.md)):
+
+1. **Willkommen** – kein Konto nötig.
+2. **Dein Training** – FTP („Weiß ich nicht“ schätzt ihn), Gewicht, Trainingstage, Wochenbudget.
+3. **Womit fährst du drinnen?** – MyWhoosh, Zwift, Rouvy, andere App oder noch keine. Bei MyWhoosh fragt die App, worauf es läuft (Mac, PC, Tablet …).
+4. **Was hast du sonst noch?** – Apple Watch, Garmin/Wahoo, Brustgurt, Strava.
+5. **Für dich passt** – höchstens vier Empfehlungen mit je einem Satz Nutzen, direkt verbindbar (MyWhoosh-Login, Anmeldung bei intervals.icu, Apple-Health-Freigabe, Brustgurt koppeln, Mac-Brücke einrichten). Jede Empfehlung hat „Später“; „Alle Dienste zeigen“ listet alles.
+6. **Dein Coach** – optional: ohne Claude gibt es einen kostenlosen Beispielplan, mit eigenem Claude-Key plant der Coach jede Woche neu (etwa 10 Cent pro Plan).
+7. **Alles bereit** – was verbunden ist und wo du Übersprungenes findest (Profil → Dienste & Geräte).
+
+„Überspringen“ springt zur Zusammenfassung. Wer die App schon nutzt, sieht die Einführung nicht erneut. Die Mac-Brücke wird erst empfohlen, wenn in `Config/Info.plist` unter `BridgeDownloadURL` eine https-Downloadadresse steht.
+
 ## 1. App aufs iPhone bringen (Xcode)
 
 1. `IndoorCoach.xcodeproj` in Xcode öffnen.
