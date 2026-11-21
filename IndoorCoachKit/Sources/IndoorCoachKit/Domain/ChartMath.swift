@@ -38,6 +38,12 @@ public enum ChartMath {
         return lo...hi
     }
 
+    /// Baseline of an area under a line: zero when the domain contains it, otherwise the nearest domain edge.
+    /// Areas that start at 0 in a domain like 1.3…1.7 would run far out of the plot.
+    public static func areaBase(in domain: ClosedRange<Double>) -> Double {
+        Swift.min(Swift.max(0, domain.lowerBound), domain.upperBound)
+    }
+
     /// X ticks in minutes for a session of `total` seconds: at most four steps of 5/10/15/30/60 min, starting at 0.
     public static func minuteTicks(total: TimeInterval) -> [Double] {
         let minutes = Swift.max(total, 0) / 60

@@ -54,6 +54,7 @@ struct AerobicEfficiencyCard: View {
         let span = ChartMath.domain(values: values, includeZero: false)
         let ticks = ChartMath.niceTicks(min: span.lowerBound, max: span.upperBound, count: 4)
         let pieces = ChartMath.segments(series.map(\.weekStart), splitWhenGapExceeds: 15 * 86_400)
+        let base = ChartMath.areaBase(in: (ticks.first ?? 0)...(ticks.last ?? 1))
         return Chart {
             ForEach(Array(pieces.enumerated()), id: \.offset) { n, range in
                 if range.count == 1, let only = series[range].first {
@@ -63,7 +64,7 @@ struct AerobicEfficiencyCard: View {
                 } else {
                     ForEach(series[range]) { p in
                         if series.count >= 4 {
-                            AreaMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef), series: .value("Teil", "Fläche\(n)"))
+                            AreaMark(x: .value("Woche", p.weekStart), yStart: .value("Basis", base), yEnd: .value("Effizienz", p.ef), series: .value("Teil", "Fläche\(n)"))
                                 .interpolationMethod(.monotone)
                                 .foregroundStyle(ChartStyle.area(Theme.accent, dark: dark))
                         }

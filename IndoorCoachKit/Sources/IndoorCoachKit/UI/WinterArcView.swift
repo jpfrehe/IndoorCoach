@@ -195,7 +195,7 @@ struct WinterArcView: View {
                     .interpolationMethod(.monotone)
             }
             ForEach(shown) { p in
-                AreaMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness), series: .value("Linie", "Fläche"))
+                AreaMark(x: .value("Tag", p.date), yStart: .value("Basis", lowest), yEnd: .value("Fitness", p.fitness), series: .value("Linie", "Fläche"))
                     .interpolationMethod(ChartStyle.interpolation(pointCount: shown.count))
                     .foregroundStyle(ChartStyle.area(ChartPalette.fitness, dark: dark))
                 LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness), series: .value("Linie", "Fitness"))

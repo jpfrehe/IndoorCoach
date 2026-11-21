@@ -169,4 +169,11 @@ struct ChartMathTests {
         #expect(ChartMath.format(-0.25, decimals: 2).hasSuffix("0,25"))
         #expect(!ChartMath.format(.nan, decimals: 1).isEmpty)
     }
+
+    @Test func areaBaseStaysInsideTheDomain() {
+        #expect(ChartMath.areaBase(in: 1.3...1.7) == 1.3)       // efficiency: not 0, far below the plot
+        #expect(ChartMath.areaBase(in: 0...300) == 0)
+        #expect(ChartMath.areaBase(in: -20...30) == 0)           // zero inside: area to the zero line
+        #expect(ChartMath.areaBase(in: -50 ... -10) == -10)      // all negative: nearest edge
+    }
 }

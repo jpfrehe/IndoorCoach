@@ -328,17 +328,11 @@ private struct PowerCurveCard: View {
             .chartXScale(domain: 1...maxDuration, type: .log)
             .chartYScale(domain: lower...upper)
             .chartXSelection(value: $selected)
-            .chartStyleAxes(yTicks: ticks, yLabel: { v in ChartMath.format(v) + (v == ticks.last ? " W" : "") }, showsX: false)
-            .chartXAxis {
-                // Log axis: 5 s / 1 / 5 / 20 min, 60 min only with enough data (it crowds 20 min).
-                AxisMarks(values: ChartMath.powerCurveTicks(maxDuration: maxDuration)) { value in
-                    AxisTick(stroke: StrokeStyle(lineWidth: 1)).foregroundStyle(ChartStyle.baselineColor)
-                    AxisValueLabel {
-                        if let d = value.as(Double.self) { Text(PerformanceFormat.duration(Int(d))) }
-                    }
-                    .font(ChartStyle.axisFont).foregroundStyle(ChartStyle.axisColor)
-                }
-            }
+            // Log axis: 5 s / 1 / 5 / 20 min, 60 min only with enough data (it crowds 20 min). Declared inside the
+            // shared axes modifier so there is exactly one x-axis declaration.
+            .chartStyleAxes(yTicks: ticks, yLabel: { v in ChartMath.format(v) + (v == ticks.last ? " W" : "") },
+                            xValues: ChartMath.powerCurveTicks(maxDuration: maxDuration),
+                            xLabel: { PerformanceFormat.duration(Int($0)) })
             .chartStyleAnimation(value: picked?.duration)
             .chartStyleHeight(ChartStyle.heightLarge)
             .chartAccessibility(

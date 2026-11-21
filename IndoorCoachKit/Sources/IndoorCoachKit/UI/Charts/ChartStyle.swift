@@ -81,11 +81,15 @@ struct ChartAxesModifier: ViewModifier {
     var yLabel: (@Sendable (Double) -> String)?
     var showsX: Bool
     var xCount: Int
+    var xValues: [Double]?
+    var xLabel: (@Sendable (Double) -> String)?
     @Environment(\.displayScale) private var displayScale
 
     func body(content: Content) -> some View {
         content
             .chartLegend(.hidden)
+            // Areas and lines never leave the plot, whatever the domain.
+            .chartPlotStyle { $0.clipped() }
             .chartYAxis {
                 if let yTicks {
                     AxisMarks(position: .trailing, values: yTicks) { value in yMarks(value) }
@@ -94,7 +98,16 @@ struct ChartAxesModifier: ViewModifier {
                 }
             }
             .chartXAxis {
-                if showsX {
+                if let xValues {
+                    AxisMarks(values: xValues) { value in
+                        AxisTick(stroke: StrokeStyle(lineWidth: ChartStyle.hairline(displayScale: displayScale)))
+                            .foregroundStyle(ChartStyle.baselineColor)
+                        AxisValueLabel {
+                            if let v = value.as(Double.self) { Text(xLabel?(v) ?? ChartMath.format(v)) }
+                        }
+                        .font(ChartStyle.axisFont).foregroundStyle(ChartStyle.axisColor)
+                    }
+                } else if showsX {
                     AxisMarks(values: .automatic(desiredCount: xCount)) { _ in
                         AxisTick(stroke: StrokeStyle(lineWidth: ChartStyle.hairline(displayScale: displayScale)))
                             .foregroundStyle(ChartStyle.baselineColor)
@@ -141,8 +154,9 @@ struct ChartHeightModifier: ViewModifier {
 extension View {
     /// Concept 21 standard axes (right-hand y, hairline grid, no legend). Pass `yTicks` from `ChartMath.niceTicks`.
     func chartStyleAxes(yTicks: [Double]? = nil, yLabel: (@Sendable (Double) -> String)? = nil,
-                        showsX: Bool = true, xCount: Int = 4) -> some View {
-        modifier(ChartAxesModifier(yTicks: yTicks, yLabel: yLabel, showsX: showsX, xCount: xCount))
+                        showsX: Bool = true, xCount: Int = 4, xValues: [Double]? = nil,
+                        xLabel: (@Sendable (Double) -> String)? = nil) -> some View {
+        modifier(ChartAxesModifier(yTicks: yTicks, yLabel: yLabel, showsX: showsX, xCount: xCount, xValues: xValues, xLabel: xLabel))
     }
 
     /// Smooth range/selection animation that respects "Reduce Motion".

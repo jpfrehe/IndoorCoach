@@ -32,10 +32,11 @@ struct FTPHistoryCard: View {
         let dark = scheme == .dark
         let values = series.map { Double($0.eftp) } + (ftp > 0 ? [Double(ftp)] : [])
         let ticks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 4)
+        let base = ChartMath.areaBase(in: (ticks.first ?? 0)...(ticks.last ?? 1))
         let few = series.count <= ChartStyle.maxMarkers
         return Chart {
             ForEach(series) { p in
-                AreaMark(x: .value("Fenster bis", p.date), y: .value("eFTP", p.eftp))
+                AreaMark(x: .value("Fenster bis", p.date), yStart: .value("Basis", base), yEnd: .value("eFTP", Double(p.eftp)))
                     .interpolationMethod(ChartStyle.interpolation(pointCount: series.count))
                     .foregroundStyle(ChartStyle.area(Theme.accent, dark: dark))
                 LineMark(x: .value("Fenster bis", p.date), y: .value("eFTP", p.eftp))

@@ -40,7 +40,7 @@ struct WeekBarsChart: View {
             ForEach(Array(bars.enumerated()), id: \.element.id) { index, bar in
                 let highlighted = selectedBar.map { $0.weekStart == bar.weekStart } ?? flags[index]
                 BarMark(x: .value("Woche", bar.weekStart, unit: .weekOfYear), y: .value("Wert", bar.value), width: .ratio(0.6))
-                    .foregroundStyle(highlighted ? Theme.accent : ChartPalette.accentMuted)
+                    .foregroundStyle(highlighted ? Theme.accent : ChartPalette.reference)
                     .cornerRadius(ChartStyle.barCornerRadius)
                     .annotation(position: .top, spacing: 2) {
                         if highlighted && bar.value > 0 {

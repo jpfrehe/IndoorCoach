@@ -23,6 +23,7 @@ private struct ChartPartsDemo: View {
         let state = ChartDataState(count: pts.count)
         let sel = selected.flatMap { ChartMath.nearest(pts.map(\.date), to: $0) }.map { pts[$0] }
         let shown = sel ?? pts.last
+        let domain = ChartMath.domain(values: pts.flatMap { [$0.ctl, $0.atl] }, includeZero: false)
         VStack(alignment: .leading, spacing: 10) {
             ChartCardHeader(items: [
                 .init(label: "Fitness", value: shown.map { ChartMath.format($0.ctl) } ?? "–", color: ChartPalette.fitness),
@@ -35,7 +36,7 @@ private struct ChartPartsDemo: View {
             } else {
                 Chart {
                     ForEach(pts) { p in
-                        AreaMark(x: .value("Tag", p.date), y: .value("Fitness", p.ctl))
+                        AreaMark(x: .value("Tag", p.date), yStart: .value("Basis", ChartMath.areaBase(in: domain)), yEnd: .value("Fitness", p.ctl))
                             .interpolationMethod(ChartStyle.interpolation(pointCount: pts.count))
                             .foregroundStyle(ChartStyle.area(ChartPalette.fitness, dark: scheme == .dark))
                         LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.ctl), series: .value("Reihe", "Fitness"))
@@ -54,7 +55,7 @@ private struct ChartPartsDemo: View {
                     }
                 }
                 .chartXSelection(value: $selected)
-                .chartYScale(domain: ChartMath.domain(values: pts.flatMap { [$0.ctl, $0.atl] }, includeZero: false))
+                .chartYScale(domain: domain)
                 .chartStyleAxes()
                 .chartStyleAnimation(value: selected)
                 .chartStyleHeight()
