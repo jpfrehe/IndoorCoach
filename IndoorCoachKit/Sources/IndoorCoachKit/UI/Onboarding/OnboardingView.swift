@@ -25,6 +25,8 @@ struct OnboardingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var whooshEditing = 0
+    /// Zustand von „Für dich passt“ (aufgeklappt, Fehler, MyWhoosh-Formular); hier, damit er Schrittwechsel überlebt.
+    @State private var servicesUI = ServicesStepUIState()
     @AccessibilityFocusState private var titleFocused: Bool
     /// Die MyWhoosh-Anmeldung läuft (gehört hierher, weil das Formular nach dem Verbinden verschwindet).
     @State private var whooshBusy = false
@@ -41,9 +43,13 @@ struct OnboardingView: View {
     private var connectBusy: Bool { whooshBusy || otherBusy }
     private var showAll: Bool { model.onboardingServices.answers.showAll }
 
+    /// Anker ganz oben im Inhalt: Jeder Schritt beginnt hier, ohne dass die Ansicht ihre Identität (und ihren State) verliert.
+    private static let topAnchorID = "onboarding.top"
+
     var body: some View {
         ScrollViewReader { proxy in
         ScrollView {
+            Color.clear.frame(height: 0).id(Self.topAnchorID)
             VStack(alignment: .leading, spacing: 20) {
                 switch step {
                 case .welcome: welcome
@@ -60,14 +66,20 @@ struct OnboardingView: View {
             .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .id(step) // every step starts at the top
         // iPhone SE: with the e-mail keyboard up, password and "Anmelden" sat half under it (audit 3). Keep the
-        // button in view once the keyboard has moved in.
-        .onChange(of: whooshEditing) {
-            Task {
-                try? await Task.sleep(for: .milliseconds(350))
-                withAnimation { proxy.scrollTo(MyWhooshLoginForm.loginButtonID, anchor: .bottom) }
-            }
+        // button in view once the keyboard has moved in. `.task(id:)` cancels a pending scroll when the next field is focused.
+        .task(id: whooshEditing) {
+            guard whooshEditing > 0 else { return }
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            withAnimation { proxy.scrollTo(MyWhooshLoginForm.loginButtonID, anchor: .bottom) }
+        }
+        // Every step starts at the top (instead of `.id(step)` on the ScrollView, which threw away the steps' @State).
+        .onChange(of: step) {
+            proxy.scrollTo(Self.topAnchorID, anchor: .top)
+            // VoiceOver: the focus state may already be true from the previous step, so flip it to move the focus to the new title.
+            titleFocused = false
+            Task { @MainActor in titleFocused = true }
         }
         }
         .scrollBounceBehavior(.basedOnSize)
@@ -77,7 +89,6 @@ struct OnboardingView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !keyboardVisible { bottomBar }
         }
-        .onChange(of: step) { titleFocused = true }
         #if os(iOS)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             keyboardVisible = true
@@ -165,7 +176,7 @@ struct OnboardingView: View {
                     next("Ohne Claude weiter", style: .soft, id: "onboarding.noClaude")
                 }
             case .done:
-                if model.onboardingServices.stravaAfterwards {
+                if model.stravaAfterwardsActive {
                     Button { onFinish(.connection(.strava)) } label: {
                         Label("Strava jetzt einrichten", systemImage: "arrow.right.circle.fill").frame(maxWidth: .infinity)
                     }
@@ -350,7 +361,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 16) {
             title(showAll ? "Alle Dienste" : "Für dich passt")
             lead("Verbinde, was du möchtest. Nichts davon ist Pflicht, alles geht auch später.")
-            OnboardingServicesStep(whooshBusy: $whooshBusy, otherBusy: $otherBusy) { whooshEditing += 1 }
+            OnboardingServicesStep(whooshBusy: $whooshBusy, otherBusy: $otherBusy, ui: $servicesUI) { whooshEditing += 1 }
         }
     }
 
@@ -457,10 +468,19 @@ struct OnboardingView: View {
             Card {
                 ForEach(rows) { row in statusRow(row) }
             }
+            if !summary.profileReady {
+                Button { go(to: OnboardingStep.training.rawValue) } label: {
+                    Text("Trainingstag wählen")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+                .foregroundStyle(Theme.accent)
+                .accessibilityHint("Geht zurück zu „Dein Training“.")
+                .accessibilityIdentifier("onboarding.fixTraining")
+            }
             if model.isIntervalsConnected, let targets = model.intervalsForwardTargets {
                 Card { IntervalsForwardHint(targets: targets, compact: true) }
             }
-            if summary.services.contains(where: { !$0.isConnected }) {
+            if summary.services.contains(where: \.isLater) {
                 Button { onFinish(.connection(nil)) } label: {
                     Text("Übersprungenes jetzt einrichten")
                         .multilineTextAlignment(.leading)

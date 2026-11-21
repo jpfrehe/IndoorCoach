@@ -86,9 +86,9 @@ public final class AppModel {
     public private(set) var lastMyWhooshError: String?
     /// Message of the last failed intervals.icu sign-in (the banner sits behind the onboarding cover). A cancelled web sign-in is no error.
     public internal(set) var lastIntervalsError: String?
+    #if DEBUG
     /// Tests: ersetzt `AppConfig.bridgeDownloadURL` (E1).
     @ObservationIgnored var bridgeDownloadURLOverride: URL?
-    #if DEBUG
     /// UI tests (`-uiIntervalsStubLogin YES`): ersetzt die Web-Anmeldung (ASWebAuthenticationSession) von `connectIntervals(authenticate:)`.
     @ObservationIgnored public var intervalsWebAuthOverride: ((URL) async throws -> URL)?
     #endif

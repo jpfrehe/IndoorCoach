@@ -107,7 +107,9 @@ extension AppModel {
 
     /// Imports FIT files picked in the Files app or opened via "Öffnen in IndoorCoach" (MyWhoosh, Zwift, Wahoo …).
     /// A file for a ride that is already stored (Strava, MyWhoosh list) adds its seconds data to that ride.
-    public func importFITFiles(_ urls: [URL]) {
+    /// - Returns: Anzahl der Fahrten, die neu übernommen oder mit Sekundendaten ergänzt wurden.
+    @discardableResult
+    public func importFITFiles(_ urls: [URL]) -> Int {
         var rides: [RideSummary] = []
         var seconds: [Int: RideSeconds] = [:]
         var failed = 0
@@ -123,6 +125,7 @@ extension AppModel {
         let result = mergeImportedRides(rides, seconds: seconds)
         Log.notice(.sync, "FIT-Import: \(urls.count) Dateien, \(result.inserted) neu, \(result.enriched) ergänzt, \(failed) nicht lesbar")
         show(Self.fitImportMessage(result, failed: failed), error: failed > 0)
+        return result.inserted + result.enriched
     }
 
     static func fitImportMessage(_ result: ImportResult, failed: Int) -> String {

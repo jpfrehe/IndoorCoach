@@ -1,6 +1,29 @@
 import SwiftUI
 
 /// Hinweiszeile in der Einführung (kleine, zurückhaltende Schrift).
+/// iOS trennt Wörter am Zeilenende automatisch („MyW-hoosh“). Markennamen bleiben ganz: zwischen ihren Buchstaben steht ein
+/// unsichtbares WORD JOINER (U+2060), das jeden Umbruch und jede Silbentrennung dort verbietet.
+/// Nur für die Anzeige; Bedienungshilfen bekommen den Originaltext.
+enum BrandText {
+    static let names = ["MyWhoosh", "intervals.icu", "Zwift", "Rouvy"]
+
+    static func noBreak(_ text: String) -> String {
+        var result = text
+        for name in names where result.contains(name) {
+            let joined = name.map(String.init).joined(separator: "\u{2060}")
+            result = result.replacingOccurrences(of: name, with: joined)
+        }
+        return result
+    }
+}
+
+extension Text {
+    /// Text ohne Trennung in Markennamen; VoiceOver liest den Originaltext.
+    static func protectingBrands(_ text: String) -> some View {
+        Text(BrandText.noBreak(text)).accessibilityLabel(text)
+    }
+}
+
 struct OnboardingHint: View {
     var text: String
     var symbol: String?
@@ -13,12 +36,12 @@ struct OnboardingHint: View {
         Group {
             if let symbol {
                 Label {
-                    Text(text).fixedSize(horizontal: false, vertical: true)
+                    Text.protectingBrands(text).fixedSize(horizontal: false, vertical: true)
                 } icon: {
                     Image(systemName: symbol)
                 }
             } else {
-                Text(text).fixedSize(horizontal: false, vertical: true)
+                Text.protectingBrands(text).fixedSize(horizontal: false, vertical: true)
             }
         }
         .font(.subheadline)

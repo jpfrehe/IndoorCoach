@@ -112,7 +112,9 @@ public struct HealthExportService: @unchecked Sendable {
 public enum HealthWorkoutWriterFactory {
     /// `-uiHealthStub` → Stub; sonst HealthKit (iOS) bzw. ein nicht verfügbarer Stub (macOS).
     public static func make(arguments: [String] = ProcessInfo.processInfo.arguments) -> any HealthWorkoutWriting {
+        #if DEBUG
         if arguments.contains("-uiHealthStub") { return StubHealthWorkoutWriter() }
+        #endif
         #if canImport(HealthKit) && os(iOS)
         return HealthKitWorkoutWriter()
         #else

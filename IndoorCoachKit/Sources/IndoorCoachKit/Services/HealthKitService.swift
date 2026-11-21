@@ -121,7 +121,9 @@ public final class StubHealthDataSource: HealthDataSource {
 public enum HealthDataSourceFactory {
     /// `-uiHealthStub` → Stub mit Beispieldaten; sonst HealthKit (iOS) bzw. ein nicht verfügbarer Stub (macOS).
     public static func make(arguments: [String] = ProcessInfo.processInfo.arguments) -> any HealthDataSource {
+        #if DEBUG
         if arguments.contains("-uiHealthStub") { return uiStub() }
+        #endif
         #if canImport(HealthKit) && os(iOS)
         return HealthKitService()
         #else

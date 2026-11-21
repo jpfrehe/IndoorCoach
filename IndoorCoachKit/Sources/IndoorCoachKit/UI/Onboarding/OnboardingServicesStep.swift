@@ -13,6 +13,16 @@ extension AppModel {
     }
 }
 
+/// Oberflächen-Zustand von „Für dich passt“. Gehört der Elternansicht, damit er einen Schrittwechsel überlebt
+/// (Zurück aus „Coach“ zeigt aufgeklappte Karten, Fehler und das offene MyWhoosh-Formular wie vorher).
+struct ServicesStepUIState: Equatable {
+    var expanded: Set<ConnectionID> = []
+    var whooshFormOpen = false
+    var activeID: ConnectionID?
+    var errors: [ConnectionID: String] = [:]
+    var showMore = false
+}
+
 /// Schritt 4 · Für dich passt: Empfehlungen als Karten, nach Stufen geordnet (docs/20 §6.5).
 /// Verbinden passiert hier, ohne die Einführung zu verlassen.
 struct OnboardingServicesStep: View {
@@ -22,18 +32,24 @@ struct OnboardingServicesStep: View {
     @Binding var whooshBusy: Bool
     /// Eine andere Verbindung läuft (intervals.icu, Health).
     @Binding var otherBusy: Bool
+    @Binding var ui: ServicesStepUIState
     /// Ein Feld im MyWhoosh-Formular hat den Fokus (die Elternansicht hält den Anmelden-Knopf über der Tastatur).
     var onEditing: () -> Void
 
-    @State private var expanded: Set<ConnectionID> = []
-    @State private var whooshFormOpen = false
-    @State private var activeID: ConnectionID?
-    @State private var errors: [ConnectionID: String] = [:]
-    @State private var showBridgeSheet = false
-    @State private var showStrapSheet = false
+    /// Ein Blatt zur Zeit; das Datei-Fenster hängt an einem eigenen Anker (mehrere `.sheet` am selben View sind unzuverlässig).
+    private enum Sheet: String, Identifiable {
+        case bridge, strap
+        var id: String { rawValue }
+    }
+    @State private var sheet: Sheet?
     @State private var showFITImporter = false
-    @State private var fitImported: Int?
-    @State private var showMore = false
+
+    private var expanded: Set<ConnectionID> { ui.expanded }
+    private var whooshFormOpen: Bool { ui.whooshFormOpen }
+    private var activeID: ConnectionID? { ui.activeID }
+    private var errors: [ConnectionID: String] { ui.errors }
+    /// Vom Modell gemerkt, nicht im View-State: überlebt Schrittwechsel und Neustart.
+    private var fitImported: Int? { model.onboardingServices.fitImportedCount > 0 ? model.onboardingServices.fitImportedCount : nil }
 
     private var answers: ServiceAnswers { model.onboardingServices.answers }
 
@@ -54,10 +70,16 @@ struct OnboardingServicesStep: View {
             section("Für Fortgeschrittene", id: "onboarding.section.advanced", entries: advanced, lines: lines)
             if !more.isEmpty { moreServices(more, lines: lines) }
         }
-        .sheet(isPresented: $showBridgeSheet) { OnboardingBridgeSheet() }
-        .sheet(isPresented: $showStrapSheet) { OnboardingStrapSheet() }
-        .fileImporter(isPresented: $showFITImporter, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
-            importFIT(result)
+        .sheet(item: $sheet) { sheet in
+            switch sheet {
+            case .bridge: OnboardingBridgeSheet()
+            case .strap: OnboardingStrapSheet()
+            }
+        }
+        .background {
+            Color.clear.fileImporter(isPresented: $showFITImporter, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
+                importFIT(result)
+            }
         }
     }
 
@@ -92,7 +114,7 @@ struct OnboardingServicesStep: View {
     }
 
     private func moreServices(_ entries: [ServiceRecommendation], lines: [OnboardingSummary.ServiceLine]) -> some View {
-        DisclosureGroup(isExpanded: $showMore) {
+        DisclosureGroup(isExpanded: $ui.showMore) {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(entries) { entry in card(entry, lines: lines) }
             }
@@ -119,7 +141,7 @@ struct OnboardingServicesStep: View {
         if id == .myWhoosh, whooshBusy { return .busy }
         if id != .myWhoosh, otherBusy, activeID == id { return .busy }
         if id == .fitImport, let count = fitImported {
-            return .connected("\(count) \(count == 1 ? "Fahrt" : "Fahrten") übernommen")
+            return .connected("\(count) \(count == 1 ? "Fahrt" : "Fahrten") übernommen oder ergänzt")
         }
         if id != .fitImport, let line = lines.first(where: { $0.id == id }), case .connected(let detail) = line.state {
             return .connected(detail)
@@ -166,7 +188,7 @@ struct OnboardingServicesStep: View {
             onConnect: { connect(id) },
             onLater: { later(id) },
             onResume: { resume(id) },
-            onToggleExpanded: { withAnimation(.snappy(duration: 0.2)) { _ = expanded.insert(id) } },
+            onToggleExpanded: { withAnimation(.snappy(duration: 0.2)) { _ = ui.expanded.insert(id) } },
             extraStatusID: id == .myWhoosh ? "onboarding.myWhooshStatus" : nil
         ) {
             content(for: entry, state: state)
@@ -241,7 +263,7 @@ struct OnboardingServicesStep: View {
                                  style: entry.tier == .recommended ? .prominent : .soft,
                                  identifier: "onboarding.service.intervalsICU.connect",
                                  isLocked: whooshBusy || otherBusy,
-                                 onStart: { activeID = .intervalsICU; model.onboardingServices.deferred.remove(.intervalsICU) })
+                                 onStart: { ui.activeID = .intervalsICU; model.onboardingServices.deferred.remove(.intervalsICU) })
         }
     }
 
@@ -249,12 +271,12 @@ struct OnboardingServicesStep: View {
 
     private func connect(_ id: ConnectionID) {
         model.onboardingServices.deferred.remove(id)
-        errors[id] = nil
+        ui.errors[id] = nil
         switch id {
         case .myWhoosh:
-            withAnimation(.snappy(duration: 0.2)) { whooshFormOpen = true }
-        case .macBridge: showBridgeSheet = true
-        case .strap: showStrapSheet = true
+            withAnimation(.snappy(duration: 0.2)) { ui.whooshFormOpen = true }
+        case .macBridge: sheet = .bridge
+        case .strap: sheet = .strap
         case .fitImport: showFITImporter = true
         case .appleHealth: connectHealth()
         case .intervalsICU, .strava: break
@@ -264,27 +286,27 @@ struct OnboardingServicesStep: View {
     private func later(_ id: ConnectionID) {
         withAnimation(.snappy(duration: 0.2)) {
             model.onboardingServices.deferred.insert(id)
-            expanded.remove(id)
-            if id == .myWhoosh { whooshFormOpen = false }
+            ui.expanded.remove(id)
+            if id == .myWhoosh { ui.whooshFormOpen = false }
         }
-        errors[id] = nil
+        ui.errors[id] = nil
     }
 
     private func resume(_ id: ConnectionID) {
         withAnimation(.snappy(duration: 0.2)) {
             model.onboardingServices.deferred.remove(id)
-            expanded.insert(id)
+            ui.expanded.insert(id)
         }
     }
 
     private func connectHealth() {
-        activeID = .appleHealth
+        ui.activeID = .appleHealth
         otherBusy = true
         Task {
             await model.setHealthEnabled(true)
             otherBusy = false
             if !model.healthEnabled {
-                errors[.appleHealth] = "Die Freigabe hat nicht geklappt. Du kannst sie später unter Profil → Dienste & Geräte → Apple Health nachholen."
+                ui.errors[.appleHealth] = "Die Freigabe hat nicht geklappt. Du kannst sie später unter Profil → Dienste & Geräte → Apple Health nachholen."
             }
         }
     }
@@ -292,17 +314,15 @@ struct OnboardingServicesStep: View {
     private func importFIT(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            let before = model.importedRideCount
-            model.importFITFiles(urls)
-            let added = model.importedRideCount - before
-            if added > 0 {
-                fitImported = added
-                errors[.fitImport] = nil
+            let count = model.importFITFiles(urls)
+            if count > 0 {
+                model.onboardingServices.fitImportedCount += count
+                ui.errors[.fitImport] = nil
             } else {
-                errors[.fitImport] = "In den Dateien waren keine neuen Fahrten."
+                ui.errors[.fitImport] = "Aus den Dateien wurde nichts übernommen. Entweder sind die Fahrten schon da, oder die Dateien sind keine FIT-Aktivitäten."
             }
         case .failure:
-            errors[.fitImport] = "Die Dateien konnten nicht geöffnet werden."
+            ui.errors[.fitImport] = "Die Dateien konnten nicht geöffnet werden."
         }
     }
 }
