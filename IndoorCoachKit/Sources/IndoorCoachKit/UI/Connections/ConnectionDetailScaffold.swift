@@ -98,6 +98,8 @@ extension ConnectionDetailScaffold where Options == EmptyView {
 /// Symbol UND Text, nie nur Farbe.
 struct ConnectionStatusLabel: View {
     var status: ConnectionStatus
+    /// Im Kopf einer Detailseite: Text in Primärfarbe statt grau (in der Liste bleibt er zurückhaltend).
+    var emphasized = false
 
     private var symbol: String {
         switch status {
@@ -118,7 +120,7 @@ struct ConnectionStatusLabel: View {
 
     var body: some View {
         Label {
-            Text(status.label).foregroundStyle(status.needsAttention ? Color.orange : .secondary)
+            Text(status.label).foregroundStyle(status.needsAttention ? Color.orange : (emphasized ? .primary : .secondary))
         } icon: {
             Image(systemName: symbol).foregroundStyle(tint)
         }
@@ -136,7 +138,7 @@ struct ConnectionStatusHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ConnectionStatusLabel(status: status).font(.headline)
+            ConnectionStatusLabel(status: status, emphasized: true).font(.headline)
             let shown = shownDetails
             if let detail = shown.detail { LabeledContent("Verbunden als", value: detail) }
             if let sync = shown.lastSync {

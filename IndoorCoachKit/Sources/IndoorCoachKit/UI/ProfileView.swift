@@ -25,11 +25,14 @@ struct ProfileView: View {
             .navigationTitle("Profil")
             .navigationDestination(for: ProfileRoute.self) { destination($0) }
             // Sprung von außen (Onboarding, Heute): erst den Wechsel auf den Tab abwarten, dann den Pfad setzen.
-            .task(id: model.pendingProfileRoute) {
-                // Sofort entnehmen: wird der Task abgebrochen, ist der Sprung verbraucht und verfällt.
+            // Sofort entnehmen, damit kein Sprung liegen bleibt. Nicht `.task(id:)`: das Entnehmen ändert die ID
+            // und bräche den laufenden Task samt Pfadwechsel ab.
+            .onChange(of: model.pendingProfileRoute, initial: true) {
                 guard let route = model.takePendingProfileRoute() else { return }
-                guard (try? await Task.sleep(for: .milliseconds(450))) != nil else { return }
-                path = route
+                Task {
+                    try? await Task.sleep(for: .milliseconds(450))
+                    path = route
+                }
             }
         }
     }
