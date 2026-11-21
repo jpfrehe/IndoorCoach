@@ -389,6 +389,26 @@ Im Intro heißt die Mac-Brücke „Fahrten im Detail vom Mac“. Der „Später�
 
 ---
 
+### 6.8 Identifier-Vertrag (verbindlich für UI und UI-Tests)
+
+`<raw>` ist der `rawValue` der `ConnectionID` (`myWhoosh`, `intervalsICU`, `macBridge`, `appleHealth`, `strap`, `strava`, `fitImport`), `<low>` derselbe Wert klein geschrieben.
+
+| Element | Identifier |
+|---|---|
+| Kacheln Schritt 2 / Folgefrage / Schritt 3 | `onboarding.ride.<RideApp>`, `onboarding.device.<RideDevice>`, `onboarding.extra.<ExtraGear>` (Auswahl über Trait `.isSelected`) |
+| „Alle Dienste zeigen“ (Schritt 2) | `onboarding.showAll` |
+| Weiter (alle Schritte, Text wechselt z. B. „Weiter ohne Angabe“) | `onboarding.next`; auf Schritt 4 ohne Verbindung stattdessen `onboarding.later` („Ohne Verbindung weiter“) |
+| Zurück / Überspringen | `onboarding.back` / `onboarding.skip` (springt zu Schritt 6) |
+| Abschnitte Schritt 4 | `onboarding.section.recommended`, `.optional`, `.advanced`; Aufklapper „Alle Dienste“ `onboarding.moreServices` |
+| Dienstkarte | `onboarding.service.<raw>` (Container), `….connect` (Hauptknopf, bei Health „Weiter zur Freigabe“, beim Gurt „Gurt koppeln“, bei der Brücke „Einrichten“), `….later`, `….status` (Statuszeile), `….error` (Fehlertext im Intro) |
+| Strava „Nach der Einführung einrichten“ | `onboarding.service.strava.afterwards` (Schalter) |
+| Brücken-Blatt | `onboarding.bridge.share` (Link an den Mac schicken), `onboarding.bridge.pair` (Koppeln), Schließen `onboarding.sheet.done` |
+| Gurt-Blatt | `strap.explainer.continue`, Schließen `onboarding.sheet.done` |
+| intervals.icu nach Verbindung | Hinweis zur Weiterleitung mit Link `onboarding.intervals.settings` |
+| Coach | `onboarding.coach.setup` (Aufklapper, Key-Feld `claude.key.field` erst danach sichtbar), `onboarding.noClaude`, `onboarding.consoleLink` |
+| Alles bereit | `onboarding.status.profil`, `onboarding.status.coach`, `onboarding.status.<low>` je gewähltem/verbundenem Dienst, `onboarding.openConnections`, `onboarding.strava` (nur bei `stravaAfterwards`), `onboarding.tour`, `onboarding.start` |
+| Seitenanzeige | `onboarding.pageIndicator`, Label „Schritt n von 7“ |
+
 ## 7. Coach/Claude neu eingeordnet (Kurzfassung)
 
 | Frage der Nutzerin | Antwort im Intro |
