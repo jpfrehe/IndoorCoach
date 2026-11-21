@@ -39,6 +39,7 @@ public struct RootView: View {
             Tab("Profil", systemImage: "person.crop.circle", value: AppTab.profile) {
                 ProfileView()
             }
+            .badge(model.connectionsNeedingAttention)
         }
         .tint(Theme.accent)
         .overlay(alignment: .top) {
@@ -58,7 +59,7 @@ public struct RootView: View {
             switch choice {
             case .strava:
                 tab = .profile
-                model.stravaSetupRequested = true
+                model.pendingProfileRoute = [.connections, .connection(.strava)]
             case .tour:
                 tab = .today
                 // Let the onboarding cover finish dismissing before the next full-screen cover is presented.
@@ -81,6 +82,7 @@ public struct RootView: View {
             #if DEBUG
             model.applyBridgeStubSeed()
             model.applyComplianceSeed()   // -uiComplianceSeed YES (after bootstrap: needs the demo rides)
+            model.applyConnectionErrorSeed()   // -uiConnectionErrorSeed YES
             #endif
             await model.rescheduleWorkoutReminders()
             await model.syncRides()

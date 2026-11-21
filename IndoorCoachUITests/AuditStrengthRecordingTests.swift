@@ -9,7 +9,7 @@ final class AuditStrengthRecordingTests: AuditCase {
     }
 
     private func pairStub() {
-        openTab("Profil")
+        openConnections()
         let entry = scrollUntilExists(element("profile.strap"), maxSwipes: 6)
         tap(entry, "Brustgurt öffnen")
         let next = element("strap.explainer.continue")

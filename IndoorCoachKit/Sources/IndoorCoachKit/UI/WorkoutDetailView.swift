@@ -179,7 +179,7 @@ struct WorkoutDetailContent: View {
                 }
                 .buttonStyle(model.isMyWhooshConnected ? AnyButtonStyle(.soft) : AnyButtonStyle(.jelly))
                 if !model.isMyWhooshConnected {
-                    Text("Tipp: Verbinde MyWhoosh im Profil – dann landet die Einheit mit einem Tipp direkt in MyWhoosh.")
+                    Text("Tipp: Verbinde MyWhoosh unter Profil → Dienste & Geräte – dann landet die Einheit mit einem Tipp direkt in MyWhoosh.")
                         .font(.caption).foregroundStyle(Theme.rowSecondary)
                 }
                 DisclosureGroup("Alternativ: .zwo-Datei") {

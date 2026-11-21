@@ -74,7 +74,7 @@ struct HistoryView: View {
                 if rides.isEmpty && strength.isEmpty {
                     if filter.showsRideCharts {
                         EmptyStateView(title: "Keine Fahrten", systemImage: "bicycle",
-                                       message: "Verbinde Strava im Profil, um deine Fahrten zu sehen.")
+                                       message: "Verbinde Strava unter Profil → Dienste & Geräte, um deine Fahrten zu sehen.")
                     } else {
                         EmptyStateView(title: "Keine Einheiten", systemImage: "dumbbell",
                                        message: "Trage Kraft oder andere Einheiten auf Heute nach.")

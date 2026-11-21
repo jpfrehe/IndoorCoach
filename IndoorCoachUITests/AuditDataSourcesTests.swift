@@ -9,8 +9,8 @@ final class AuditDataSourcesTests: AuditCase {
     func test60_EnableHealthShowsSources() {
         launch(extra: ["-uiHealthStub", "YES"])
         route = "profil"
-        openTab("Profil")
-        tap(scrollUntilExists(element("profile.dataSources")), "Profil → Datenquellen")
+        openConnections()
+        tap(scrollUntilExists(element("profile.dataSources")), "Dienste & Geräte → Datenquellen")
         route = "datenquellen"
 
         let toggle = element("dataSources.healthToggle")
@@ -40,8 +40,8 @@ final class AuditDataSourcesTests: AuditCase {
 
     func test61_ExportIsOffByDefaultAndMethodPageOpens() {
         launch(extra: ["-uiHealthStub", "YES"])
-        openTab("Profil")
-        tap(scrollUntilExists(element("profile.dataSources")), "Profil → Datenquellen")
+        openConnections()
+        tap(scrollUntilExists(element("profile.dataSources")), "Dienste & Geräte → Datenquellen")
 
         let strength = scrollUntilExists(element("dataSources.export.strength"))
         check(strength.exists, "Export-Schalter Kraft")

@@ -281,7 +281,9 @@ final class AuditWalkthroughTests: AuditCase {
         check(app.secureTextFields.firstMatch.waitForExistence(timeout: 3), "Key-Feld wieder leer nach Entfernen")
         back()
 
-        _ = scrollUntilExists(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Strava verbinden'")).firstMatch)
+        // AP2: die Strava-Zugangsdaten liegen auf der Detailseite unter Dienste & Geräte.
+        openService("profile.strava")
+        check(waitFast(app.navigationBars["Strava"], timeout: 6), "Strava-Detailseite")
         let clientID = input(placeholder: "Client-ID")
         type(clientID, "12345", "Strava Client-ID")
         let secret = input(placeholder: "Client-Secret")
@@ -289,7 +291,7 @@ final class AuditWalkthroughTests: AuditCase {
         let connect = button(containing: "Mit Strava verbinden")
         check(connect.exists && connect.isEnabled, "Verbinden-Button aktiv mit ID + Secret")
         shot("strava-filled")
-        accessibilityAudit("Profil-ausgefüllt")
+        accessibilityAudit("Strava-ausgefüllt")
 
         // Round trip: Trainingstage im Planer
         openTab("Plan")
@@ -498,7 +500,7 @@ final class AuditWalkthroughTests: AuditCase {
 
     func test13_StravaCredentialsInput() {
         launch()
-        openTab("Profil")
+        openService("profile.strava")
         let clientID = scrollUntilExists(app.textFields["Client-ID"], maxSwipes: 12)
         if !clientID.isHittable { app.swipeUp(velocity: .slow) }
         print("CLIENTID-DEBUG enabled=\(clientID.isEnabled) hittable=\(clientID.isHittable) frame=\(clientID.frame) value=\(clientID.value ?? "nil")")
@@ -608,9 +610,10 @@ final class AuditWalkthroughTests: AuditCase {
         accessibilityAudit("Einheit-MyWhoosh")
         let fallback = button(containing: "Alternativ: .zwo-Datei")
         check(fallback.exists, ".zwo bleibt als eingeklappte Alternative")
-        openTab("Profil")
+        openService("profile.mywhoosh")
+        check(waitFast(app.navigationBars["MyWhoosh"], timeout: 6), "MyWhoosh-Detailseite")
         let connected = scrollUntilExists(text(containing: "test@example.com"))
-        check(connected.exists, "Profil zeigt verbundenes MyWhoosh-Konto")
+        check(connected.exists, "MyWhoosh-Seite zeigt verbundenes Konto")
         check(app.switches["Neue Pläne automatisch senden"].exists, "Schalter für automatisches Senden")
         let history = scrollUntilExists(button(containing: "Fahrten aus MyWhoosh laden"))
         check(history.exists, "Fahrten-Import aus MyWhoosh angeboten")
@@ -626,12 +629,13 @@ final class AuditWalkthroughTests: AuditCase {
         route = "einheit"
         _ = scrollUntilExists(button(containing: "Alternativ: .zwo-Datei"))
         check(!button(containing: "An MyWhoosh senden").exists, "Ohne Konto kein Sende-Button")
-        check(text(containing: "Verbinde MyWhoosh im Profil").exists, "Hinweis auf die Verbindung im Profil")
+        check(text(containing: "Verbinde MyWhoosh unter Profil → Dienste & Geräte").exists, "Hinweis auf die Verbindung unter Dienste & Geräte")
         shot("not-connected")
-        openTab("Profil")
+        openConnections()
+        check(scrollUntilExists(button(containing: "FIT-Dateien importieren")).exists, "FIT-Import auch ohne Konto")
+        tap(scrollUntilExists(app.descendants(matching: .any)["profile.mywhoosh"].firstMatch), "Dienste & Geräte → MyWhoosh")
         let login = scrollUntilExists(button(containing: "Bei MyWhoosh anmelden"))
         check(login.exists && !login.isEnabled, "Anmelden erst mit E-Mail und Passwort aktiv")
-        check(scrollUntilExists(button(containing: "FIT-Dateien importieren")).exists, "FIT-Import auch ohne Konto")
         shot("profile-login")
         accessibilityAudit("Profil-MyWhoosh")
     }
@@ -1056,14 +1060,32 @@ final class AuditWalkthroughTests: AuditCase {
         route = "onboarding"
         tap(app.buttons["onboarding.next"], "Los geht’s")
         tap(app.buttons["onboarding.next"], "Weiter")
-        tap(app.buttons["onboarding.strava"], "Strava oder FIT-Dateien? Im Profil einrichten")
-        route = "profil"
-        check(waitFast(app.navigationBars["Profil"], timeout: 6), "Der Link öffnet den Profil-Tab")
+        tap(app.buttons["onboarding.strava"], "Strava oder FIT-Dateien? Unter Dienste & Geräte einrichten")
+        route = "strava"
+        check(waitFast(app.navigationBars["Strava"], timeout: 8), "Der Link öffnet direkt die Strava-Seite im Profil")
         let clientID = input(placeholder: "Client-ID")
         let end = Date().addingTimeInterval(4)
         while !clientID.isHittable && Date() < end { usleep(200_000) }
-        check(clientID.isHittable, "Profil ist zur Strava-Einrichtung gescrollt")
+        check(clientID.isHittable, "Strava-Seite zeigt das Feld Client-ID")
         shot("strava-abschnitt")
+    }
+
+    // MARK: Dienste & Geräte – dauerhafter Fehler (Badge, Hinweiszeile, Sprung zur Detailseite)
+
+    func test16b_ConnectionErrorBadgeAndAttentionRow() {
+        launch(extra: ["-uiConnectionErrorSeed", "YES"])
+        let profileTab = app.tabBars.buttons["Profil"]
+        check(waitFast(profileTab), "Tab „Profil“")
+        let badge = "\(profileTab.value as? String ?? "")\(profileTab.label)"
+        check(badge.contains("1"), "Profil-Tab trägt das Badge „1“ (\(badge))")
+        openTab("Profil")
+        let hint = scrollUntilExists(app.descendants(matching: .any)["profile.attention.strava"].firstMatch, maxSwipes: 10)
+        check(hint.exists, "Hinweiszeile „Strava: …“ unter Verbindungen")
+        shot("hinweiszeile")
+        tap(hint, "Hinweiszeile Strava")
+        check(waitFast(app.navigationBars["Strava"], timeout: 6), "Die Zeile öffnet direkt die Seite „Strava“")
+        check(text(containing: "Zugang abgelaufen").exists, "Fehlertext im Status-Kopf")
+        check(input(placeholder: "Client-ID").exists, "Zugangsdaten zum erneuten Verbinden sichtbar")
     }
 
     // MARK: Scenario – Kalender verweigert
@@ -1554,10 +1576,10 @@ final class AuditBridgeTests: AuditCase {
         shot("abzeichen")
         accessibilityAudit("Verlauf-Abzeichen")
 
-        openTab("Profil")
+        openConnections()
         let row = scrollUntilExists(anyElement("profile.bridge"), maxSwipes: 10)
-        check(row.exists, "Profil: Zeile „Sekundendaten vom Mac“")
-        check(row.label.contains("Lenas MacBook Air"), "Zeile zeigt den Mac (\(row.label))")
+        check(row.exists, "Dienste & Geräte: Zeile „Sekundendaten vom Mac“")
+        check(row.label.contains("Verbunden"), "Zeile zeigt den Status (\(row.label))")
         shot("profil")
     }
 }

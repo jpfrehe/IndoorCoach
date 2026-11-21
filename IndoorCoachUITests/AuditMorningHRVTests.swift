@@ -10,9 +10,9 @@ final class AuditMorningHRVTests: AuditCase {
 
     func test50_MorningMeasurementEnableMeasureResult() {
         launch(extra: ["-uiStrapStub", "YES"])
-        openTab("Profil")
+        openConnections()
         let entry = scrollUntilExists(anyElement("profile.strap"), maxSwipes: 6)
-        check(entry.exists, "Eintrag „Brustgurt“ im Profil")
+        check(entry.exists, "Eintrag „Brustgurt“ unter Dienste & Geräte")
         tap(entry, "Brustgurt öffnen")
         route = "morgenmessung"
 

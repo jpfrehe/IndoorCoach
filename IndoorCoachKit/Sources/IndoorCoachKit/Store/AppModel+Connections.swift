@@ -69,7 +69,7 @@ extension AppModel {
 
     public func connection(_ id: ConnectionID, strap: StrapSession? = nil) -> ConnectionDescriptor {
         let (name, image, roles): (String, String, [ConnectionRole]) = switch id {
-        case .strava: ("Strava", "arrow.triangle.2.circlepath", [.rides])
+        case .strava: ("Strava", "figure.outdoor.cycle", [.rides])
         case .myWhoosh: ("MyWhoosh", "figure.indoor.cycle", [.rides, .plans])
         case .macBridge: ("Sekundendaten vom Mac", "macbook.and.iphone", [.secondData])
         case .fitImport: ("FIT-Dateien importieren …", "doc.badge.plus", [.rides])
@@ -84,6 +84,22 @@ extension AppModel {
     public var connectionsNeedingAttention: Int {
         let strap = strapSessionOverride ?? StrapSession.shared
         return ConnectionID.allCases.filter { connectionStatus($0, strap: strap).needsAttention }.count
+    }
+
+    /// „n verbunden“ auf der Profil-Startseite: nur echte Dienste (nicht FIT-Import, nicht „nicht verfügbar“).
+    public func connectedServiceCount(strap: StrapSession? = nil) -> Int {
+        let session = strap ?? strapSessionOverride ?? StrapSession.shared
+        return ConnectionID.allCases.filter { id in
+            guard id != .fitImport else { return false }
+            if case .connected = connectionStatus(id, strap: session) { return true }
+            return false
+        }.count
+    }
+
+    /// Einmal verbrauchter Sprung ins Profil (Onboarding, Hinweise): liefert den Pfad und leert ihn.
+    public func takePendingProfileRoute() -> [ProfileRoute]? {
+        defer { pendingProfileRoute = nil }
+        return pendingProfileRoute
     }
 
     private func connectionStatus(_ id: ConnectionID, strap: StrapSession) -> ConnectionStatus {
@@ -114,3 +130,13 @@ extension AppModel {
         }
     }
 }
+
+#if DEBUG
+extension AppModel {
+    /// Launch argument `-uiConnectionErrorSeed YES`: ein dauerhafter Strava-Fehler, damit Badge und Hinweiszeile im UI-Test sichtbar sind.
+    func applyConnectionErrorSeed() {
+        guard UserDefaults.standard.bool(forKey: "uiConnectionErrorSeed") else { return }
+        syncErrors[.strava] = "Zugang abgelaufen – bitte neu verbinden."
+    }
+}
+#endif

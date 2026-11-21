@@ -9,7 +9,7 @@ extension AppModel {
         if isStravaConnected { await syncStrava() }
         if isMyWhooshConnected { await importMyWhooshRides(announce: userInitiated) }
         if userInitiated && !isStravaConnected && !isMyWhooshConnected {
-            show("Keine Datenquelle verbunden – verbinde Strava oder MyWhoosh im Profil oder importiere FIT-Dateien.", error: false)
+            show("Keine Datenquelle verbunden – verbinde Strava oder MyWhoosh unter Profil → Dienste & Geräte oder importiere FIT-Dateien.", error: false)
         }
     }
 
@@ -57,7 +57,7 @@ extension AppModel {
             if inserted > 0 {
                 show("MyWhoosh: \(inserted) \(inserted == 1 ? "Fahrt" : "Fahrten") importiert.", error: false)
             } else if unreadable > 0 {
-                show("MyWhoosh liefert zu \(unreadable) Fahrten keine auswertbaren Daten. Importiere sie als FIT-Dateien (Profil → MyWhoosh).", error: true)
+                show("MyWhoosh liefert zu \(unreadable) Fahrten keine auswertbaren Daten. Importiere sie als FIT-Dateien (Profil → Dienste & Geräte → FIT-Dateien importieren).", error: true)
             } else if announce {
                 show("MyWhoosh: keine neuen Fahrten.", error: false)
             }

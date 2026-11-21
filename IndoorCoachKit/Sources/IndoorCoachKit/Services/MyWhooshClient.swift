@@ -291,12 +291,12 @@ public enum MyWhooshError: Error, Equatable, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .notConnected: "MyWhoosh ist nicht verbunden – melde dich im Profil an."
+        case .notConnected: "MyWhoosh ist nicht verbunden – melde dich unter Profil → Dienste & Geräte an."
         case .loginFailed: "MyWhoosh-Anmeldung fehlgeschlagen – E-Mail und Passwort prüfen."
-        case .sessionExpired: "MyWhoosh-Anmeldung abgelaufen – bitte im Profil neu anmelden."
+        case .sessionExpired: "MyWhoosh-Anmeldung abgelaufen – bitte unter Profil → Dienste & Geräte neu anmelden."
         case .http(let code): "MyWhoosh antwortet mit Fehler \(code). Die inoffizielle Schnittstelle hat sich evtl. geändert – nutze solange die .zwo-Datei."
         case .unexpectedResponse: "Unerwartete Antwort von MyWhoosh – nutze solange die .zwo-Datei."
-        case .historyUnavailable: "MyWhoosh liefert die Fahrtenliste nicht wie erwartet. Importiere deine Fahrten solange als FIT-Dateien (Profil → MyWhoosh)."
+        case .historyUnavailable: "MyWhoosh liefert die Fahrtenliste nicht wie erwartet. Importiere deine Fahrten solange als FIT-Dateien (Profil → Dienste & Geräte → FIT-Dateien importieren)."
         }
     }
 }

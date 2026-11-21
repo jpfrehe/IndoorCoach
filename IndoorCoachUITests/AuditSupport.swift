@@ -166,6 +166,21 @@ class AuditCase: XCTestCase {
         timing("Tab \(title) → NavBar", ms(since: start))
     }
 
+    /// Profil → Dienste & Geräte (docs/18): Strava, MyWhoosh, Mac-Brücke, Apple Health und Brustgurt liegen dort.
+    func openConnections() {
+        openTab("Profil")
+        let row = app.descendants(matching: .any).matching(identifier: "profile.connections").firstMatch
+        tap(scrollUntilExists(row, maxSwipes: 10), "Profil → Dienste & Geräte")
+        _ = waitFast(app.navigationBars["Dienste & Geräte"], timeout: 6)
+    }
+
+    /// Dienste & Geräte → eine Detailseite (`profile.strava`, `profile.mywhoosh`, `profile.bridge`, …).
+    func openService(_ identifier: String) {
+        openConnections()
+        let row = app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+        tap(scrollUntilExists(row, maxSwipes: 6), "Dienste & Geräte → \(identifier)")
+    }
+
     func back() {
         tap(app.navigationBars.buttons["BackButton"], "Zurück-Button")
     }

@@ -1,6 +1,6 @@
 import XCTest
 
-/// Paket „HR · Brustgurt-Basis“ (B36): Profil → Geräte → Brustgurt, mit Stub (`-uiStrapStub YES`):
+/// Paket „HR · Brustgurt-Basis“ (B36): Profil → Dienste & Geräte → Brustgurt, mit Stub (`-uiStrapStub YES`):
 /// Erklärseite → Suche → Verbinden → Live-Puls sichtbar. Nicht ausgeführt, nur geschrieben.
 final class AuditStrapTests: AuditCase {
     private func anyElement(_ identifier: String) -> XCUIElement {
@@ -9,9 +9,9 @@ final class AuditStrapTests: AuditCase {
 
     func test40_StrapSearchConnectLivePulse() {
         launch(extra: ["-uiStrapStub", "YES"])
-        openTab("Profil")
+        openConnections()
         let entry = scrollUntilExists(anyElement("profile.strap"), maxSwipes: 6)
-        check(entry.exists, "Eintrag „Brustgurt“ im Profil")
+        check(entry.exists, "Eintrag „Brustgurt“ unter Dienste & Geräte")
         tap(entry, "Brustgurt öffnen")
         route = "brustgurt"
 

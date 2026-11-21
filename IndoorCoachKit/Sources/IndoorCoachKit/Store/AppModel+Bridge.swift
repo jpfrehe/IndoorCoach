@@ -119,6 +119,7 @@ extension AppModel {
         defaults.set(result.macName, forKey: Keys.bridgeMacName)
         bridge.knownIDs = []
         defaults.removeObject(forKey: Keys.bridgeKnownIDs)
+        syncErrors[.macBridge] = nil
         Log.notice(.bridge, "Mac-Brücke gekoppelt")
         return await pickUpFromBridge(announce: true, quietUnreachable: true) ?? BridgeSyncSummary()
     }
@@ -130,6 +131,7 @@ extension AppModel {
         defaults.removeObject(forKey: Keys.bridgeLastSync)
         defaults.removeObject(forKey: Keys.bridgeKnownIDs)
         bridge.reset()
+        syncErrors[.macBridge] = nil
         Log.notice(.bridge, "Kopplung gelöst")
         show("Kopplung mit dem Mac gelöst. Deine Fahrten bleiben erhalten.", error: false)
     }
@@ -185,8 +187,9 @@ extension AppModel {
                     show(Self.bridgeUnreachableMessage, error: true)
                 }
             case .authenticationFailed:
+                // Dauerhaft (bis neu gekoppelt): auch der stille Auto-Lauf setzt den Status, nur das Banner bleibt aus.
+                syncErrors[.macBridge] = "Kopplung erneuern – sie passt nicht mehr."
                 if announce {
-                    syncErrors[.macBridge] = "Kopplung passt nicht mehr – neu koppeln."
                     show("Die Kopplung passt nicht mehr. Löse sie und koppele den Mac neu.", error: true)
                 }
             default:

@@ -111,9 +111,12 @@ struct TodayDashboard: View {
                 Image(systemName: "sparkles").font(.title2).foregroundStyle(Theme.sunset)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Demo-Modus").font(.headline)
-                    Text("Du siehst Beispieldaten. Verbinde im Profil Strava, MyWhoosh oder FIT-Dateien und deinen Claude-Key, dann plant der Coach mit deinen echten Fahrten.")
+                    Text("Du siehst Beispieldaten. Verbinde unter Profil → Dienste & Geräte Strava, MyWhoosh oder FIT-Dateien, dazu im Profil deinen Claude-Key, dann plant der Coach mit deinen echten Fahrten.")
                         .font(.subheadline).foregroundStyle(.secondary)
-                    Button { tab = .profile } label: {
+                    Button {
+                        model.pendingProfileRoute = [.connections]
+                        tab = .profile
+                    } label: {
                         Text("Zum Profil").frame(minHeight: 44).contentShape(Rectangle())
                     }
                     .font(.subheadline.weight(.semibold))

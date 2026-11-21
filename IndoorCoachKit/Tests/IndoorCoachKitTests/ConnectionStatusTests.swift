@@ -202,6 +202,61 @@ struct ConnectionStatusTests {
         #expect(model.syncErrors[.macBridge] == nil)
     }
 
+    @Test func silentAutoRunSetsErrorOnlyForInvalidPairing() async throws {
+        let transport = FakeBridgeTransport()
+        model.bridge.transport = transport
+        let mac = try #require(await model.discoverBridges().first)
+        _ = try await model.pairBridge(mac, code: "482913")
+
+        // „Mac nicht erreichbar“ ist vorübergehend: stiller Lauf, kein Fehlerstatus, kein Banner.
+        transport.failure = .unreachable
+        model.banner = nil
+        model.bridge.lastAttempt = nil
+        _ = await model.syncFromBridge(announce: false)
+        #expect(model.syncErrors[.macBridge] == nil)
+        #expect(model.banner == nil)
+
+        // Ungültige Kopplung bleibt, bis man neu koppelt: Status ja, Banner nein.
+        transport.failure = .authenticationFailed
+        model.bridge.lastAttempt = nil
+        _ = await model.syncFromBridge(announce: false)
+        #expect(model.syncErrors[.macBridge]?.contains("Kopplung erneuern") == true)
+        #expect(model.banner == nil)
+        #expect(model.connectionsNeedingAttention == 1)
+
+        // Ein späterer stiller „nicht erreichbar“-Lauf löscht den dauerhaften Fehler nicht.
+        transport.failure = .unreachable
+        model.bridge.lastAttempt = nil
+        _ = await model.syncFromBridge(announce: false)
+        #expect(model.syncErrors[.macBridge] != nil)
+
+        // Kopplung lösen räumt den Fehler weg.
+        model.unpairBridge()
+        #expect(model.syncErrors[.macBridge] == nil)
+        #expect(model.connectionsNeedingAttention == 0)
+    }
+
+    // MARK: Zähler „n verbunden“
+
+    @Test func connectedServiceCountIgnoresFitImportAndUnavailable() {
+        #expect(model.connectedServiceCount(strap: strap) == 0)
+        signInWhoosh(expiresIn: 3600)
+        strap.connect(UUID())
+        #expect(model.connectedServiceCount(strap: strap) == 2)
+        connectStrava(lastSync: .now)
+        #expect(model.connectedServiceCount(strap: strap) == 3)
+        model.syncErrors[.strava] = "x"   // Fehler zählt nicht als verbunden
+        #expect(model.connectedServiceCount(strap: strap) == 2)
+    }
+
+    @Test func profileRouteIsConsumedOnce() {
+        #expect(model.pendingProfileRoute == nil)
+        model.pendingProfileRoute = [.connections, .connection(.strava)]
+        #expect(model.takePendingProfileRoute() == [.connections, .connection(.strava)])
+        #expect(model.pendingProfileRoute == nil)
+        #expect(model.takePendingProfileRoute() == nil)
+    }
+
     // MARK: Health, Gurt, FIT
 
     @Test func healthIsNeverAProblem() {

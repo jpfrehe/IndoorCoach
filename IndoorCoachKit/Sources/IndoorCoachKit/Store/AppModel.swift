@@ -64,8 +64,9 @@ public final class AppModel {
     public var plannerRequested = false
     /// First-launch onboarding (B01). Decided once in `init`; existing installs never see it.
     public private(set) var needsOnboarding = false
-    /// Set when onboarding ends with "Mit Strava verbinden"; ProfileView scrolls to the Strava section and resets it.
-    public var stravaSetupRequested = false
+    /// Sprung ins Profil, z. B. [.connections, .connection(.strava)] nach „Mit Strava verbinden“ im Onboarding.
+    /// ProfileView setzt den Pfad und leert den Wert (`takePendingProfileRoute`).
+    public var pendingProfileRoute: [ProfileRoute]?
     /// Current onboarding step (0 … `onboardingStepCount - 1`), persisted so a relaunch resumes there.
     public var onboardingStep: Int {
         didSet {

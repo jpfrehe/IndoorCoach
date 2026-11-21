@@ -5,7 +5,7 @@ import UIKit
 
 /// How the first-launch onboarding ended.
 public enum OnboardingChoice: Sendable {
-    /// "Strava oder FIT-Dateien? Im Profil einrichten": close and jump to the Strava section in Profil (OAuth stays there).
+    /// "Strava oder FIT-Dateien? Unter Dienste & Geräte einrichten": close and open Profil → Dienste & Geräte → Strava (OAuth stays there).
     case strava
     /// "Kurze Tour ansehen": close, then RootView shows the feature tour full screen.
     case tour
@@ -303,13 +303,13 @@ struct OnboardingView: View {
             }
 
             Button { onFinish(.strava) } label: {
-                Text("Strava oder FIT-Dateien? Im Profil einrichten")
+                Text("Strava oder FIT-Dateien? Unter Dienste & Geräte einrichten")
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
             .foregroundStyle(Theme.accent)
             .disabled(whooshBusy)
-            .accessibilityHint("Beendet die Einführung und öffnet die Strava-Einrichtung im Profil.")
+            .accessibilityHint("Beendet die Einführung und öffnet die Strava-Einrichtung unter Profil, Dienste und Geräte.")
             .accessibilityIdentifier("onboarding.strava")
         }
     }
@@ -378,7 +378,7 @@ struct OnboardingView: View {
             return summary.profileReady
                 ? "FTP \(model.profile.ftp) W · \(model.profile.trainingDays.count) Trainingstage" : "Trainingstag fehlt"
         case "MyWhoosh":
-            guard summary.myWhooshConnected else { return "Später im Profil" }
+            guard summary.myWhooshConnected else { return "Später unter Dienste & Geräte" }
             return summary.rideCount > 0 ? "\(summary.rideCount) Fahrten geladen" : "Verbunden"
         default:
             return summary.coachReady ? "Claude-Key gespeichert" : "Später im Profil"
@@ -528,28 +528,5 @@ extension View {
         #else
         return sheet(isPresented: binding) { OnboardingView(onFinish: onFinish).interactiveDismissDisabled() }
         #endif
-    }
-
-    /// Profil: scrolls to the Strava section when onboarding ended with "Mit Strava verbinden".
-    func scrollsToStravaSectionOnRequest() -> some View { modifier(StravaSectionScroller()) }
-}
-
-extension ProfileView {
-    static let stravaSectionID = "profile.strava"
-}
-
-private struct StravaSectionScroller: ViewModifier {
-    @Environment(AppModel.self) private var model
-
-    func body(content: Content) -> some View {
-        ScrollViewReader { proxy in
-            content.task(id: model.stravaSetupRequested) {
-                guard model.stravaSetupRequested else { return }
-                // Let the cover dismiss and the tab lay out first.
-                guard (try? await Task.sleep(for: .milliseconds(450))) != nil else { return }
-                withAnimation { proxy.scrollTo(ProfileView.stravaSectionID, anchor: .top) }
-                model.stravaSetupRequested = false
-            }
-        }
     }
 }

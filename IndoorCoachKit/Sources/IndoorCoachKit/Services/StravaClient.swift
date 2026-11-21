@@ -66,7 +66,7 @@ public enum StravaError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .notConfigured: "Strava Client-ID und Client-Secret fehlen (Profil → Strava)."
+        case .notConfigured: "Strava Client-ID und Client-Secret fehlen (Profil → Dienste & Geräte → Strava)."
         case .notConnected: "Strava ist nicht verbunden."
         case .authorizationDenied: "Strava-Anmeldung abgebrochen oder verweigert."
         case .stateMismatch: "Ungültige Strava-Antwort (state stimmt nicht)."
