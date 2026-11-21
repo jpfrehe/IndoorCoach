@@ -161,6 +161,15 @@ struct HistoryChart: View {
     var ftp: Int
     var thresholdHeartRate: Int? = nil
     @State private var metric: Metric = .hours
+    @State private var selectedWeek: Date?
+
+    private func value(of week: TrainingLoad.WeekSummary) -> Double {
+        metric == .hours ? Double(week.seconds) / 3600 : week.tss
+    }
+
+    private func text(_ value: Double) -> String {
+        metric == .hours ? Formatters.duration(Int((value * 3600).rounded())) : "\(Int(value.rounded()))"
+    }
 
     enum Metric: String, CaseIterable, Identifiable {
         case hours = "Stunden", tss = "TSS"
@@ -183,27 +192,33 @@ struct HistoryChart: View {
                 .labelsHidden()
                 .fixedSize()
             }
-            Chart(weeks) { w in
-                BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
-                        y: .value(metric.rawValue, metric == .hours ? Double(w.seconds) / 3600 : w.tss))
-                    // Hot jelly → berry: ≥ 4.5:1 against the card over the whole bar (audit measures marks like text).
-                    .foregroundStyle(LinearGradient(colors: [Theme.cap(.z6), Color(Palette.accentTextLight)],
-                                                    startPoint: .top, endPoint: .bottom))
-                    .cornerRadius(5)
+            let bars = weeks.map { WeekBarsChart.Bar(weekStart: $0.weekStart, value: value(of: $0)) }
+            if weeks.allSatisfy({ $0.rides == 0 }) {
+                ChartEmptyState(symbol: "chart.bar", message: "Sobald du fährst, siehst du hier deine Wochen.")
+            } else {
+                let isHours = metric == .hours
+                let picked = WeekBarsChart.selectedBar(in: bars, raw: selectedWeek)
+                let shown = picked ?? bars.last
+                let average = bars.isEmpty ? 0 : bars.map(\.value).reduce(0, +) / Double(bars.count)
+                ChartCardHeader(items: [
+                    .init(label: metric == .hours ? "Stunden" : "TSS", value: shown.map { text($0.value) } ?? "–", color: Theme.accent),
+                    .init(label: "Ø", value: text(average), color: ChartPalette.reference, marker: .dashed),
+                ], selectionTitle: picked.map { "Woche ab " + $0.weekStart.formatted(.dateTime.day().month(.defaultDigits).locale(Locale.de)) },
+                                resetTitle: "Aufheben", onReset: { selectedWeek = nil })
+                WeekBarsChart(
+                    bars: bars,
+                    valueLabel: { isHours ? Formatters.duration(Int(($0 * 3600).rounded())) : "\(Int($0.rounded()))" },
+                    axisLabel: { v, top in ChartMath.format(v) + (top ? (isHours ? " h" : " TSS") : "") },
+                    line: average > 0 ? (average, "Ø " + text(average)) : nil,
+                    accessibilityLabel: "Verlauf der letzten 12 Wochen, \(metric.rawValue)",
+                    accessibilityValue: ChartMath.seriesSentence(name: "Aktuelle Woche", values: bars.map(\.value),
+                                                                 decimals: metric == .hours ? 1 : 0,
+                                                                 unit: metric == .hours ? " Stunden" : " TSS", period: "12 Wochen")
+                        + " Durchschnitt \(text(average)).",
+                    selection: $selectedWeek,
+                    xStrideCount: 3,
+                    height: ChartStyle.heightNormal - 30)
             }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .weekOfYear, count: 3)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
-                        .foregroundStyle(Theme.axisLabel)
-                }
-            }
-            .chartYAxis {
-                AxisMarks { _ in
-                    AxisGridLine()
-                    AxisValueLabel().foregroundStyle(Theme.axisLabel)
-                }
-            }
-            .frame(height: 140)
             let total = weeks.reduce(0) { $0 + $1.seconds }
             HStack {
                 StatTile(title: "Ø pro Woche", value: Formatters.duration(total / max(1, weeks.count) / 60 * 60))

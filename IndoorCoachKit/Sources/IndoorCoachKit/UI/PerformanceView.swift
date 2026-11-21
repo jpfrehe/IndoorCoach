@@ -82,76 +82,7 @@ struct PerformanceView: View {
     // MARK: Curve
 
     private func curveCard(_ comparison: PowerCurve.Comparison) -> some View {
-        let cur = comparison.current.sortedPoints
-        let prev = comparison.previous.sortedPoints
-        let maxDuration = Double(max(cur.last?.duration ?? 60, 60))
-        return Card(title: "Leistungskurve", systemImage: "bolt.fill") {
-            Chart {
-                ForEach(prev, id: \.duration) { p in
-                    LineMark(x: .value("Dauer", Double(p.duration)), y: .value("Watt", p.watts),
-                             series: .value("Zeitraum", "Vorher"))
-                        .foregroundStyle(Theme.axisLabel)
-                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 4]))
-                        .interpolationMethod(.monotone)
-                }
-                ForEach(cur, id: \.duration) { p in
-                    LineMark(x: .value("Dauer", Double(p.duration)), y: .value("Watt", p.watts),
-                             series: .value("Zeitraum", "Aktuell"))
-                        .foregroundStyle(Theme.cap(.z6))
-                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .interpolationMethod(.monotone)
-                }
-                ForEach(cur.filter { $0.source == .measured && PowerCurve.headlineDurations.contains($0.duration) }, id: \.duration) { p in
-                    PointMark(x: .value("Dauer", Double(p.duration)), y: .value("Watt", p.watts))
-                        .foregroundStyle(Theme.cap(.z6))
-                        .symbolSize(40)
-                }
-            }
-            .chartXScale(domain: 1...maxDuration, type: .log)
-            .chartYScale(domain: .automatic(includesZero: false))
-            .chartLegend(.hidden)
-            .chartXAxis {
-                // Log axis: 5/10/20/60 min sit too close for labels – keep one label per decade-ish step.
-                AxisMarks(values: [5, 60, 300, 1200, 3600].map(Double.init).filter { $0 <= maxDuration }) { value in
-                    AxisGridLine()
-                    AxisValueLabel {
-                        if let d = value.as(Double.self) { Text(PerformanceFormat.duration(Int(d))) }
-                    }
-                    .foregroundStyle(Theme.axisLabel)
-                }
-            }
-            .chartYAxis {
-                AxisMarks { _ in
-                    AxisGridLine()
-                    AxisValueLabel().foregroundStyle(Theme.axisLabel)
-                }
-            }
-            .chartYAxisLabel("W")
-            .frame(height: 220)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Leistungskurve, beste Durchschnittsleistung je Dauer")
-            .accessibilityValue(curveSummary(comparison.current))
-            .accessibilityIdentifier("performance.curve")
-
-            HStack(spacing: 14) {
-                legendLine(Theme.cap(.z6), "Aktuell", dashed: false)
-                if !prev.isEmpty { legendLine(Theme.axisLabel, "Vorperiode", dashed: true) }
-            }
-        }
-    }
-
-    private func curveSummary(_ agg: PowerCurve.Aggregate) -> String {
-        PowerCurve.headlineDurations.compactMap { d in
-            agg.points[d].map { "\(PerformanceFormat.duration(d)) \(Int($0.watts.rounded())) Watt" }
-        }.joined(separator: ", ")
-    }
-
-    private func legendLine(_ color: Color, _ text: String, dashed: Bool) -> some View {
-        HStack(spacing: 6) {
-            Capsule().fill(color).frame(width: 18, height: dashed ? 2 : 3)
-            Text(text).font(.caption).foregroundStyle(Theme.rowSecondary)
-        }
-        .accessibilityElement(children: .combine)
+        PowerCurveCard(comparison: comparison, weightKg: model.effectiveWeightKg)
     }
 
     // MARK: Best efforts
@@ -339,30 +270,161 @@ struct VO2maxCard: View {
     private var trend: some View {
         let points = VO2max.trend(rides: rides, profile: model.calculationProfile)
         if points.count >= 2 {
-            Chart(points) { p in
-                LineMark(x: .value("Zeitraum bis", p.windowEnd), y: .value("VO₂max", p.value))
-                    .foregroundStyle(Theme.fitnessLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                PointMark(x: .value("Zeitraum bis", p.windowEnd), y: .value("VO₂max", p.value))
-                    .foregroundStyle(Theme.fitnessLine)
-                    .annotation(position: .top) {
-                        Text(Formatters.decimal(p.value, digits: 1)).font(.caption2).foregroundStyle(Theme.axisLabel)
-                    }
-            }
-            .chartYScale(domain: .automatic(includesZero: false))
-            .chartXAxis {
-                AxisMarks(values: points.map(\.windowEnd)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
-                        .foregroundStyle(Theme.axisLabel)
-                }
-            }
-            .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel().foregroundStyle(Theme.axisLabel) } }
-            .frame(height: 130)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("VO₂max-Verlauf in 6-Wochen-Fenstern")
-            .accessibilityValue(points.map { Formatters.decimal($0.value, digits: 1) }.joined(separator: ", "))
+            VO2TrendChart(points: points)
             Text("Verlauf: ein Wert je 6-Wochen-Fenster aus der besten 5-Minuten-Leistung.")
                 .font(.caption).foregroundStyle(Theme.rowSecondary)
         }
+    }
+}
+
+// MARK: - Charts
+
+/// D7: power curve on a log duration axis. Accent line + faint area, previous period dotted underneath the main line,
+/// open markers on the headline durations, selection snaps to measured points and drives the header.
+private struct PowerCurveCard: View {
+    var comparison: PowerCurve.Comparison
+    var weightKg: Double
+    @State private var selected: Double?
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let cur = comparison.current.sortedPoints
+        let prev = comparison.previous.sortedPoints
+        let maxDuration = Double(max(cur.last?.duration ?? 60, 60))
+        let dark = scheme == .dark
+        let ticks = ChartMath.niceTicks(min: (cur + prev).map(\.watts).min() ?? 0, max: (cur + prev).map(\.watts).max() ?? 1, count: 4)
+        let lower = ticks.first ?? 0, upper = ticks.last ?? 1
+        let method = ChartStyle.interpolation(pointCount: cur.count)
+        let logs = cur.map { log10(Double($0.duration)) }
+        let picked: PowerCurve.Point? = selected.flatMap { $0 > 0 ? ChartMath.nearest(logs, to: log10($0)) : nil }.map { cur[$0] }
+        let shown = picked ?? cur.first { $0.duration == 300 } ?? cur.last
+        let measuredHeadlines = cur.filter { $0.source == .measured && PowerCurve.headlineDurations.contains($0.duration) }
+        Card(title: "Leistungskurve", systemImage: "bolt.fill") {
+            header(shown: shown, picked: picked)
+            Chart {
+                ForEach(cur, id: \.duration) { p in
+                    AreaMark(x: .value("Dauer", Double(p.duration)), yStart: .value("Basis", lower), yEnd: .value("Watt", p.watts))
+                        .interpolationMethod(method)
+                        .foregroundStyle(ChartStyle.area(Theme.accent, dark: dark))
+                }
+                ForEach(prev, id: \.duration) { p in
+                    LineMark(x: .value("Dauer", Double(p.duration)), y: .value("Watt", p.watts), series: .value("Zeitraum", "Vorher"))
+                        .interpolationMethod(ChartStyle.interpolation(pointCount: prev.count))
+                        .foregroundStyle(ChartPalette.reference).lineStyle(ChartStyle.stroke(.previous))
+                }
+                ForEach(cur, id: \.duration) { p in
+                    LineMark(x: .value("Dauer", Double(p.duration)), y: .value("Watt", p.watts), series: .value("Zeitraum", "Aktuell"))
+                        .interpolationMethod(method)
+                        .foregroundStyle(Theme.accent).lineStyle(ChartStyle.stroke(.main))
+                }
+                ForEach(measuredHeadlines, id: \.duration) { p in
+                    OpenMarker(x: .value("Dauer", Double(p.duration)), y: .value("Watt", p.watts), color: Theme.accent)
+                }
+                if let shown {
+                    HighlightPoint(x: .value("Dauer", Double(shown.duration)), y: .value("Watt", shown.watts), color: Theme.accent,
+                                   baseline: .value("Basis", lower), dark: dark)
+                }
+            }
+            .chartXScale(domain: 1...maxDuration, type: .log)
+            .chartYScale(domain: lower...upper)
+            .chartXSelection(value: $selected)
+            .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
+            .chartStyleAxes(yTicks: ticks, yLabel: { v in ChartMath.format(v) + (v == ticks.last ? " W" : "") }, showsX: false)
+            .chartXAxis {
+                // Log axis: 5 s / 1 / 5 / 20 min, 60 min only with enough data (it crowds 20 min).
+                AxisMarks(values: ChartMath.powerCurveTicks(maxDuration: maxDuration)) { value in
+                    AxisTick(stroke: StrokeStyle(lineWidth: 1)).foregroundStyle(ChartStyle.baselineColor)
+                    AxisValueLabel {
+                        if let d = value.as(Double.self) { Text(PerformanceFormat.duration(Int(d))) }
+                    }
+                    .font(ChartStyle.axisFont).foregroundStyle(ChartStyle.axisColor)
+                }
+            }
+            .chartStyleAnimation(value: picked?.duration)
+            .chartStyleHeight(ChartStyle.heightLarge)
+            .chartAccessibility(
+                label: "Leistungskurve, beste Durchschnittsleistung je Dauer", value: Self.summary(comparison.current),
+                descriptor: ChartDescriptor(
+                    title: "Leistungskurve", summary: Self.summary(comparison.current), xTitle: "Dauer", yTitle: "Watt",
+                    series: [.init(name: "Aktuell", points: cur.map { (Double($0.duration), $0.watts) })],
+                    xLabel: { PerformanceFormat.duration(Int($0)) }))
+            .accessibilityIdentifier("performance.curve")
+        }
+    }
+
+    @ViewBuilder
+    private func header(shown: PowerCurve.Point?, picked: PowerCurve.Point?) -> some View {
+        if let shown {
+            let previous = comparison.previous.points[shown.duration]
+            let name = PerformanceFormat.duration(shown.duration)
+            let items: [ChartCardHeader.Item] = [
+                .init(label: "Aktuell · \(name)", value: PerformanceFormat.watts(shown.watts), color: Theme.accent),
+            ] + (weightKg > 0 ? [.init(label: "W/kg", value: Formatters.decimal(shown.watts / weightKg, digits: 2), marker: .none)] : [])
+              + (previous.map { [.init(label: "Vorperiode", value: PerformanceFormat.watts($0.watts), color: ChartPalette.reference, marker: .dotted)] } ?? [])
+            ChartCardHeader(items: items, selectionTitle: picked.map { _ in name }, resetTitle: "Aufheben", onReset: { selected = nil })
+        }
+    }
+
+    static func summary(_ agg: PowerCurve.Aggregate) -> String {
+        PowerCurve.headlineDurations.compactMap { d in
+            agg.points[d].map { "\(PerformanceFormat.duration(d)) \(Int($0.watts.rounded())) Watt" }
+        }.joined(separator: ", ")
+    }
+}
+
+/// D16: VO₂max per 6-week window. Direct value only at the last (or selected) point.
+private struct VO2TrendChart: View {
+    var points: [VO2max.TrendPoint]
+    @State private var selected: Date?
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let dark = scheme == .dark
+        let values = points.map(\.value)
+        let ticks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 3)
+        let lower = ticks.first ?? 0, upper = ticks.last ?? 1
+        let decimals = ticks.count > 1 && ticks[1] - ticks[0] < 1 ? 1 : 0
+        let method = ChartStyle.interpolation(pointCount: points.count)
+        let shownIndex = selected.flatMap { ChartMath.nearest(points.map(\.windowEnd), to: $0) } ?? points.count - 1
+        let shown = points[shownIndex]
+        let sentence = ChartMath.seriesSentence(name: "VO₂max", values: values, decimals: 1, unit: " ml/kg/min", period: "\(points.count) Fenstern")
+        Chart {
+            if ChartDataState(count: points.count) == .enough {
+                ForEach(points) { p in
+                    AreaMark(x: .value("Zeitraum bis", p.windowEnd), yStart: .value("Basis", lower), yEnd: .value("VO₂max", p.value))
+                        .interpolationMethod(method).foregroundStyle(ChartStyle.area(Theme.accent, dark: dark))
+                }
+            }
+            ForEach(points) { p in
+                LineMark(x: .value("Zeitraum bis", p.windowEnd), y: .value("VO₂max", p.value))
+                    .interpolationMethod(method).lineStyle(ChartStyle.stroke(.main)).foregroundStyle(Theme.accent)
+            }
+            ForEach(points.indices.filter { $0 != shownIndex }, id: \.self) { i in
+                OpenMarker(x: .value("Zeitraum bis", points[i].windowEnd), y: .value("VO₂max", points[i].value), color: Theme.accent)
+            }
+            HighlightPoint(x: .value("Zeitraum bis", shown.windowEnd), y: .value("VO₂max", shown.value), color: Theme.accent, dark: dark)
+            PointMark(x: .value("Zeitraum bis", shown.windowEnd), y: .value("VO₂max", shown.value))
+                .opacity(0)
+                .annotation(position: .top, spacing: 8) {
+                    Text(Formatters.decimal(shown.value, digits: 1)).font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
+                }
+        }
+        .chartYScale(domain: lower...upper)
+        .chartXSelection(value: $selected)
+        .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
+        .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0, decimals: decimals) }, showsX: false)
+        .chartXAxis {
+            AxisMarks(values: points.map(\.windowEnd)) { _ in
+                AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
+                    .font(ChartStyle.axisFont).foregroundStyle(ChartStyle.axisColor)
+            }
+        }
+        .chartStyleAnimation(value: shownIndex)
+        .chartStyleHeight(ChartStyle.heightSmall + 10)
+        .chartAccessibility(
+            label: "VO₂max-Verlauf in 6-Wochen-Fenstern", value: sentence,
+            descriptor: ChartAccessibility.timeSeries(
+                title: "VO₂max-Verlauf", summary: sentence, yTitle: "ml/kg/min",
+                series: [("VO₂max", points.map { ($0.windowEnd, $0.value) })], yLabel: { ChartMath.format($0, decimals: 1) }))
     }
 }

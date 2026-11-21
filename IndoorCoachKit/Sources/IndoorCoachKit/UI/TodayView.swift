@@ -174,44 +174,7 @@ struct TodayDashboard: View {
                          dot: Theme.formColor(current.tsb))
             }
             JellyChip(text: Theme.formLabel(current.tsb), fill: Theme.formColor(current.tsb))
-            Chart(series) { day in
-                // Soft jelly area under fitness, crisp lines in the deeper tones (≥ 3:1 on the card).
-                AreaMark(x: .value("Tag", day.date), y: .value("Wert", day.ctl))
-                    .foregroundStyle(LinearGradient(colors: [Theme.fitness.opacity(0.35), Theme.fitness.opacity(0)],
-                                                    startPoint: .top, endPoint: .bottom))
-                    .interpolationMethod(.monotone)
-                LineMark(x: .value("Tag", day.date), y: .value("Wert", day.ctl), series: .value("Kurve", "Fitness"))
-                    .foregroundStyle(Theme.fitnessLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .interpolationMethod(.monotone)
-                LineMark(x: .value("Tag", day.date), y: .value("Wert", day.atl), series: .value("Kurve", "Ermüdung"))
-                    .foregroundStyle(Theme.fatigueLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                    .interpolationMethod(.monotone)
-                BarMark(x: .value("Tag", day.date, unit: .day), y: .value("TSS", day.tss / 3))
-                    .foregroundStyle(Color(Palette.mangoPop).opacity(0.45))
-            }
-            .chartLegend(.hidden)
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .month)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale.de))
-                        .foregroundStyle(Theme.axisLabel)
-                }
-            }
-            .frame(height: 140)
-            HStack(spacing: 14) {
-                legendDot(Theme.fitnessLine, "Fitness (CTL)")
-                legendDot(Theme.fatigueLine, "Ermüdung (ATL)")
-                legendDot(Color(Palette.mangoPop), "Tages-TSS")
-            }
-        }
-    }
-
-    private func legendDot(_ color: Color, _ text: String) -> some View {
-        HStack(spacing: 5) {
-            Circle().fill(color).frame(width: 7, height: 7)
-            Text(text).font(.caption2).foregroundStyle(.secondary)
+            FitnessFormChart(series: series, current: current)
         }
     }
 
@@ -243,50 +206,76 @@ struct TodayDashboard: View {
     }
 
     private func volumeCard(_ weeks: [TrainingLoad.WeekSummary]) -> some View {
-        // Legend and bars only for kinds that occur in the 8 weeks (no empty "Andere" entry).
-        // Never an empty scale (empty seed / no rides yet): Charts logs an invalid configuration otherwise.
-        let present = VolumeKind.allCases.filter { kind in weeks.contains { kind.seconds(in: $0) > 0 } }
-        let kinds = present.isEmpty ? [VolumeKind.indoor] : present
+        // One series (total hours); the Indoor/Outdoor split lives in the spoken value and in Verlauf (concept 21, E2).
+        let bars = weeks.map { WeekBarsChart.Bar(weekStart: $0.weekStart, value: Double($0.seconds) / 3600) }
+        let target = model.profile.weeklyHours
+        let current = weeks.last
+        let split = current.map { w -> String in
+            let other = w.otherSeconds, indoor = w.indoorSeconds
+            let outdoor = max(0, w.seconds - indoor - other)
+            return "Diese Woche \(Formatters.duration(w.seconds)), davon Indoor \(Formatters.duration(indoor)), Outdoor \(Formatters.duration(outdoor))"
+                + (other > 0 ? ", Andere \(Formatters.duration(other))" : "") + "."
+        } ?? ""
         return Card(title: "Wochenumfang · 8 Wochen", systemImage: "chart.bar") {
-            Chart(weeks) { w in
-                ForEach(kinds, id: \.self) { kind in
-                    BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear),
-                            y: .value("Stunden", Double(kind.seconds(in: w)) / 3600))
-                        .foregroundStyle(by: .value("Art", kind.rawValue))
-                        .cornerRadius(5)
-                }
+            if bars.allSatisfy({ $0.value == 0 }) {
+                ChartEmptyState(symbol: "chart.bar", message: "Sobald du fährst, siehst du hier deine Wochenstunden.")
+            } else {
+                ChartCardHeader(items: [
+                    .init(label: "Diese Woche", value: Formatters.duration(current?.seconds ?? 0), color: Theme.accent),
+                    .init(label: "Ziel", value: Formatters.duration(Int((target * 3600).rounded())), color: ChartPalette.reference, marker: .dashed),
+                ])
+                WeekBarsChart(
+                    bars: bars,
+                    valueLabel: { Formatters.duration(Int(($0 * 3600).rounded())) },
+                    axisLabel: { v, top in ChartMath.format(v) + (top ? " h" : "") },
+                    line: target > 0 ? (target, "Ziel") : nil,
+                    accessibilityLabel: "Wochenumfang der letzten 8 Wochen",
+                    accessibilityValue: split + " Ziel \(Formatters.duration(Int((target * 3600).rounded()))).",
+                    height: 150)
             }
-            // Deeper tones so the bars keep ≥ 3:1 against the white card.
-            .chartForegroundStyleScale(domain: kinds.map(\.rawValue), range: kinds.map(\.color))
-            .chartYAxisLabel("h")
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
-                        .foregroundStyle(Theme.axisLabel)
-                }
-            }
-            .frame(height: 150)
         }
     }
 }
 
-/// Arten im Wochenumfang-Diagramm.
-private enum VolumeKind: String, CaseIterable {
-    case indoor = "Indoor", outdoor = "Outdoor", other = "Andere"
+/// D4: fitness (line + faint area) and fatigue (line) over the series; current values as highlight points.
+/// No daily-load bars (they sat on a hidden second axis), form stays a key figure and a chip (concept 21, E3).
+private struct FitnessFormChart: View {
+    var series: [TrainingLoad.DayLoad]
+    var current: TrainingLoad.DayLoad
+    @Environment(\.colorScheme) private var scheme
 
-    func seconds(in week: TrainingLoad.WeekSummary) -> Int {
-        switch self {
-        case .indoor: week.indoorSeconds
-        case .outdoor: max(0, week.seconds - week.indoorSeconds - week.otherSeconds)
-        case .other: week.otherSeconds
+    var body: some View {
+        let dark = scheme == .dark
+        let values = series.flatMap { [$0.ctl, $0.atl] }
+        let ticks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 4)
+        let lower = ticks.first ?? 0, upper = ticks.last ?? 1
+        let method = ChartStyle.interpolation(pointCount: series.count)
+        Chart {
+            ForEach(series) { day in
+                AreaMark(x: .value("Tag", day.date), yStart: .value("Basis", lower), yEnd: .value("Fitness", day.ctl))
+                    .interpolationMethod(method)
+                    .foregroundStyle(ChartStyle.area(ChartPalette.fitness, dark: dark))
+                LineMark(x: .value("Tag", day.date), y: .value("Wert", day.ctl), series: .value("Kurve", "Fitness"))
+                    .interpolationMethod(method).lineStyle(ChartStyle.stroke(.main)).foregroundStyle(ChartPalette.fitness)
+                LineMark(x: .value("Tag", day.date), y: .value("Wert", day.atl), series: .value("Kurve", "Ermüdung"))
+                    .interpolationMethod(method).lineStyle(ChartStyle.stroke(.main)).foregroundStyle(ChartPalette.fatigue)
+            }
+            HighlightPoint(x: .value("Tag", current.date), y: .value("Fitness", current.ctl), color: ChartPalette.fitness, dark: dark)
+            HighlightPoint(x: .value("Tag", current.date), y: .value("Ermüdung", current.atl), color: ChartPalette.fatigue, dark: dark)
         }
-    }
-
-    var color: Color {
-        switch self {
-        case .indoor: Theme.indoorMark
-        case .outdoor: Theme.outdoorMark
-        case .other: Theme.otherMark
+        .chartYScale(domain: lower...upper)
+        .chartStyleAxes(yTicks: ticks, showsX: false)
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .month)) { _ in
+                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale.de))
+                    .font(ChartStyle.axisFont).foregroundStyle(ChartStyle.axisColor)
+            }
         }
+        .environment(\.locale, Locale.de)
+        .chartStyleHeight(140)
+        .chartAccessibility(
+            label: "Fitness und Ermüdung, Verlauf",
+            value: ChartMath.seriesSentence(name: "Fitness", values: series.map(\.ctl), period: "\(series.count) Tagen")
+                + " Ermüdung \(ChartMath.format(current.atl)). Form \(ChartMath.format(current.tsb)), \(Theme.formLabel(current.tsb)).")
     }
 }
