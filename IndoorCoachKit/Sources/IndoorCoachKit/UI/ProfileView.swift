@@ -26,9 +26,10 @@ struct ProfileView: View {
             .navigationDestination(for: ProfileRoute.self) { destination($0) }
             // Sprung von außen (Onboarding, Heute): erst den Wechsel auf den Tab abwarten, dann den Pfad setzen.
             .task(id: model.pendingProfileRoute) {
-                guard model.pendingProfileRoute != nil else { return }
+                // Sofort entnehmen: wird der Task abgebrochen, ist der Sprung verbraucht und verfällt.
+                guard let route = model.takePendingProfileRoute() else { return }
                 guard (try? await Task.sleep(for: .milliseconds(450))) != nil else { return }
-                if let route = model.takePendingProfileRoute() { path = route }
+                path = route
             }
         }
     }
@@ -183,18 +184,28 @@ struct ProfileView: View {
     }
 
     private func connectionsSection(_ model: AppModel) -> some View {
-        let attention = model.connections().filter(\.status.needsAttention)
-        let connected = model.connectedServiceCount()
+        let all = model.connections()
+        let attention = all.filter(\.status.needsAttention)
+        let connected = all.filter { id in
+            if id.id == .fitImport { return false }
+            if case .connected = id.status { return true }
+            return false
+        }.count
         return Section {
             NavigationLink(value: ProfileRoute.connections) {
                 LabeledContent {
-                    Text(connected == 0 ? "Keine" : "\(connected) verbunden")
+                    if attention.isEmpty {
+                        Text(connected == 0 ? "Keine" : "\(connected) verbunden")
+                    } else {
+                        Label("\(attention.count) \(attention.count == 1 ? "Hinweis" : "Hinweise")",
+                              systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                    }
                 } label: {
                     Label("Dienste & Geräte", systemImage: "cable.connector")
                 }
                 .frame(minHeight: 44)
             }
-            .badge(attention.count)
             .accessibilityIdentifier("profile.connections")
             ForEach(attention) { descriptor in
                 NavigationLink(value: ProfileRoute.connection(descriptor.id)) {

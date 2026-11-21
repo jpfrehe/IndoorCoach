@@ -33,7 +33,7 @@ public struct DemoCoach: Coach {
             day = calendar.date(byAdding: .day, value: 1, to: day)!
         }
         return PlanProposal(weekFocus: tsb < -20 ? "Erholen und Grundlage stabilisieren" : "Sweet Spot + VO₂max-Reiz, Rest Grundlage",
-                            notes: "Dies ist ein Demo-Plan ohne KI. Hinterlege im Profil einen Claude-API-Key für echte Planung."
+                            notes: "Dies ist ein Demo-Plan ohne KI. Hinterlege unter Profil → Coach · Claude einen Claude-API-Key für echte Planung."
                                 + (ctx.wish.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? ""
                                    : " Dein Wunsch („\(ctx.wish.trimmingCharacters(in: .whitespacesAndNewlines))“) wird erst mit Claude berücksichtigt."),
                             workouts: workouts, rejected: [])

@@ -361,6 +361,18 @@ struct RideImportTests {
         #expect(model.banner?.isError == true)
     }
 
+    @Test func silentImportDoesNotRaiseSyncErrorForUnreadableRides() async throws {
+        let transport = RoutingTransport { request in
+            guard request.url == MyWhooshClient.activitiesURL else { return (403, Data()) }
+            return (200, Data(#"{"data":[{"id":"x1","title":"ohne Dauer","activityFileId":"k1"}]}"#.utf8))
+        }
+        let model = model(transport, store: signedIn())
+        await model.importMyWhooshRides(announce: false)
+        #expect(model.syncErrors[.myWhoosh] == nil)
+        await model.importMyWhooshRides(announce: true)
+        #expect(model.syncErrors[.myWhoosh] != nil)
+    }
+
     @Test func sameRideFromAnotherSourceIsNotCountedTwice() throws {
         let model = model(RoutingTransport { _ in (500, Data()) })
         let strava = RideSummary(id: 99, name: "Strava", sportType: "VirtualRide", startDate: rideStart, movingTime: 3600, distance: 0)

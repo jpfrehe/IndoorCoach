@@ -127,25 +127,33 @@ struct ConnectionStatusLabel: View {
 }
 
 /// Kopf einer Detailseite: Status, „verbunden als …“, letzter Sync, ggf. Fehlertext.
+/// `account`/`lastSync` gelten, wenn der Status nicht `.connected` ist, das Konto aber besteht (Fehler, abgelaufen).
 struct ConnectionStatusHeader: View {
     var status: ConnectionStatus
     var syncTitle: String
+    var account: String? = nil
+    var lastSync: Date? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ConnectionStatusLabel(status: status).font(.headline)
-            switch status {
-            case let .connected(detail, lastSync):
-                if let detail { LabeledContent("Verbunden als", value: detail) }
-                if let lastSync {
-                    LabeledContent(syncTitle, value: lastSync.formatted(.relative(presentation: .named).locale(Locale.de)))
-                }
-            case let .error(message):
+            let shown = shownDetails
+            if let detail = shown.detail { LabeledContent("Verbunden als", value: detail) }
+            if let sync = shown.lastSync {
+                LabeledContent(syncTitle, value: sync.formatted(.relative(presentation: .named).locale(Locale.de)))
+            }
+            if case let .error(message) = status {
                 Text(message).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            case .needsSetup, .notConnected, .unavailable:
-                EmptyView()
             }
         }
         .frame(minHeight: 44, alignment: .leading)
+    }
+
+    private var shownDetails: (detail: String?, lastSync: Date?) {
+        switch status {
+        case let .connected(detail, lastSync): (detail, lastSync)
+        case .error, .needsSetup: (account, lastSync)
+        case .notConnected, .unavailable: (nil, nil)
+        }
     }
 }

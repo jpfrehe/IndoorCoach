@@ -48,7 +48,7 @@ final class AuditWalkthroughTests: AuditCase {
 
         tap(button(containing: "Zum Profil"), "Demo-Hinweis → Zum Profil")
         route = "profil"
-        check(app.navigationBars["Profil"].waitForExistence(timeout: 3), "„Zum Profil“ wechselt in den Profil-Tab")
+        check(app.navigationBars["Dienste & Geräte"].waitForExistence(timeout: 5), "„Zum Profil“ springt nach kurzer Pause zu „Dienste & Geräte“")
         shot("via-demo-hint")
     }
 

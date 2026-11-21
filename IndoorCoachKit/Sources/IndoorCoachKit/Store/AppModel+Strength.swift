@@ -91,7 +91,7 @@ extension AppModel {
         let row = StoredStrengthSession(session: session, heartRate: result.seconds.heartRate, sportName: draft.sportName)
         context.insert(row)
         guard saveReportingErrors("Die Einheit", hint: Self.recordingKeptHint) else { return nil }
-        exportToHealth(row)   // nur wenn für die Sportart eingeschaltet (Profil → Datenquellen)
+        exportToHealth(row)   // nur wenn für die Sportart eingeschaltet (Profil → Dienste & Geräte → Apple Health)
         return row
     }
 

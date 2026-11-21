@@ -115,7 +115,7 @@ extension AppModel {
         case .myWhoosh:
             guard isMyWhooshConnected else { return .notConnected }
             // Es gibt keinen Refresh: ein abgelaufenes Token heißt „neu anmelden“ (MyWhooshClient).
-            if myWhooshStore.loadSession()?.isExpired == true { return .needsSetup("Anmeldung abgelaufen") }
+            if let expiry = myWhooshSessionExpiry, expiry <= Date.now.addingTimeInterval(30) { return .needsSetup("Anmeldung abgelaufen") }
             if let failure { return .error(failure) }
             return .connected(detail: myWhooshUser, lastSync: lastMyWhooshImport)
         case .macBridge:

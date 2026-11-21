@@ -42,8 +42,17 @@ struct ConnectionsView: View {
     private func row(_ id: ConnectionID) -> some View {
         let descriptor = model.connection(id)
         if id == .fitImport {
-            Button { showFITImporter = true } label: { ServiceRow(descriptor: descriptor) }
-                .buttonStyle(.plain)
+            Button { showFITImporter = true } label: {
+                HStack {
+                    ServiceRow(descriptor: descriptor)
+                    Spacer(minLength: 8)
+                    Image(systemName: "square.and.arrow.down").foregroundStyle(.tertiary).accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Öffnet die Dateiauswahl")
                 .accessibilityIdentifier(Self.identifier(id))
         } else {
             NavigationLink(value: ProfileRoute.connection(id)) { ServiceRow(descriptor: descriptor) }

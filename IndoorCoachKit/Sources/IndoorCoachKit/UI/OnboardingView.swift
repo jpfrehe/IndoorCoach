@@ -381,7 +381,7 @@ struct OnboardingView: View {
             guard summary.myWhooshConnected else { return "Später unter Dienste & Geräte" }
             return summary.rideCount > 0 ? "\(summary.rideCount) Fahrten geladen" : "Verbunden"
         default:
-            return summary.coachReady ? "Claude-Key gespeichert" : "Später im Profil"
+            return summary.coachReady ? "Claude-Key gespeichert" : "Später unter Profil → Coach · Claude"
         }
     }
 

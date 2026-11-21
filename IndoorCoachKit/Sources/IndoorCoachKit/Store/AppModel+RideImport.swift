@@ -49,7 +49,7 @@ extension AppModel {
                 defaults.set(lastMyWhooshImport, forKey: Keys.myWhooshLastImport)
             }
             Log.notice(.sync, "MyWhoosh-Import: \(fresh.count) neu gelistet, \(inserted) gespeichert, \(unreadable) ohne Daten, \(Self.elapsed(since: started))")
-            if unreadable > 0 && inserted == 0 {
+            if announce && unreadable > 0 && inserted == 0 {
                 syncErrors[.myWhoosh] = "\(unreadable) \(unreadable == 1 ? "Fahrt" : "Fahrten") ohne auswertbare Daten."
             } else {
                 syncErrors[.myWhoosh] = nil

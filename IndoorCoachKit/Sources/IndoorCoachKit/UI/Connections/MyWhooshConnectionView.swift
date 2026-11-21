@@ -22,7 +22,8 @@ struct MyWhooshConnectionView: View {
                 } : nil,
             showsOptions: signedIn
         ) {
-            ConnectionStatusHeader(status: descriptor.status, syncTitle: "Letzter Import")
+            ConnectionStatusHeader(status: descriptor.status, syncTitle: "Letzter Import",
+                                   account: model.myWhooshUser, lastSync: model.lastMyWhooshImport)
         } main: {
             if signedIn {
                 Button {

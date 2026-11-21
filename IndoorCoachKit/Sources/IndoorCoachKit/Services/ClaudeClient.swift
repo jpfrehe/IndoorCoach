@@ -13,7 +13,7 @@ public enum ClaudeError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .missingAPIKey: "Kein Claude-API-Key hinterlegt (Profil → Claude)."
+        case .missingAPIKey: "Kein Claude-API-Key hinterlegt (Profil → Coach · Claude)."
         case .invalidAPIKey: "Der Claude-API-Key wurde abgelehnt. Bitte in der Claude Console prüfen."
         case .permissionDenied: "Dieser Key hat keine Berechtigung. Bitte einen neuen Key in der Claude Console erstellen."
         case .rateLimited: "Claude-Ratenlimit erreicht – bitte kurz warten."

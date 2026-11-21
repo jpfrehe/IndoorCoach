@@ -149,6 +149,23 @@ struct ConnectionStatusTests {
         #expect(model.connectionsNeedingAttention == 1)
     }
 
+    @Test func myWhooshStatusUsesCachedExpiryNotTheKeychain() {
+        signInWhoosh(expiresIn: 3600)
+        #expect(model.myWhooshSessionExpiry != nil)
+        // Store changes behind the model's back: the status must not read it again.
+        whooshStore.saveSession(MyWhooshSession(username: "rider@example.com", whooshId: "w",
+                                                accessToken: jwt(exp: .now.addingTimeInterval(-60)), refreshToken: ""))
+        #expect(status(.myWhoosh) == .connected(detail: "rider@example.com", lastSync: nil))
+        model.refreshCredentialState()
+        #expect(status(.myWhoosh) == .needsSetup("Anmeldung abgelaufen"))
+    }
+
+    @Test func myWhooshExpiryIsClearedOnDisconnect() async {
+        signInWhoosh(expiresIn: 3600)
+        await model.disconnectMyWhoosh()
+        #expect(model.myWhooshSessionExpiry == nil)
+    }
+
     @Test func myWhooshImportFailureSetsErrorAndSuccessClearsIt() async {
         signInWhoosh(expiresIn: 3600)
         httpCode.value = 500

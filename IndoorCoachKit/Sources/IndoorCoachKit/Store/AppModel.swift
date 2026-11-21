@@ -119,6 +119,8 @@ public final class AppModel {
     let myWhoosh: MyWhooshClient
     /// Signed-in MyWhoosh account (e-mail) or nil.
     public private(set) var myWhooshUser: String?
+    /// Cached JWT expiry of the stored session, so status views never read the Keychain.
+    public private(set) var myWhooshSessionExpiry: Date?
     public private(set) var isSendingToMyWhoosh = false
     public var isMyWhooshConnected: Bool { myWhooshUser != nil }
     let defaults: UserDefaults
@@ -264,7 +266,9 @@ public final class AppModel {
         stravaAthleteName = tokens?.athleteName
         hasClaudeKey = !(secrets.secret(.claudeAPIKey) ?? "").isEmpty
         hasStravaSecret = !(secrets.secret(.stravaClientSecret) ?? "").isEmpty
-        myWhooshUser = myWhooshStore.loadSession()?.username
+        let whooshSession = myWhooshStore.loadSession()
+        myWhooshUser = whooshSession?.username
+        myWhooshSessionExpiry = whooshSession?.expiresAt
     }
 
     // MARK: - MyWhoosh (B21, unofficial API)

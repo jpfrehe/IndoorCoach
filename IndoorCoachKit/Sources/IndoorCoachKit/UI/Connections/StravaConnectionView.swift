@@ -25,7 +25,9 @@ struct StravaConnectionView: View {
                 } : nil,
             showsOptions: model.isStravaConnected
         ) {
-            ConnectionStatusHeader(status: descriptor.status, syncTitle: "Letzter Sync")
+            ConnectionStatusHeader(status: descriptor.status, syncTitle: "Letzter Sync",
+                                   account: model.isStravaConnected ? model.stravaAthleteName : nil,
+                                   lastSync: model.isStravaConnected ? model.lastSync : nil)
         } main: {
             if model.isStravaConnected {
                 Button {

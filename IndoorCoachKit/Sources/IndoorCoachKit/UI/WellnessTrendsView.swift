@@ -27,7 +27,7 @@ struct WellnessTrendsView: View {
             VStack(spacing: 16) {
                 if !model.healthEnabled {
                     Card(title: "Apple Health ist aus", systemImage: "heart.text.square") {
-                        Text("Schalte Apple Health unter Datenquellen ein, dann zeigt IndoorCoach hier deine Erholungswerte als Trend.")
+                        Text("Schalte Apple Health unter Profil → Dienste & Geräte → Apple Health ein, dann zeigt IndoorCoach hier deine Erholungswerte als Trend.")
                             .font(.subheadline).foregroundStyle(Theme.rowSecondary)
                     }
                 } else {
