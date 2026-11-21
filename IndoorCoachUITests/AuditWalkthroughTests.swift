@@ -1557,7 +1557,7 @@ final class AuditOpeningTests: AuditCase {
 
         obTap("onboarding.ride.none", "Kachel „Noch keine App“")
         check(obSelected("onboarding.ride.none"), "„Noch keine App“ ist gewählt")
-        check(waitFast(anyText(containing: "kostenlose App"), timeout: 4), "Tipp „kostenlose App wie MyWhoosh“ sichtbar")
+        check(waitFast(anyText(containing: "kostenlosen App"), timeout: 4), "Tipp „kostenlose App wie MyWhoosh“ sichtbar")
         shot("3-keine-app")
         accessibilityAudit("Onboarding-Einsteiger-Tipp")
         obTap("onboarding.ride.zwift", "Kachel Zwift")
@@ -1588,7 +1588,8 @@ final class AuditOpeningTests: AuditCase {
         obAdvance("Ohne Claude weiter")
         obExpect(step: 6, title: "Alles bereit")
         let strap = obEl("onboarding.status.strap")
-        check(strap.exists && strap.label.contains("Später unter Profil → Dienste & Geräte → Brustgurt"),
+        // VoiceOver liest die Pfeile als Kommas: „später unter Profil, Dienste und Geräte, Brustgurt“.
+        check(strap.exists && strap.label.lowercased().contains("später unter profil") && strap.label.contains("Brustgurt"),
               "Checkliste: „Später unter Profil → Dienste & Geräte → Brustgurt“ (\(strap.label))")
         check(obEl("onboarding.openConnections").exists, "„Übersprungenes jetzt einrichten“ vorhanden")
         shot("7-fertig-einsteiger")

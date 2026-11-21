@@ -96,7 +96,10 @@ extension AuditCase {
     /// Schritt 1 „Dein Training“: einen Trainingstag wählen (sonst bleibt „Weiter“ deaktiviert).
     func obPickTrainingDay(_ day: String = "Montag") {
         let button = app.buttons[day]
-        _ = button.waitForExistence(timeout: 6)
+        // Die Wochentage stehen in einem trägen Raster: nach oben gescrollt (AX5) sind sie nicht mehr im Baum.
+        var tries = 0
+        while !button.waitForExistence(timeout: tries == 0 ? 4 : 1) && tries < 4 { app.swipeDown(); tries += 1 }
+        guard button.exists else { check(false, "Trainingstag \(day) gefunden"); return }
         if let bar = obBarButton() { lift(button, above: bar) }
         if !button.isSelected { tap(button, "Trainingstag \(day)") }
     }
