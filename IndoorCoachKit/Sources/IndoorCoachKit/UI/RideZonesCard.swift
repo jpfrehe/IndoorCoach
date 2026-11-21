@@ -45,13 +45,20 @@ struct RideZonesCard: View {
                                 HStack(alignment: .firstTextBaseline) {
                                     Text(row.title).font(.subheadline)
                                     Spacer(minLength: 8)
-                                    Text(Self.minutes(row.seconds)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                                    Text(Self.minutes(row.seconds)).font(.subheadline.weight(row.seconds > 0 ? .semibold : .regular)).monospacedDigit()
+                                        .foregroundStyle(row.seconds > 0 ? Color.primary : Theme.rowSecondary)
                                 }
+                                // Track (primary 6 %) with the bar on top; an empty zone shows only the track.
                                 GeometryReader { proxy in
-                                    Capsule().fill(row.color)
-                                        .frame(width: max(row.seconds > 0 ? 4 : 0, proxy.size.width * Double(row.seconds) / Double(longest)))
+                                    ZStack(alignment: .leading) {
+                                        Capsule().fill(ChartPalette.band)
+                                        if row.seconds > 0 {
+                                            Capsule().fill(row.color)
+                                                .frame(width: max(8, proxy.size.width * Double(row.seconds) / Double(longest)))
+                                        }
+                                    }
                                 }
-                                .frame(height: 12)
+                                .frame(height: 8)
                             }
                             .accessibilityElement(children: .ignore)
                             .accessibilityLabel("\(row.title): \(Self.spokenMinutes(row.seconds))")
@@ -75,12 +82,12 @@ struct RideZonesCard: View {
         switch mode {
         case .power:
             PowerZone.allCases.map {
-                Row(id: $0.rawValue, title: "Zone \($0.rawValue) \($0.name)", seconds: zones.power[$0.rawValue - 1], color: Theme.fill($0))
+                Row(id: $0.rawValue, title: "Zone \($0.rawValue) \($0.name)", seconds: zones.power[$0.rawValue - 1], color: ChartPalette.zone($0))
             }
         case .heart:
             (0..<5).map {
                 Row(id: $0 + 1, title: "Zone \($0 + 1) \(HeartRateZones.names[$0])", seconds: zones.heart?[$0] ?? 0,
-                    color: Theme.fill(PowerZone.allCases[$0 == 4 ? 5 : $0]))
+                    color: ChartPalette.zone(PowerZone.allCases[$0 == 4 ? 5 : $0]))
             }
         }
     }

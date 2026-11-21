@@ -1,4 +1,3 @@
-import Charts
 import SwiftUI
 
 /// A8 – "Trainingsverteilung" in Leistung: stacked bar of riding time per intensity band (4 or 12 weeks).
@@ -12,10 +11,20 @@ struct TrainingDistributionCard: View {
 
     static func color(_ band: TrainingDistribution.Band) -> Color {
         switch band {
-        case .base: Theme.fill(.z2)
-        case .tempo: Theme.fill(.z3)
-        case .threshold: Theme.fill(.z5)
-        case .unknown: Color.gray.opacity(0.35)
+        case .base: ChartPalette.zone(.z2)
+        case .tempo: ChartPalette.zone(.z3)
+        case .threshold: ChartPalette.zone(.z5)
+        case .unknown: ChartPalette.band
+        }
+    }
+
+    /// Text colour for the share inside a segment (white or ink on the zone mark, ink on the neutral band).
+    static func labelColor(_ band: TrainingDistribution.Band) -> Color {
+        switch band {
+        case .base: ChartPalette.label(on: .z2)
+        case .tempo: ChartPalette.label(on: .z3)
+        case .threshold: ChartPalette.label(on: .z5)
+        case .unknown: .primary
         }
     }
 
@@ -55,17 +64,17 @@ struct TrainingDistributionCard: View {
     }
 
     private func bar(_ r: TrainingDistribution.Result) -> some View {
-        Chart(TrainingDistribution.Band.allCases) { band in
-            BarMark(x: .value("Anteil", r.seconds[band] ?? 0), y: .value("Zeitraum", "Verteilung"), stacking: .normalized)
-                .foregroundStyle(Self.color(band))
+        GeometryReader { proxy in
+            SegmentedBar(items: TrainingDistribution.Band.allCases.enumerated().compactMap { n, band in
+                guard (r.seconds[band] ?? 0) > 0 else { return nil }
+                return SegmentedBar.Item(
+                    id: n, value: Double(r.seconds[band] ?? 0), color: Self.color(band),
+                    label: TrainingDistribution.segmentLabel(percent: r.percent(band), barWidth: proxy.size.width, textWidth: 30),
+                    labelColor: Self.labelColor(band))
+            }, variant: .tall)
         }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartLegend(.hidden)
-        .frame(height: 36)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Trainingsverteilung der letzten \(weeks) Wochen")
-        .accessibilityValue(summary(r))
+        .frame(height: SegmentedBar.Variant.tall.height)
+        .chartAccessibility(label: "Trainingsverteilung der letzten \(weeks) Wochen", value: summary(r))
         .accessibilityIdentifier("distribution.chart")
     }
 

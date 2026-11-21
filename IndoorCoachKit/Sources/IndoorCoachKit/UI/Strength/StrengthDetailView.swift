@@ -97,9 +97,9 @@ struct StrengthDetailView: View {
     }
 
     private func heartRateCard(_ hr: [UInt8]) -> some View {
-        // Höchstens ~300 Punkte zeichnen; Lücken (0) bleiben leer.
-        let step = max(1, hr.count / 300)
-        let points = stride(from: 0, to: hr.count, by: step).compactMap { i -> (Double, Int)? in
+        // Höchstens ~300 Punkte zeichnen (Extremwerte bleiben); Lücken (0) bleiben leer.
+        let raw = hr.map { $0 > 0 ? Double($0) : Double.nan }
+        let points = ChartMath.downsampleMinMax(raw, maxPoints: 300).compactMap { i -> (Double, Int)? in
             hr[i] > 0 ? (Double(i) / 60, Int(hr[i])) : nil
         }
         let valid = hr.filter { $0 > 0 }.map(Int.init)
@@ -107,14 +107,27 @@ struct StrengthDetailView: View {
         return Card(title: "Puls", systemImage: "heart.fill") {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Ø \(avg) · max \(valid.max() ?? 0) bpm").font(.subheadline.monospacedDigit())
-                Chart(points, id: \.0) { p in
-                    LineMark(x: .value("Minute", p.0), y: .value("bpm", p.1))
-                        .foregroundStyle(Theme.accent)
+                let ticks = ChartMath.niceTicks(min: Double(valid.min() ?? 0), max: Double(valid.max() ?? 1), count: 4)
+                let peak = points.max { $0.1 < $1.1 }
+                Chart {
+                    ForEach(points, id: \.0) { p in
+                        LineMark(x: .value("Minute", p.0), y: .value("bpm", p.1))
+                            .interpolationMethod(.monotone)
+                            .lineStyle(ChartStyle.stroke(.main))
+                            .foregroundStyle(Theme.accent)
+                    }
+                    if let peak {
+                        OpenMarker(x: .value("Minute", peak.0), y: .value("bpm", peak.1), color: Theme.accent)
+                    }
                 }
-                .chartXAxisLabel("min")
-                .chartYScale(domain: .automatic(includesZero: false))
-                .frame(height: 150)
-                .accessibilityLabel("Pulsverlauf, Durchschnitt \(avg), Maximum \(valid.max() ?? 0) Schläge pro Minute")
+                .chartYScale(domain: (ticks.first ?? 0)...(ticks.last ?? 1))
+                .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0) }, xCount: 5)
+                .chartYAxisLabel(position: .topTrailing) {
+                    Text("bpm").font(ChartStyle.axisFont).foregroundStyle(Theme.axisLabel)
+                }
+                .chartStyleHeight()
+                .chartAccessibility(label: "Pulsverlauf",
+                                    value: "Durchschnitt \(avg), Maximum \(valid.max() ?? 0) Schläge pro Minute")
             }
         }
     }

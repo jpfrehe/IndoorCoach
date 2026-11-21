@@ -96,6 +96,7 @@ struct EffortWeekCard: View {
     var body: some View {
         let current = weeks.last
         let range = RelativeEffort.weeklyRange(previousWeeks: weeks.dropLast().suffix(3).map(\.total))
+        let ticks = ChartMath.niceTicks(min: 0, max: (weeks.map(\.total) + [range?.upper ?? 0]).max() ?? 1, count: 4)
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Relative Effort · diese Woche").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
@@ -123,25 +124,24 @@ struct EffortWeekCard: View {
                     RectangleMark(xStart: .value("Von", weeks.first?.weekStart ?? .now),
                                   xEnd: .value("Bis", Calendar.current.date(byAdding: .day, value: 7, to: weeks.last?.weekStart ?? .now)!),
                                   yStart: .value("Unten", range.lower), yEnd: .value("Oben", range.upper))
-                        .foregroundStyle(Theme.softFill)
+                        .foregroundStyle(ChartPalette.band)
+                        .annotation(position: .overlay, alignment: .topTrailing, spacing: 2) {
+                            Text("dein Bereich").font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel).padding(.trailing, 4)
+                        }
                 }
                 ForEach(weeks) { w in
-                    BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear), y: .value("Relative Effort", w.total))
-                        .foregroundStyle(w.id == weeks.last?.id ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Theme.cap(.z6).opacity(0.55)))
-                        .cornerRadius(5)
+                    BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear), y: .value("Relative Effort", w.total),
+                            width: .ratio(0.6))
+                        .foregroundStyle(w.id == weeks.last?.id ? Theme.accent : ChartPalette.accentMuted)
+                        .clipShape(UnevenRoundedRectangle(topLeadingRadius: ChartStyle.barCornerRadius,
+                                                          topTrailingRadius: ChartStyle.barCornerRadius))
                 }
             }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { _ in
-                    AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
-                        .foregroundStyle(Theme.axisLabel)
-                }
-            }
-            .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel().foregroundStyle(Theme.axisLabel) } }
-            .frame(height: 130)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Relative Effort der letzten \(weeks.count) Wochen")
-            .accessibilityValue(weeks.map { "\(Int($0.total.rounded()))" }.joined(separator: ", "))
+            .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0) })
+            .chartYScale(domain: 0...(ticks.last ?? 1))
+            .chartStyleHeight(130)
+            .chartAccessibility(label: "Relative Effort der letzten \(weeks.count) Wochen",
+                                value: weeks.map { "\(Int($0.total.rounded()))" }.joined(separator: ", "))
         }
     }
 

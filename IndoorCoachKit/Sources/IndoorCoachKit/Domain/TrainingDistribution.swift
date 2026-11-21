@@ -41,6 +41,13 @@ public enum TrainingDistribution {
         public func percent(_ band: Band) -> Int { Int((share(band) * 100).rounded()) }
     }
 
+    /// Share text inside a tall bar segment ("46 %"), or nil when the segment is empty or too narrow for it
+    /// (text width plus 12 pt padding).
+    static func segmentLabel(percent: Int, barWidth: Double, textWidth: Double) -> String? {
+        guard percent > 0, barWidth > 0 else { return nil }
+        return barWidth * Double(percent) / 100 >= textWidth + 12 ? "\(percent) %" : nil
+    }
+
     public static func intensityFactor(for ride: RideSummary, ftp: Int) -> Double? {
         guard ftp > 0, let np = ride.weightedAverageWatts ?? ride.averageWatts.map({ $0 * 1.05 }), np > 0 else { return nil }
         return np / Double(ftp)

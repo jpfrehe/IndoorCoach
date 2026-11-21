@@ -7,6 +7,7 @@ struct FTPHistoryCard: View {
     var rides: [RideSummary]
     var ftp: Int
     var now: Date = .now
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let series = FTPHistory.series(rides: rides, now: now)
@@ -18,8 +19,7 @@ struct FTPHistoryCard: View {
                         .font(.subheadline.weight(.semibold))
                 }
             } else {
-                Text("Für den Verlauf braucht es gemessene 20-Minuten-Leistungen (Fahrten mit Sekundendaten, z. B. FIT-Import) in mindestens zwei 4-Wochen-Fenstern.")
-                    .font(.subheadline).foregroundStyle(Theme.rowSecondary)
+                ChartEmptyState(message: "Für den Verlauf braucht es gemessene 20-Minuten-Leistungen (Fahrten mit Sekundendaten, z. B. FIT-Import) in mindestens zwei 4-Wochen-Fenstern.")
             }
             Text("eFTP = 95 % der besten gemessenen 20 Minuten in den 4 Wochen bis zum jeweiligen Datum, über 6 Monate. Fahrten ohne Sekundendaten zählen nicht. Die gestrichelte Linie ist deine Profil-FTP (\(ftp) W).")
                 .font(.footnote).foregroundStyle(Theme.rowSecondary)
@@ -29,39 +29,41 @@ struct FTPHistoryCard: View {
     }
 
     private func chart(_ series: [FTPHistory.Point]) -> some View {
-        Chart {
+        let dark = scheme == .dark
+        let values = series.map { Double($0.eftp) } + (ftp > 0 ? [Double(ftp)] : [])
+        let ticks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 4)
+        let few = series.count <= ChartStyle.maxMarkers
+        return Chart {
             ForEach(series) { p in
+                AreaMark(x: .value("Fenster bis", p.date), y: .value("eFTP", p.eftp))
+                    .interpolationMethod(ChartStyle.interpolation(pointCount: series.count))
+                    .foregroundStyle(ChartStyle.area(Theme.accent, dark: dark))
                 LineMark(x: .value("Fenster bis", p.date), y: .value("eFTP", p.eftp))
-                    .foregroundStyle(Theme.fitnessLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .interpolationMethod(.monotone)
-                PointMark(x: .value("Fenster bis", p.date), y: .value("eFTP", p.eftp))
-                    .foregroundStyle(Theme.fitnessLine)
-                    .symbolSize(30)
+                    .interpolationMethod(ChartStyle.interpolation(pointCount: series.count))
+                    .lineStyle(ChartStyle.stroke(.main))
+                    .foregroundStyle(Theme.accent)
+            }
+            if few {
+                ForEach(series.dropLast()) { p in
+                    OpenMarker(x: .value("Fenster bis", p.date), y: .value("eFTP", p.eftp), color: Theme.accent)
+                }
             }
             if ftp > 0 {
-                RuleMark(y: .value("Profil-FTP", ftp))
-                    .foregroundStyle(Theme.accent.opacity(0.8))
-                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                    .annotation(position: .top, alignment: .leading) {
-                        Text("Profil-FTP \(ftp) W").font(.caption2.weight(.semibold)).foregroundStyle(Theme.accent)
+                ChartRule(y: .value("Profil-FTP", ftp), kind: .target, label: "Profil-FTP \(ftp) W")
+            }
+            if let last = series.last {
+                HighlightPoint(x: .value("Fenster bis", last.date), y: .value("eFTP", last.eftp), color: Theme.accent, dark: dark)
+                PointMark(x: .value("Fenster bis", last.date), y: .value("eFTP", last.eftp))
+                    .symbolSize(1).foregroundStyle(.clear)
+                    .annotation(position: .top, spacing: 8) {
+                        Text("\(last.eftp) W").font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
                     }
             }
         }
-        .chartYScale(domain: .automatic(includesZero: false))
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .month)) { _ in
-                AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale.de))
-                    .foregroundStyle(Theme.axisLabel)
-            }
-        }
-        .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel().foregroundStyle(Theme.axisLabel) } }
-        .chartYAxisLabel("Watt")
-        .frame(height: 170)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Verlauf der geschätzten FTP über 6 Monate")
-        .accessibilityValue(Self.summary(series, ftp: ftp))
+        .chartYScale(domain: (ticks.first ?? 0)...(ticks.last ?? 1))
+        .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0) })
+        .chartStyleHeight()
+        .chartAccessibility(label: "Verlauf der geschätzten FTP über 6 Monate", value: Self.summary(series, ftp: ftp))
         .accessibilityIdentifier("ftpHistory.chart")
     }
 

@@ -6,6 +6,7 @@ import SwiftUI
 struct WellnessTrendsView: View {
     @Environment(AppModel.self) private var model
     @State private var refreshed = 0
+    @Environment(\.colorScheme) private var scheme
 
     private struct Kind: Identifiable {
         var metric: HealthMetric
@@ -85,25 +86,37 @@ struct WellnessTrendsView: View {
 
     private func chart(_ kind: Kind, trend: WellnessTrend, baseline: Double) -> some View {
         let spread = trend.mad ?? 0
+        let dark = scheme == .dark
         let first = trend.points.first?.date ?? .now, last = trend.points.last?.date ?? .now
+        let values = trend.points.map(\.value) + [baseline - spread, baseline + spread]
+        let span = ChartMath.domain(values: values, includeZero: false)
+        let ticks = ChartMath.niceTicks(min: span.lowerBound, max: span.upperBound, count: 4)
+        let pieces = ChartMath.segments(trend.points.map(\.date), splitWhenGapExceeds: 7 * 86_400)
+        let digits = kind.digits
         return Chart {
             ForEach([first, last], id: \.self) { day in
                 AreaMark(x: .value("Tag", day), yStart: .value("Basis −", baseline - spread), yEnd: .value("Basis +", baseline + spread))
-                    .foregroundStyle(Color.primary.opacity(0.08))
+                    .foregroundStyle(ChartPalette.band)
             }
-            RuleMark(y: .value("Basis", baseline))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                .foregroundStyle(Theme.rowSecondary)
-            ForEach(trend.points, id: \.date) { point in
-                LineMark(x: .value("Tag", point.date), y: .value(kind.title, point.value))
-                    .foregroundStyle(Theme.accent)
-                    .interpolationMethod(.monotone)
+            ChartRule(y: .value("Basis", baseline), kind: .target, label: "Basis \(Formatters.decimal(baseline, digits: digits))")
+            ForEach(Array(pieces.enumerated()), id: \.offset) { n, range in
+                ForEach(trend.points[range], id: \.date) { point in
+                    LineMark(x: .value("Tag", point.date), y: .value(kind.title, point.value), series: .value("Teil", n))
+                        .lineStyle(ChartStyle.stroke(.main))
+                        .foregroundStyle(Theme.accent)
+                        .interpolationMethod(ChartStyle.interpolation(pointCount: range.count))
+                }
+            }
+            if let lastPoint = trend.points.last {
+                HighlightPoint(x: .value("Tag", lastPoint.date), y: .value(kind.title, lastPoint.value), color: Theme.accent, dark: dark)
             }
         }
-        .chartYScale(domain: .automatic(includesZero: false))
-        .frame(height: 140)
-        .accessibilityElement()
-        .accessibilityLabel("\(kind.title): Verlauf der letzten 28 Tage mit Basisband")
+        .chartYScale(domain: (ticks.first ?? 0)...(ticks.last ?? 1))
+        .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0, decimals: digits) }, xCount: 4)
+        .chartStyleHeight(ChartStyle.heightSmall + 20)
+        .chartAccessibility(label: "\(kind.title): Verlauf der letzten 28 Tage mit Basisband",
+                            value: ChartMath.seriesSentence(name: kind.title, values: trend.points.map(\.value), decimals: digits,
+                                                            unit: " \(kind.unit)", period: "28 Tagen"))
         .accessibilityIdentifier("wellness.\(kind.metric.rawValue).chart")
     }
 }

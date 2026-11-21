@@ -80,6 +80,7 @@ struct LevelBadge: View {
 /// S12 – detail: level path, fitness vs. pace line, numbers and how it works.
 struct WinterArcView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \StoredRide.startDate) private var storedRides: [StoredRide]
     @State private var heart: HeartInWinterArc?
 
@@ -173,45 +174,52 @@ struct WinterArcView: View {
     private func courseChart(status: WinterArc.Status, points: [FitnessFreshness.Point],
                              shadow: [SeasonShadow.Point]?) -> some View {
         let shown = points.filter { $0.date >= status.start }
+        let dark = colorScheme == .dark
+        let values = shown.map(\.fitness) + (shadow ?? []).map(\.fitness) + [status.startCTL, status.targetCTL]
+        let span = ChartMath.domain(values: values, includeZero: false)
+        let ticks = ChartMath.niceTicks(min: span.lowerBound, max: span.upperBound, count: 4)
+        let lowest = ticks.first ?? 0
         return Chart {
+            // Course line = target path: dashed, neutral (not the accent colour, so it does not compete with fitness).
             LineMark(x: .value("Tag", status.start), y: .value("Kurs", status.startCTL), series: .value("Linie", "Kurs"))
-                .foregroundStyle(Theme.accent.opacity(0.7))
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                .foregroundStyle(ChartPalette.reference)
+                .lineStyle(ChartStyle.stroke(.target))
             LineMark(x: .value("Tag", status.goal), y: .value("Kurs", status.targetCTL), series: .value("Linie", "Kurs"))
-                .foregroundStyle(Theme.accent.opacity(0.7))
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
-            ForEach(shown) { p in
-                LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness), series: .value("Linie", "Fitness"))
-                    .foregroundStyle(Theme.fitnessLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .interpolationMethod(.monotone)
-            }
-            // G6: last year's curve of the same window, shifted by one year (dashed, muted).
+                .foregroundStyle(ChartPalette.reference)
+                .lineStyle(ChartStyle.stroke(.target))
+            // G6: last year's curve of the same window, shifted by one year (dotted, muted).
             ForEach(shadow ?? []) { p in
                 LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness), series: .value("Linie", "Vorjahr"))
-                    .foregroundStyle(Theme.shadowLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 4]))
+                    .foregroundStyle(ChartPalette.reference)
+                    .lineStyle(ChartStyle.stroke(.previous))
                     .interpolationMethod(.monotone)
             }
+            ForEach(shown) { p in
+                AreaMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness), series: .value("Linie", "Fläche"))
+                    .interpolationMethod(ChartStyle.interpolation(pointCount: shown.count))
+                    .foregroundStyle(ChartStyle.area(ChartPalette.fitness, dark: dark))
+                LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness), series: .value("Linie", "Fitness"))
+                    .foregroundStyle(ChartPalette.fitness)
+                    .lineStyle(ChartStyle.stroke(.main))
+                    .interpolationMethod(ChartStyle.interpolation(pointCount: shown.count))
+            }
+            if let last = shown.last {
+                HighlightPoint(x: .value("Tag", last.date), y: .value("Fitness", last.fitness), color: ChartPalette.fitness, dark: dark)
+            }
+            HighlightPoint(x: .value("Tag", status.goal), y: .value("Ziel", status.targetCTL), color: Theme.accent, dark: dark)
             PointMark(x: .value("Tag", status.goal), y: .value("Ziel", status.targetCTL))
-                .foregroundStyle(Theme.accent)
-                .symbolSize(80)
-                .annotation(position: .top, alignment: .trailing) {
-                    Text("Ziel").font(.caption2.weight(.semibold)).foregroundStyle(Theme.accent)
+                .symbolSize(1).foregroundStyle(.clear)
+                .annotation(position: .top, alignment: .trailing, spacing: 10) {
+                    Text("Ziel \(Formatters.decimal(status.targetCTL))")
+                        .font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
                 }
         }
         .chartXScale(domain: status.start...status.goal)
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .month)) { _ in
-                AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale.de))
-                    .foregroundStyle(Theme.axisLabel)
-            }
-        }
-        .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel().foregroundStyle(Theme.axisLabel) } }
-        .frame(height: 180)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Fitness gegenüber Kurslinie")
-        .accessibilityValue("\(todayText(status: status, points: points, shadow: shadow)), Kurs \(Formatters.decimal(status.paceCTL)), Ziel \(Formatters.decimal(status.targetCTL))")
+        .chartYScale(domain: lowest...(ticks.last ?? 1))
+        .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0) })
+        .chartStyleHeight(ChartStyle.heightNormal)
+        .chartAccessibility(
+            label: "Fitness gegenüber Kurslinie",
+            value: "\(todayText(status: status, points: points, shadow: shadow)), Kurs \(Formatters.decimal(status.paceCTL)), Ziel \(Formatters.decimal(status.targetCTL))")
     }
 }

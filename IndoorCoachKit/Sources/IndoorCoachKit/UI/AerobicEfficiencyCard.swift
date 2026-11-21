@@ -7,6 +7,7 @@ struct AerobicEfficiencyCard: View {
     var ftp: Int
     var range: PerformanceRange
     var now: Date = .now
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let start = now.addingTimeInterval(-Double(range.days) * 86_400)
@@ -48,33 +49,46 @@ struct AerobicEfficiencyCard: View {
     }
 
     private func chart(_ series: [AerobicEfficiency.WeekPoint]) -> some View {
-        Chart(series) { p in
-            LineMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef))
-                .foregroundStyle(Theme.fitnessLine)
-                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .interpolationMethod(.monotone)
-            PointMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef))
-                .foregroundStyle(Theme.fitnessLine)
-                .symbolSize(36)
-        }
-        .chartYScale(domain: .automatic(includesZero: false))
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                AxisValueLabel(format: .dateTime.day().month(.defaultDigits).locale(Locale.de))
-                    .foregroundStyle(Theme.axisLabel)
+        let dark = scheme == .dark
+        let values = series.map(\.ef)
+        let span = ChartMath.domain(values: values, includeZero: false)
+        let ticks = ChartMath.niceTicks(min: span.lowerBound, max: span.upperBound, count: 4)
+        let pieces = ChartMath.segments(series.map(\.weekStart), splitWhenGapExceeds: 15 * 86_400)
+        return Chart {
+            ForEach(Array(pieces.enumerated()), id: \.offset) { n, range in
+                ForEach(series[range]) { p in
+                    if series.count >= 4 {
+                        AreaMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef), series: .value("Teil", "Fläche\(n)"))
+                            .interpolationMethod(.monotone)
+                            .foregroundStyle(ChartStyle.area(Theme.accent, dark: dark))
+                    }
+                    LineMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef), series: .value("Teil", "Linie\(n)"))
+                        .interpolationMethod(ChartStyle.interpolation(pointCount: series.count))
+                        .lineStyle(ChartStyle.stroke(.main))
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+            if series.count <= ChartStyle.maxMarkers {
+                ForEach(series.dropLast()) { p in
+                    OpenMarker(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef), color: Theme.accent)
+                }
+            }
+            if let last = series.last {
+                HighlightPoint(x: .value("Woche", last.weekStart), y: .value("Effizienz", last.ef), color: Theme.accent, dark: dark)
+                PointMark(x: .value("Woche", last.weekStart), y: .value("Effizienz", last.ef))
+                    .symbolSize(1).foregroundStyle(.clear)
+                    .annotation(position: .top, spacing: 8) {
+                        Text(Formatters.decimal(last.ef, digits: 2)).font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
+                    }
             }
         }
-        .chartYAxis {
-            AxisMarks { _ in
-                AxisGridLine()
-                AxisValueLabel().foregroundStyle(Theme.axisLabel)
-            }
+        .chartYScale(domain: (ticks.first ?? 0)...(ticks.last ?? 1))
+        .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0, decimals: 1) }, xCount: 5)
+        .chartYAxisLabel(position: .topTrailing) {
+            Text("W/bpm").font(ChartStyle.axisFont).foregroundStyle(Theme.axisLabel)
         }
-        .chartYAxisLabel("EF (W/bpm)")
-        .frame(height: 160)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Aerobe Effizienz, Wochenmedian in Watt je Herzschlag")
-        .accessibilityValue(Self.summary(series))
+        .chartStyleHeight()
+        .chartAccessibility(label: "Aerobe Effizienz, Wochenmedian in Watt je Herzschlag", value: Self.summary(series))
         .accessibilityIdentifier("efficiency.chart")
     }
 

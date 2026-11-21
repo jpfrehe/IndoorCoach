@@ -9,6 +9,7 @@ struct GoalForecastCard: View {
     var now: Date = .now
 
     @Environment(AppModel.self) private var model
+    @Environment(\.colorScheme) private var scheme
     @State private var hours: Double
 
     init(rides: [RideSummary], status: WinterArc.Status, weeklyHours: Double, now: Date = .now) {
@@ -61,34 +62,46 @@ struct GoalForecastCard: View {
     }
 
     private func chart(_ result: GoalForecast.Result) -> some View {
-        Chart {
+        let dark = scheme == .dark
+        let values = result.curve.map(\.ctl) + [result.targetCTL]
+        let ticks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 4)
+        let lowest = ticks.first ?? 0
+        let crossing = result.crossing
+        return Chart {
+            // Everything from today on is projection: dashed in the fitness colour, no area.
             ForEach(result.curve, id: \.date) { p in
                 LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.ctl))
-                    .foregroundStyle(Theme.fitnessLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(ChartStyle.interpolation(pointCount: result.curve.count))
+                    .lineStyle(StrokeStyle(lineWidth: ChartStyle.lineWidth, lineCap: .round, lineJoin: .round, dash: [4, 3]))
+                    .foregroundStyle(ChartPalette.fitness)
             }
-            RuleMark(y: .value("Ziel", result.targetCTL))
-                .foregroundStyle(Theme.accent.opacity(0.8))
-                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                .annotation(position: .top, alignment: .leading) {
-                    Text("Ziel \(Formatters.decimal(result.targetCTL))")
-                        .font(.caption2.weight(.semibold)).foregroundStyle(Theme.accent)
-                }
-        }
-        .chartYScale(domain: .automatic(includesZero: false))
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .month)) { _ in
-                AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(Locale.de))
-                    .foregroundStyle(Theme.axisLabel)
+            ChartRule(y: .value("Ziel", result.targetCTL), kind: .target, label: "Ziel \(Formatters.decimal(result.targetCTL))")
+            if let today = result.curve.first {
+                HighlightPoint(x: .value("Tag", today.date), y: .value("Fitness", today.ctl), color: ChartPalette.fitness,
+                               baseline: .value("Fitness", lowest), dark: dark)
+                PointMark(x: .value("Tag", today.date), y: .value("Fitness", today.ctl))
+                    .symbolSize(1).foregroundStyle(.clear)
+                    .annotation(position: .bottom, alignment: .leading, spacing: 8) {
+                        Text("Heute").font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
+                    }
+            }
+            if let crossing {
+                HighlightPoint(x: .value("Tag", crossing.date), y: .value("Fitness", crossing.ctl), color: ChartPalette.fitness,
+                               dark: dark)
+                PointMark(x: .value("Tag", crossing.date), y: .value("Fitness", crossing.ctl))
+                    .symbolSize(1).foregroundStyle(.clear)
+                    .annotation(position: .bottom, spacing: 10) {
+                        Text(GoalForecast.crossingLabel(crossing.date, calendar: .current))
+                            .font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
+                    }
             }
         }
-        .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel().foregroundStyle(Theme.axisLabel) } }
-        .frame(height: 150)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Prognose der Fitness bis zum Ziel-Tag")
-        .accessibilityValue("Heute \(Formatters.decimal(status.currentCTL)), am Ziel-Tag \(Formatters.decimal(result.ctlAtGoal)), Ziel \(Formatters.decimal(result.targetCTL))")
+        .chartYScale(domain: lowest...(ticks.last ?? 1))
+        .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0) })
+        .chartStyleHeight(ChartStyle.heightNormal)
+        .chartAccessibility(
+            label: "Prognose der Fitness bis zum Ziel-Tag",
+            value: "Heute \(Formatters.decimal(status.currentCTL)), am Ziel-Tag \(Formatters.decimal(result.ctlAtGoal)), Ziel \(Formatters.decimal(result.targetCTL))")
         .accessibilityIdentifier("forecast.chart")
     }
 }

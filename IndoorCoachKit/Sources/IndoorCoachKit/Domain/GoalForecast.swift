@@ -26,6 +26,12 @@ public enum GoalForecast {
         /// Projected CTL, one point per day from today to the goal day.
         public var curve: [DayCTL]
         public var text: String
+        /// The curve point on `reachDate` (the day the sentence names); nil if the target is already reached today or
+        /// not reached before the goal day. The chart marks exactly this point.
+        public var crossing: DayCTL? {
+            guard let reachDate, let first = curve.first, reachDate > first.date else { return nil }
+            return curve.first { $0.date == reachDate }
+        }
     }
 
     /// Average load per hour over the last 6 weeks; `fallbackTSSPerHour` without rides in that window.
@@ -83,6 +89,16 @@ public enum GoalForecast {
     static func hoursText(_ hours: Double) -> String {
         let rounded = (hours * 2).rounded() / 2
         return Formatters.decimal(rounded, digits: rounded == rounded.rounded() ? 0 : 1)
+    }
+
+    /// Short chart label for the crossing: "22. Jan." (same day as `dayText`).
+    static func crossingLabel(_ date: Date, calendar: Calendar) -> String {
+        let f = DateFormatter()
+        f.locale = Locale.de
+        f.calendar = calendar
+        f.timeZone = calendar.timeZone
+        f.dateFormat = "d. MMM"
+        return f.string(from: date)
     }
 
     static func dayText(_ date: Date, calendar: Calendar) -> String {
