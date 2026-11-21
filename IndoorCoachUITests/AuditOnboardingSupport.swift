@@ -99,6 +99,8 @@ extension AuditCase {
         // Die Wochentage stehen in einem trägen Raster: nach oben gescrollt (AX5) sind sie nicht mehr im Baum.
         var tries = 0
         while !button.waitForExistence(timeout: tries == 0 ? 4 : 1) && tries < 4 { app.swipeDown(); tries += 1 }
+        // Ganz oben und immer noch nicht da (AX5: die Tage liegen unter FTP und Gewicht) → in kleinen Schritten nach unten.
+        if !button.exists { _ = scrollFinding(button) }
         guard button.exists else { check(false, "Trainingstag \(day) gefunden"); return }
         if let bar = obBarButton() { lift(button, above: bar) }
         if !button.isSelected { tap(button, "Trainingstag \(day)") }

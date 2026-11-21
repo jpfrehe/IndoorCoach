@@ -1440,6 +1440,14 @@ final class AuditOpeningTests: AuditCase {
 
         // MyWhoosh: Anmelden klappt das Formular auf, Stub-Login lädt Fahrten.
         obTap("onboarding.service.myWhoosh.connect", "MyWhoosh „Anmelden“")
+        // iPhone SE: Der Knopf liegt halb unter der unteren Leiste; landet der Tap während des Hochschiebens, klappt
+        // nichts auf. Dann wie ein Nutzer etwas hochschieben und erneut tippen.
+        if !obEl("whoosh.email").waitForExistence(timeout: 3) {
+            app.swipeUp(velocity: .slow)
+            let connect = obEl("onboarding.service.myWhoosh.connect")
+            if connect.exists { tap(connect, "MyWhoosh „Anmelden“ (zweiter Versuch)") }
+        }
+        check(scrollFinding(obEl("whoosh.email")).waitForExistence(timeout: 4), "Anmeldeformular klappt auf")
         type(obEl("whoosh.email"), "test@example.com", "MyWhoosh-E-Mail")
         type(obEl("whoosh.password"), "irgendein-test-passwort", "MyWhoosh-Passwort")
         shot("5-login-ausgefuellt")
