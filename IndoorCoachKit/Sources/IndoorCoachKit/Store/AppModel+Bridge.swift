@@ -173,22 +173,35 @@ extension AppModel {
             defaults.set(bridge.lastSync, forKey: Keys.bridgeLastSync)
             defaults.set(Array(bridge.knownIDs), forKey: Keys.bridgeKnownIDs)
             Log.notice(.bridge, "Abgleich: \(summary.received) geladen, \(summary.inserted) neu, \(summary.enriched) ergänzt, \(summary.unreadable) unlesbar, \(Self.elapsed(since: started))")
+            syncErrors[.macBridge] = nil
             if let message = Self.bridgeBanner(summary, newest: result.lastInserted, announce: announce) { show(message, error: false) }
             return summary
         } catch let error as BridgeError {
             Log.error(.bridge, "Abgleich fehlgeschlagen: \(error)")
             switch error {
             case .unreachable:
-                if announce && !quietUnreachable { show(Self.bridgeUnreachableMessage, error: true) }
+                if announce && !quietUnreachable {
+                    syncErrors[.macBridge] = "Mac nicht erreichbar."
+                    show(Self.bridgeUnreachableMessage, error: true)
+                }
             case .authenticationFailed:
-                if announce { show("Die Kopplung passt nicht mehr. Löse sie und koppele den Mac neu.", error: true) }
+                if announce {
+                    syncErrors[.macBridge] = "Kopplung passt nicht mehr – neu koppeln."
+                    show("Die Kopplung passt nicht mehr. Löse sie und koppele den Mac neu.", error: true)
+                }
             default:
-                if announce { show("Der Abgleich mit dem Mac ist fehlgeschlagen.", error: true) }
+                if announce {
+                    syncErrors[.macBridge] = "Abgleich fehlgeschlagen."
+                    show("Der Abgleich mit dem Mac ist fehlgeschlagen.", error: true)
+                }
             }
             return nil
         } catch {
             Log.error(.bridge, "Abgleich fehlgeschlagen: \(type(of: error))")
-            if announce { show("Der Abgleich mit dem Mac ist fehlgeschlagen.", error: true) }
+            if announce {
+                syncErrors[.macBridge] = "Abgleich fehlgeschlagen."
+                show("Der Abgleich mit dem Mac ist fehlgeschlagen.", error: true)
+            }
             return nil
         }
     }
