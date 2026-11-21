@@ -77,6 +77,10 @@ Im Simulator und per Loopback ist alles automatisch geprüft, siehe [Brücke §7
 | 6.2 | B13 | Kontrast-Knoten mit dem Accessibility Inspector (Xcode → Open Developer Tool) auf dem iPhone: Einheit-Detail nach „An MyWhoosh senden“ | ☐ |
 | 6.3 | B14 | VoiceOver-Durchlauf: Heute → Einheit → senden, Plan → neu planen, Verlauf → Fahrt, Profil → Mac-Brücke | ☐ |
 | 6.4 | B15 | Release-Build (*Edit Scheme → Run → Release*): Kaltstart < 2 s, Verlauf scrollt flüssig | ☐ |
+| 6.5 | intervals.icu | API-Key verbinden → Fahrten mit Sekundendaten erscheinen, Strava-Dubletten werden ergänzt | ☐ |
+| 6.6 | intervals.icu | Plan übernehmen → Workouts im intervals.icu-Kalender; nach Einschalten der Zwift-Weiterleitung in Zwift unter „Custom Workouts“ | ☐ |
+| 6.7 | intervals.icu | Einheit anpassen und löschen → Termin in intervals.icu aktualisiert bzw. entfernt (mit API-Key evtl. nicht, siehe Plan 19) | ☐ |
+| 6.8 | intervals.icu | Nach OAuth-Freigabe: Anmeldung per „Mit intervals.icu verbinden“, Trennen entfernt die App unter intervals.icu → Einstellungen → Apps | ☐ |
 
 ## 7. Brustgurt (O11/O12, B26)
 

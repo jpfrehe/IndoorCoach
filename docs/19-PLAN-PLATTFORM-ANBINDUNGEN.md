@@ -1,6 +1,6 @@
 # 19 · Plan: Zwift und weitere Indoor-Plattformen anbinden
 
-Stand: 21.11.2026 · **Entwurf zur Freigabe, noch nicht umgesetzt.** Recherche durch einen Agent mit Websuche; **[B]** = belegt, **[V]** = vermutet. Quellen am Ende.
+Stand: 21.11.2026 · **Stufe 2 freigegeben (direkt, App-Store-tauglich), Stufe 1 zurückgestellt.** Recherche durch einen Agent mit Websuche; **[B]** = belegt, **[V]** = vermutet. Quellen am Ende.
 
 ## 1. Ausgangslage
 
@@ -78,6 +78,48 @@ Jede Stufe fügt in „Dienste & Geräte“ eine Zeile hinzu: `ConnectionID.zwif
 3. **MyWhoosh über intervals.icu statt über die inoffizielle API?** Erst an einem echten Konto prüfen [V]. Wenn das klappt, kann der inoffizielle Upload Rückfallweg werden.
 4. **Reihenfolge:** Stufe 1 → Stufe 2, oder direkt Stufe 2?
 
+## 6. Umsetzung Stufe 2 · intervals.icu (freigegeben und umgesetzt 21.11.2026)
+
+Entscheidung: direkt Stufe 2, gleich App-Store-tauglich. Stufe 1 (Zwift über den Mac) ist zurückgestellt.
+
+### App-Store-Tauglichkeit
+
+| Punkt | Umsetzung |
+|---|---|
+| Anmeldung | OAuth 2.0 Authorization Code mit **PKCE (S256)** über `ASWebAuthenticationSession`; `state` wird geprüft |
+| Kein Geheimnis in der App | intervals.icu erlaubt öffentliche Clients mit PKCE ohne Client-Secret [B]; kein eigener Server nötig |
+| Client-ID | öffentlich, steht in `Info.plist` (`IntervalsClientID`). **Vorläufig leer**, bis die App unter intervals.icu/oauth/apply freigegeben ist; die App-Einstellung „Public client“ und „Require PKCE“ dort setzen |
+| Redirect | `indoorcoach://localhost/intervals` (vorhandenes URL-Schema), muss bei intervals.icu exakt eingetragen sein |
+| Scopes | nur `ACTIVITY:READ,CALENDAR:WRITE` |
+| Token | nur Access-Token (intervals.icu kennt kein Refresh), im Schlüsselbund; geht nur an `intervals.icu` |
+| Trennen | `DELETE /api/v1/disconnect-app` (Best Effort), danach Token lokal gelöscht; mit Rückfrage |
+| Übergangsweg | persönlicher API-Key (Basic Auth `API_KEY:<key>`), ausdrücklich „nur für dein eigenes Konto“; erlaubt Tests vor der Freigabe |
+| Datenschutz | Daten gehen auf Wunsch des Nutzers direkt an seinen intervals.icu-Account, nicht an uns; kein neuer Eintrag im Privacy Manifest. Die Detailseite sagt, was gesendet und gelesen wird |
+
+### Endpunkte (OpenAPI `https://intervals.icu/api/v1/docs`)
+
+- Autorisieren: `https://intervals.icu/oauth/authorize?client_id&redirect_uri&scope&state&code_challenge&code_challenge_method=S256`
+- Token: `POST https://intervals.icu/api/oauth/token` (Form: `client_id`, `code`, `code_verifier`), Code innerhalb von 2 min einlösen
+- Pläne: `POST /api/v1/athlete/0/events/bulk?upsert=true&upsertOnUid=false&updatePlanApplied=false`, je Einheit `category: WORKOUT`, `type: Ride`, `start_date_local`, `name`, `filename`, `file_contents` (ZWO), `external_id` = Workout-UUID
+- Löschen: `PUT /api/v1/athlete/0/events/bulk-delete` mit `[{"external_id": …}]`
+- Fahrten: `GET /api/v1/athlete/0/activities?oldest&newest`; Einträge mit `source: STRAVA` werden übersprungen (die API liefert sie nicht aus)
+- FIT: `GET /api/v1/activity/{id}/file` (Original, gzip), Rückfall auf die Werte der Liste
+
+### Arbeitspakete (ECC, Tests zuerst)
+
+| AP | Inhalt | Tests |
+|---|---|---|
+| AP1 | `IntervalsClient`: PKCE, Autorisierung, Token-Austausch, Credential (OAuth/API-Key), Upsert, Bulk-Delete, Fahrtenliste, FIT-Download mit gunzip, Disconnect, Fehler (401, 429, 5xx), Schwärzung | `IntervalsClientTests` mit Stub-Transport, Host-Test |
+| AP2 | `AppModel+Intervals`: Verbinden, Trennen, Senden (automatisch nach „Übernehmen“, nach Anpassen, Löschen entfernt den Termin), Fahrten-Import über `mergeImportedRides`, `syncRides`, `ConnectionID.intervalsICU`, „Alle Daten löschen“ | `IntervalsSyncTests`, `ConnectionStatusTests`, `DeleteAllDataTests` |
+| AP3 | Detailseite „intervals.icu“ auf `ConnectionDetailScaffold`, Zeile im Hub, Senden-Knöpfe in Plan und Einheit, Hinweis zur Weiterleitung an Zwift/Garmin/Wahoo/Rouvy | UI-Test im Walkthrough |
+
+Abschluss: Code- und Security-Review, alle Unit-Tests, UI-Tests auf 402 pt und iPhone SE.
+
+### Stand nach der Umsetzung
+
+- Security-Review: keine kritischen Befunde; umgesetzt u. a. Absturzschutz bei unplausiblen Zahlen, Zugang zuerst lokal löschen und dann bei intervals.icu abmelden, Weiterleitungen nur innerhalb von `https://intervals.icu`, gzip mit Größenlimit beim Entpacken, Schlüsselbund-Fehler sichtbar, 401 und 403 getrennt, Token-Anfrage mit `grant_type` und `redirect_uri`.
+- Bekannte Grenzen: Löschen per `external_id` greift laut API nur für Termine, die die eigene OAuth-App angelegt hat; mit API-Key bleibt ein gelöschter Termin evtl. in intervals.icu. Die Download-Größe wird erst nach dem Laden geprüft. Token-Austausch und Scope-Antwort sind erst nach der OAuth-Freigabe am echten Server prüfbar.
+
 ## Quellen
 
 - Zwift, Drittplattformen (06.11.2026): https://support.zwift.com/en_us/zwift-and-third-party-platforms-SypU0LdVr.md
@@ -87,6 +129,8 @@ Jede Stufe fügt in „Dienste & Geräte“ eine Zeile hinzu: `ConnectionID.zwif
 - intervals.icu × Zwift: https://forum.intervals.icu/t/intervals-icu-and-zwift-integration-is-live/81764
 - intervals.icu, Integration Cookbook: https://forum.intervals.icu/t/intervals-icu-api-integration-cookbook/80090
 - intervals.icu, geplante Workouts hochladen: https://forum.intervals.icu/t/uploading-planned-workouts-to-intervals-icu/63624
+- intervals.icu, OAuth-Support (PKCE, öffentliche Clients): https://forum.intervals.icu/t/intervals-icu-oauth-support/2759
+- intervals.icu, OpenAPI: https://intervals.icu/api/v1/docs
 - intervals.icu, API-Terms (22.10.2025): https://forum.intervals.icu/t/intervals-icu-api-terms-and-conditions/114087
 - Rouvy × intervals.icu: https://support.rouvy.com/hc/en-us/articles/35523188955793-ROUVY-and-Intervals-icu
 - Garmin Personal FAQ: https://developer.garmin.com/gc-developer-program/personal/personal-faq/

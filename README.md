@@ -8,7 +8,7 @@
   <img alt="SwiftUI · SwiftData · Swift Charts" src="https://img.shields.io/badge/SwiftUI-SwiftData%20%C2%B7%20Charts-FFB38A">
   <img alt="Claude API" src="https://img.shields.io/badge/Planung-Claude%20API-B5175A">
   <img alt="Kein Backend" src="https://img.shields.io/badge/Backend-keins-24131D">
-  <img alt="973 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-973-5EDBB8">
+  <img alt="1085 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-1085-5EDBB8">
   <a href="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
@@ -126,6 +126,7 @@ Farbsystem „Sunset Jelly“, geprüft auf iPhone SE und iPhone Pro, mit Dynami
 | Quelle | Was kommt rein | Hinweis |
 |---|---|---|
 | **MyWhoosh** | Fahrten der letzten 210 Tage (Ø-Leistung, Dauer, Distanz, Puls); Upload geplanter Workouts samt Kalendereintrag in MyWhoosh | Inoffizielle Schnittstelle, kann sich ändern |
+| **intervals.icu** | Fahrten samt Original-FIT (Sekundendaten); geplante Einheiten gehen als Workout in deinen intervals.icu-Kalender und von dort auf Wunsch weiter an Zwift, Garmin, Wahoo und Rouvy | Offizielle API. Anmeldung per OAuth (PKCE) folgt nach Freigabe durch intervals.icu, bis dahin persönlicher API-Key. Fahrten, die nur über Strava dort ankommen, liefert die API nicht |
 | **IndoorCoach Brücke (Mac)** | Sekundendaten jeder MyWhoosh-Fahrt, automatisch: volle Leistungskurve, NP, Ermüdungsresistenz, Effizienz | Menüleisten-App liest den MyWhoosh-Ordner, das iPhone holt die Fahrten im WLAN ab ([Konzept](docs/14-SEKUNDENDATEN-MAC-BRUECKE.md)) |
 | **FIT-Dateien** | Sekundendaten für die volle Leistungskurve, Ermüdungsresistenz, Effizienz | Aus der Dateien-App oder „Öffnen in IndoorCoach“, auch von Zwift, Wahoo, Garmin; ergänzt vorhandene Fahrten |
 | **Strava** | Aktivitäten per OAuth | Neue Strava-API-Apps brauchen seit Juni 2026 ein Strava-Abo |
@@ -159,7 +160,7 @@ Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im
 cd IndoorCoach/IndoorCoachKit && swift test
 ```
 
-Dazu kommen 58 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
+Dazu kommen 59 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
 
 **CI/CD:** GitHub Actions baut iPhone-App und Mac-Brücke und testet jeden Push ([ci.yml](.github/workflows/ci.yml)). Ein Tag `v1.2.3` startet [release.yml](.github/workflows/release.yml): Archiv, Signierung per App-Store-Connect-API-Key, Upload zu TestFlight. Einrichtung in [docs/13-APP-STORE-RELEASE.md](docs/13-APP-STORE-RELEASE.md).
 
