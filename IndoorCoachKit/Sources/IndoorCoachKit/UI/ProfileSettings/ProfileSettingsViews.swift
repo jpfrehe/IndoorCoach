@@ -49,7 +49,7 @@ struct CoachSettingsView: View {
             } footer: {
                 Text("API-Key aus console.anthropic.com (nicht das claude.ai-Abo). Der Key liegt nur im Schlüsselbund dieses iPhones. Ein Plan kostet mit Opus 5.5 ca. 0,10 $.")
             }
-            // ANCHOR-W4C (Profil → Datenschutz: Claude-Einwilligung)
+            // ANCHOR-W4C (Profil → Coach · Claude: Claude-Einwilligung)
             ClaudePrivacySection()
         }
         .scrollContentBackground(.hidden)

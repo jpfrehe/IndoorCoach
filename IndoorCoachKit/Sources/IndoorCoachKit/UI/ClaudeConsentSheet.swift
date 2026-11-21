@@ -63,7 +63,7 @@ struct ClaudeConsentExplainer: View {
             block("Wozu", [
                 "Bei schlechterer Erholung plant Claude vorsichtiger: weniger Intensität oder Umfang, keine gestrichenen Einheiten"
             ])
-            Text("Die Übertragung läuft direkt von deinem Gerät mit deinem eigenen API-Key. Du kannst jederzeit unter Profil → Datenschutz widerrufen. Ohne Einwilligung plant Claude wie bisher ohne diese Angaben.")
+            Text("Die Übertragung läuft direkt von deinem Gerät mit deinem eigenen API-Key. Du kannst jederzeit unter Profil → Coach · Claude widerrufen. Ohne Einwilligung plant Claude wie bisher ohne diese Angaben.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
         .font(.subheadline)
@@ -98,7 +98,7 @@ struct ClaudeConsentPreview: View {
     }
 }
 
-/// Profil → Datenschutz: Schalter, Vorschau, Widerruf.
+/// Profil → Coach · Claude → Datenschutz: Schalter, Vorschau, Widerruf.
 struct ClaudePrivacySection: View {
     @Environment(AppModel.self) private var model
     @State private var consent: ClaudeConsent?

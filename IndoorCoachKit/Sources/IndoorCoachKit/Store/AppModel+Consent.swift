@@ -45,7 +45,7 @@ extension AppModel {
         defaults.set(true, forKey: ConsentKeys.asked)
     }
 
-    /// „Nicht senden“ in der Abfrage: wird nicht erneut gefragt (Profil → Datenschutz bleibt erreichbar).
+    /// „Nicht senden“ in der Abfrage: wird nicht erneut gefragt (Profil → Coach · Claude bleibt erreichbar).
     public func declineClaudeConsent() {
         defaults.removeObject(forKey: ConsentKeys.consent)
         defaults.set(true, forKey: ConsentKeys.asked)
