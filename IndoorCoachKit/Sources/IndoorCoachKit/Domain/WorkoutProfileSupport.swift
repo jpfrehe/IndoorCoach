@@ -14,10 +14,16 @@ enum WorkoutProfileSupport {
     /// One VoiceOver sentence: duration, section count, peak, dominant zones and interval sets.
     /// Example: "1 h, 3 Abschnitte, Spitze 115 % FTP (288 W), überwiegend Z1 und Z5, 5 Intervalle à 4:00".
     static func summary(definition: WorkoutDefinition, ftp: Int) -> String {
-        let peak = definition.steps.map { max($0.startPower, $0.endPower) }.max() ?? 0
+        let sections = definition.segments.count == 1 ? "1 Abschnitt" : "\(definition.segments.count) Abschnitte"
+        // Corrupt repeat counts would unroll into millions of steps: name the section count only.
+        guard !WorkoutProfileGeometry.exceedsRepeatLimit(definition) else {
+            return "\(sections), mehr als \(WorkoutProfileGeometry.maxRepeats) Wiederholungen"
+        }
+        let peak = min(definition.steps.map { max(WorkoutProfileGeometry.finite($0.startPower), WorkoutProfileGeometry.finite($0.endPower)) }.max() ?? 0,
+                       WorkoutProfileGeometry.maxDomainTop)
         var parts = [
             Formatters.duration(definition.totalDuration),
-            "\(definition.segments.count) Abschnitte",
+            sections,
             "Spitze \(Int((peak * 100).rounded())) % FTP (\(Int((peak * Double(ftp)).rounded())) W)",
         ]
         let zones = definition.timeInZones()
@@ -54,11 +60,13 @@ enum WorkoutProfileSupport {
 
     /// "Abschnitt 3 · 4:00 @ 115 % (288 W) · Z5" – ramps read "10:00 @ 50 → 70 % (125 → 175 W) · Z1–Z2".
     static func selectionText(definition: WorkoutDefinition, ftp: Int, stepIndex: Int) -> String? {
+        guard !WorkoutProfileGeometry.exceedsRepeatLimit(definition) else { return nil }
         let steps = definition.steps
         guard steps.indices.contains(stepIndex) else { return nil }
         let step = steps[stepIndex]
-        func pct(_ p: Double) -> Int { Int((p * 100).rounded()) }
-        func watts(_ p: Double) -> Int { Int((p * Double(ftp)).rounded()) }
+        func clean(_ p: Double) -> Double { min(max(WorkoutProfileGeometry.finite(p), 0), WorkoutProfileGeometry.maxDomainTop) }
+        func pct(_ p: Double) -> Int { Int((clean(p) * 100).rounded()) }
+        func watts(_ p: Double) -> Int { Int((clean(p) * Double(ftp)).rounded()) }
         let power: String, zone: String
         if pct(step.startPower) == pct(step.endPower) {
             power = "\(pct(step.startPower)) % (\(watts(step.startPower)) W)"
@@ -84,9 +92,10 @@ enum WorkoutProfileSupport {
     /// Points of the audio graph: minute and watts at the start and end of every step.
     static func audioPoints(definition: WorkoutDefinition, ftp: Int) -> [(minute: Double, watts: Double)] {
         var result: [(minute: Double, watts: Double)] = []
+        guard !WorkoutProfileGeometry.exceedsRepeatLimit(definition) else { return result }
         for step in definition.steps where step.duration > 0 {
-            result.append((Double(step.start) / 60, step.startPower * Double(ftp)))
-            result.append((Double(step.start + step.duration) / 60, step.endPower * Double(ftp)))
+            result.append((Double(step.start) / 60, WorkoutProfileGeometry.finite(step.startPower) * Double(ftp)))
+            result.append((Double(step.start + step.duration) / 60, WorkoutProfileGeometry.finite(step.endPower) * Double(ftp)))
         }
         return result
     }

@@ -56,16 +56,22 @@ struct AerobicEfficiencyCard: View {
         let pieces = ChartMath.segments(series.map(\.weekStart), splitWhenGapExceeds: 15 * 86_400)
         return Chart {
             ForEach(Array(pieces.enumerated()), id: \.offset) { n, range in
-                ForEach(series[range]) { p in
-                    if series.count >= 4 {
-                        AreaMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef), series: .value("Teil", "Fläche\(n)"))
-                            .interpolationMethod(.monotone)
-                            .foregroundStyle(ChartStyle.area(Theme.accent, dark: dark))
+                if range.count == 1, let only = series[range].first {
+                    // A lone week after a gap has no line to draw: show it as a dot.
+                    PointMark(x: .value("Woche", only.weekStart), y: .value("Effizienz", only.ef))
+                        .symbolSize(30).foregroundStyle(Theme.accent)
+                } else {
+                    ForEach(series[range]) { p in
+                        if series.count >= 4 {
+                            AreaMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef), series: .value("Teil", "Fläche\(n)"))
+                                .interpolationMethod(.monotone)
+                                .foregroundStyle(ChartStyle.area(Theme.accent, dark: dark))
+                        }
+                        LineMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef), series: .value("Teil", "Linie\(n)"))
+                            .interpolationMethod(ChartStyle.interpolation(pointCount: range.count))
+                            .lineStyle(ChartStyle.stroke(.main))
+                            .foregroundStyle(Theme.accent)
                     }
-                    LineMark(x: .value("Woche", p.weekStart), y: .value("Effizienz", p.ef), series: .value("Teil", "Linie\(n)"))
-                        .interpolationMethod(ChartStyle.interpolation(pointCount: series.count))
-                        .lineStyle(ChartStyle.stroke(.main))
-                        .foregroundStyle(Theme.accent)
                 }
             }
             if series.count <= ChartStyle.maxMarkers {
@@ -123,11 +129,9 @@ struct AerobicEfficiencyCard: View {
 
     static func summary(_ series: [AerobicEfficiency.WeekPoint]) -> String {
         guard let first = series.first, let last = series.last else { return "Keine Daten" }
-        let day = DateFormatter()
-        day.locale = Locale.de
-        day.dateFormat = "d. MMMM"
-        return "\(series.count) Wochen. Erste Woche ab \(day.string(from: first.weekStart)): \(Formatters.decimal(first.ef, digits: 2)). "
-            + "Letzte Woche ab \(day.string(from: last.weekStart)): \(Formatters.decimal(last.ef, digits: 2))."
+        func day(_ date: Date) -> String { DayFormatters.shared.string(from: date, format: "d. MMMM", calendar: .current) }
+        return "\(series.count) Wochen. Erste Woche ab \(day(first.weekStart)): \(Formatters.decimal(first.ef, digits: 2)). "
+            + "Letzte Woche ab \(day(last.weekStart)): \(Formatters.decimal(last.ef, digits: 2))."
     }
 }
 

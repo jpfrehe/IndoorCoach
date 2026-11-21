@@ -50,4 +50,12 @@ struct ChartSeriesTests {
         #expect(ChartSeries.targetSteps(ramp).count <= ChartSeries.maxActualPoints)
         #expect(ChartSeries.targetSteps([]).isEmpty)
     }
+
+    @Test func thinnedActualKeepsAlreadySmoothedValues() {
+        let smooth = (0..<900).map { Double(100 + $0 % 7) }
+        let thinned = ChartSeries.thinnedActual(smooth, maxPoints: 1000)
+        #expect(thinned.count == smooth.count)
+        #expect(zip(thinned, smooth).allSatisfy { $0.watts == $1 })   // no second 30 s mean
+        #expect(ChartSeries.thinnedActual(smooth, maxPoints: 100).count <= 100)
+    }
 }

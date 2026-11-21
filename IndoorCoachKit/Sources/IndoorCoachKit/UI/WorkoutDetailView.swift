@@ -134,7 +134,7 @@ struct WorkoutDetailContent: View {
                 ForEach(Array(d.segments.enumerated()), id: \.offset) { _, segment in
                     HStack(alignment: .top, spacing: 10) {
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(Theme.cap(PowerZone(fractionOfFTP: segment.onPower ?? segment.power ?? segment.powerHigh ?? 0.5)))
+                            .fill(ChartPalette.zone(PowerZone(fractionOfFTP: segment.onPower ?? segment.power ?? segment.powerHigh ?? 0.5)))
                             .frame(width: 4)
                         Text(segment.describe(ftp: ftp)).font(.subheadline)
                         Spacer(minLength: 0)

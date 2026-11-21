@@ -5,7 +5,6 @@ import SwiftUI
 public struct IntervalComplianceCard: View {
     let workout: StoredWorkout
     @Environment(AppModel.self) private var model
-    @State private var selectedMinute: Double?
 
     public init(workout: StoredWorkout) {
         self.workout = workout
@@ -19,14 +18,8 @@ public struct IntervalComplianceCard: View {
                         .font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("compliance.summary")
-                    ComplianceChart(result: result, definition: workout.definition, ftp: model.profile.ftp,
-                                    selectedMinute: $selectedMinute)
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(result.intervals) { interval in
-                            ComplianceRow(interval: interval, baseline: result.isBaseline,
-                                          isUnderFinger: selectedMinute.map { Self.contains(interval, minute: $0) } ?? false)
-                        }
-                    }
+                    // The selection lives in the child: tapping the chart never re-runs this body.
+                    ComplianceContent(result: result, definition: workout.definition, ftp: model.profile.ftp)
                 }
             }
             .accessibilityElement(children: .contain)
@@ -43,10 +36,62 @@ extension IntervalComplianceCard {
     }
 }
 
-private struct ComplianceChart: View {
+/// Chart and rows of one result; owns the selected minute.
+private struct ComplianceContent: View {
     let result: IntervalCompliance.Result
     let definition: WorkoutDefinition
     let ftp: Int
+    private let data: ComplianceChartData
+    @State private var selectedMinute: Double?
+
+    init(result: IntervalCompliance.Result, definition: WorkoutDefinition, ftp: Int) {
+        self.result = result
+        self.definition = definition
+        self.ftp = ftp
+        data = ComplianceChartData(result: result, definition: definition, ftp: ftp)
+    }
+
+    var body: some View {
+        ComplianceChart(result: result, definition: definition, data: data, selectedMinute: $selectedMinute)
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(result.intervals) { interval in
+                ComplianceRow(interval: interval, baseline: result.isBaseline,
+                              isUnderFinger: selectedMinute.map { IntervalComplianceCard.contains(interval, minute: $0) } ?? false)
+            }
+        }
+    }
+}
+
+/// Series, axis and means of a result: independent of the selection, built once per result.
+private struct ComplianceChartData {
+    let soll: [ChartSeries.TimedValue]
+    let ist: [ChartSeries.TimedValue]
+    let totalMinutes: Double
+    let top: Double
+    let ticks: [Double]
+    let meanSoll: Double
+    let meanIst: Double
+    let sentence: String
+
+    init(result: IntervalCompliance.Result, definition: WorkoutDefinition, ftp: Int) {
+        soll = ChartSeries.targetSteps(result.targetSeries)
+        // `actualSeries` is already the 30-s mean (IntervalCompliance); thin it, do not smooth it twice.
+        ist = ChartSeries.thinnedActual(result.actualSeries)
+        totalMinutes = max(Double(max(definition.totalDuration, result.targetSeries.count)) / 60, 1.0 / 60)
+        let top = WorkoutProfileGeometry.domainTop(for: definition, variant: .detail) * Double(ftp)
+        self.top = top
+        ticks = ChartMath.niceTicks(min: 0, max: top, count: 4).filter { $0 <= top + 1e-6 }
+        meanSoll = result.targetSeries.isEmpty ? 0 : result.targetSeries.reduce(0, +) / Double(result.targetSeries.count)
+        let running = result.actualSeries.filter { $0 > 0 }
+        meanIst = running.isEmpty ? 0 : running.reduce(0, +) / Double(running.count)
+        sentence = result.summary
+    }
+}
+
+private struct ComplianceChart: View {
+    let result: IntervalCompliance.Result
+    let definition: WorkoutDefinition
+    let data: ComplianceChartData
     @Binding var selectedMinute: Double?
     @Environment(\.colorScheme) private var scheme
     @Environment(\.displayScale) private var displayScale
@@ -61,18 +106,11 @@ private struct ComplianceChart: View {
 
     var body: some View {
         let dark = scheme == .dark
-        let soll = ChartSeries.targetSteps(result.targetSeries)
-        let ist = ChartSeries.smoothedActual(result.actualSeries)
-        let totalMinutes = max(Double(max(definition.totalDuration, result.targetSeries.count)) / 60, 1.0 / 60)
-        let top = WorkoutProfileGeometry.domainTop(for: definition, variant: .detail) * Double(ftp)
-        let ticks = ChartMath.niceTicks(min: 0, max: top, count: 4).filter { $0 <= top + 1e-6 }
+        let soll = data.soll, ist = data.ist, top = data.top, ticks = data.ticks, totalMinutes = data.totalMinutes
         let minute = selectedMinute.map { min(max($0, 0), totalMinutes) }
         let shownSoll = minute.flatMap { value(result.targetSeries, at: $0) }
         let shownIst = minute.flatMap { value(result.actualSeries, at: $0) }
-        let meanSoll = result.targetSeries.isEmpty ? 0 : result.targetSeries.reduce(0, +) / Double(result.targetSeries.count)
-        let running = result.actualSeries.filter { $0 > 0 }
-        let meanIst = running.isEmpty ? 0 : running.reduce(0, +) / Double(running.count)
-        let sentence = result.summary
+        let meanSoll = data.meanSoll, meanIst = data.meanIst, sentence = data.sentence
         VStack(alignment: .leading, spacing: 8) {
             ChartCardHeader(items: [
                 .init(label: minute == nil ? "Soll Ø" : "Soll", value: watts(minute == nil ? meanSoll : shownSoll),
@@ -99,7 +137,6 @@ private struct ComplianceChart: View {
             .chartXScale(domain: 0...totalMinutes)
             .chartYScale(domain: 0...top)
             .chartXSelection(value: $selectedMinute)
-            .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
             .chartStyleAxes(yTicks: ticks, yLabel: { v in ChartMath.format(v) + (v == ticks.last ? " W" : "") }, showsX: false)
             .chartXAxis {
                 AxisMarks(values: ChartMath.minuteTicks(total: totalMinutes * 60)) { value in
@@ -117,7 +154,7 @@ private struct ComplianceChart: View {
                         let origin = CGPoint(x: (frame.minX * scale).rounded() / scale, y: (frame.minY * scale).rounded() / scale)
                         let size = CGSize(width: (frame.width * scale).rounded() / scale, height: (frame.height * scale).rounded() / scale)
                         Canvas { context, canvasSize in
-                            let blocks = WorkoutProfileGeometry.make(definition: definition, size: canvasSize, scale: scale, variant: .detail)
+                            let blocks = WorkoutProfileGeometry.cachedMake(definition: definition, size: canvasSize, scale: scale, variant: .detail)
                             context.opacity = 0.2
                             WorkoutProfileRenderer.draw(blocks, in: &context, size: canvasSize, scale: scale,
                                                         style: WorkoutProfileRenderer.Style())

@@ -115,4 +115,22 @@ struct WorkoutProfileSupportTests {
         #expect(tight.count == 6)
         #expect(abs(tight.reduce(0) { $0 + $1.width } + 2 * 5 - 20) < 1e-6 || tight.allSatisfy { $0.width > 0 })
     }
+
+    // MARK: Review fixes (L14, L16)
+
+    @Test func summaryUsesSingularForOneSection() {
+        let one = WorkoutDefinition(title: "T", type: .mixed, summary: "", segments: [.steady(10, at: 0.6)])
+        let text = S.summary(definition: one, ftp: 250)
+        #expect(text.contains("1 Abschnitt,"))
+        #expect(!text.contains("1 Abschnitte"))
+        let two = WorkoutDefinition(title: "T", type: .mixed, summary: "", segments: [.steady(10, at: 0.6), .steady(5, at: 0.5)])
+        #expect(S.summary(definition: two, ftp: 250).contains("2 Abschnitte"))
+    }
+
+    @Test func summaryAndAudioPointsSurviveAbsurdRepeats() {
+        let d = WorkoutDefinition(title: "T", type: .mixed, summary: "",
+                                  segments: [.intervals(WorkoutProfileGeometry.maxRepeats + 1, on: 1, at: 1.0, off: 1, at: 0.5)])
+        #expect(S.summary(definition: d, ftp: 250).contains("1 Abschnitt"))
+        #expect(S.audioPoints(definition: d, ftp: 250).isEmpty)
+    }
 }

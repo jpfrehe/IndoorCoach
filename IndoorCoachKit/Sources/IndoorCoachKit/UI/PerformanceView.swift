@@ -328,7 +328,6 @@ private struct PowerCurveCard: View {
             .chartXScale(domain: 1...maxDuration, type: .log)
             .chartYScale(domain: lower...upper)
             .chartXSelection(value: $selected)
-            .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
             .chartStyleAxes(yTicks: ticks, yLabel: { v in ChartMath.format(v) + (v == ticks.last ? " W" : "") }, showsX: false)
             .chartXAxis {
                 // Log axis: 5 s / 1 / 5 / 20 min, 60 min only with enough data (it crowds 20 min).
@@ -411,7 +410,6 @@ private struct VO2TrendChart: View {
         }
         .chartYScale(domain: lower...upper)
         .chartXSelection(value: $selected)
-        .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
         .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0, decimals: decimals) }, showsX: false)
         .chartXAxis {
             AxisMarks(values: points.map(\.windowEnd)) { _ in

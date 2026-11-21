@@ -123,4 +123,50 @@ struct ChartMathTests {
         #expect(ChartMath.seriesSentence(name: "X", values: []) == "X: keine Daten.")
         #expect(ChartMath.seriesSentence(name: "X", values: [4]).contains("X 4"))
     }
+
+    // MARK: Review fixes (M7, M8, L13)
+
+    @Test func niceTicksOfNothingStayInsideZeroDomain() {
+        // An all-zero series (e.g. an empty week chart) must not produce negative ticks below the 0…upper domain.
+        #expect(ChartMath.niceTicks(min: 0, max: 0, count: 4) == [0, 1])
+    }
+
+    @Test func nonFiniteInputsNeverCrash() {
+        #expect(ChartMath.niceTicks(min: 0, max: .infinity, count: 4) == [0, 1])
+        #expect(ChartMath.niceTicks(min: .nan, max: 5, count: 4) == [0, 1])
+        #expect(ChartMath.niceTicks(min: -.infinity, max: .infinity, count: 4) == [0, 1])
+        #expect(ChartMath.niceTicks(min: -1e308, max: 1e308, count: 4).count >= 2)
+        #expect(ChartMath.minuteTicks(total: .infinity) == [0])
+        #expect(ChartMath.minuteTicks(total: .nan) == [0])
+        #expect(ChartMath.minuteTicks(total: 1e15).count <= 50)
+        #expect(ChartMath.powerCurveTicks(maxDuration: .nan).first == 5)
+    }
+
+    @Test func floorIndexPicksTheWeekThatContainsTheTarget() {
+        let week = 7 * 86_400.0
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let weeks = (0..<4).map { start.addingTimeInterval(Double($0) * week) }
+        // 6 days into week 1 is still week 1 (nearest would jump to week 2).
+        #expect(ChartMath.floorIndex(weeks, at: weeks[1].addingTimeInterval(6 * 86_400)) == 1)
+        #expect(ChartMath.floorIndex(weeks, at: weeks[2]) == 2)
+        #expect(ChartMath.floorIndex(weeks, at: weeks[3].addingTimeInterval(2 * week)) == 3)
+        // Before the first start: clamp to the first bar.
+        #expect(ChartMath.floorIndex(weeks, at: start.addingTimeInterval(-1000)) == 0)
+        #expect(ChartMath.floorIndex([], at: start) == nil)
+    }
+
+    @Test func weekBarSelectionDoesNotJumpToTheNextWeek() {
+        let week = 7 * 86_400.0
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let bars = (0..<3).map { WeekBarsChart.Bar(weekStart: start.addingTimeInterval(Double($0) * week), value: Double($0)) }
+        let picked = WeekBarsChart.selectedBar(in: bars, raw: bars[0].weekStart.addingTimeInterval(5 * 86_400))
+        #expect(picked == bars[0])
+        #expect(WeekBarsChart.selectedBar(in: bars, raw: nil) == nil)
+    }
+
+    @Test func formatKeepsGermanCommaAndHandlesOddValues() {
+        #expect(ChartMath.format(3.5, decimals: 1) == "3,5")
+        #expect(ChartMath.format(-0.25, decimals: 2).hasSuffix("0,25"))
+        #expect(!ChartMath.format(.nan, decimals: 1).isEmpty)
+    }
 }

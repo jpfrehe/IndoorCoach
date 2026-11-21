@@ -3,21 +3,16 @@ import SwiftData
 import SwiftUI
 
 /// S11 – Fitness & Freshness: fitness, fatigue and form over a selectable range, tap a day for its values.
+/// The expensive preparation (series, shadow, ticks, sentences) depends on rides and range only and lives here; the
+/// selection lives in `FitnessFreshnessContent`, so tapping a day never recomputes it.
 struct FitnessFreshnessView: View {
     @Environment(AppModel.self) private var model
     @Query(sort: \StoredRide.startDate) private var storedRides: [StoredRide]
     @State private var range: FitnessFreshness.Range = .days90
-    @State private var selectedDate: Date?
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         let series = model.fitnessSeries(rides: storedRides.map(\.summary))
-        let points = series.points(in: range)
-        let selected = selectedPoint(in: points)
-        let shadow = points.first.flatMap { first in
-            points.last.flatMap { SeasonShadow.points(from: series.points, window: first.date...$0.date) }
-        }
+        let data = FitnessFreshnessData(series: series, range: range)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Picker("Zeitraum", selection: $range) {
@@ -25,16 +20,9 @@ struct FitnessFreshnessView: View {
                 }
                 .pickerStyle(.segmented)
 
-                if let shown = selected ?? points.last {
-                    header(shown, isToday: selected == nil, delta: series.fitnessDelta7)
-                    Card(title: "Fitness & Ermüdung", systemImage: "waveform.path.ecg") {
-                        loadChart(points, selected: selected, shadow: shadow, shown: shown)
-                        legend(showsShadow: shadow != nil)
-                    }
-                    Card(title: "Form (Fitness − Ermüdung)", systemImage: "gauge.with.dots.needle.33percent") {
-                        formChart(points)
-                        formLegend
-                    }
+                if data.points.last != nil {
+                    // A new range starts without a selection (the old date may lie outside it).
+                    FitnessFreshnessContent(data: data).id(range)
                 } else {
                     EmptyStateView(title: "Noch keine Fahrten", systemImage: "chart.line.uptrend.xyaxis",
                                    message: "Sobald Fahrten da sind, siehst du hier, wie sich Fitness und Form entwickeln.")
@@ -48,9 +36,73 @@ struct FitnessFreshnessView: View {
         .inlineNavigationTitle()
     }
 
-    private func selectedPoint(in points: [FitnessFreshness.Point]) -> FitnessFreshness.Point? {
-        guard let selectedDate else { return nil }
-        return points.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
+    private func explanation(_ series: FitnessFreshness.Series) -> some View {
+        Card(title: "So wird gerechnet", systemImage: "info.circle") {
+            Text("Fitness ist deine Trainingslast der letzten 42 Tage, Ermüdung die der letzten 7 Tage (Banister/Coggan). Form = Fitness − Ermüdung vom Vortag: positiv heißt erholt, deutlich negativ heißt du baust gerade auf.")
+                .font(.subheadline)
+            Text(series.effortFactor.map { "Fahrten ohne Leistungsmesser zählen über deinen Relative Effort mit (persönlicher Faktor \(Formatters.decimal($0, digits: 2)) TSS je Punkt, aus Fahrten mit beidem)." }
+                 ?? "Fahrten ohne Leistungsmesser werden geschätzt, bis 10 Fahrten mit Leistung und Herzfrequenz einen persönlichen Faktor ergeben.")
+                .font(.footnote)
+                .foregroundStyle(Theme.rowSecondary)
+        }
+    }
+}
+
+/// Everything the charts need that does not depend on the selected day.
+struct FitnessFreshnessData {
+    let delta7: Double
+    let points: [FitnessFreshness.Point]
+    let shadow: [SeasonShadow.Point]?
+    let loadTicks: [Double]
+    let loadSentence: String
+    let formTicks: [Double]
+    let formSentence: String
+
+    init(series: FitnessFreshness.Series, range: FitnessFreshness.Range) {
+        let points = series.points(in: range)
+        self.points = points
+        delta7 = series.fitnessDelta7
+        shadow = points.first.flatMap { first in
+            points.last.flatMap { SeasonShadow.points(from: series.points, window: first.date...$0.date) }
+        }
+        let values = points.flatMap { [$0.fitness, $0.fatigue] } + (shadow ?? []).map(\.fitness)
+        loadTicks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 4)
+        loadSentence = ChartMath.seriesSentence(name: "Fitness", values: points.map(\.fitness), period: "\(points.count) Tagen")
+        let forms = points.map(\.form)
+        let band = ChartSeries.balancedFormBand
+        formTicks = ChartMath.niceTicks(min: min(forms.min() ?? 0, band.lowerBound), max: max(forms.max() ?? 0, band.upperBound), count: 4)
+        formSentence = ChartMath.seriesSentence(name: "Form", values: forms, period: "\(points.count) Tagen")
+    }
+}
+
+/// Header, both charts and legends for one prepared range; owns the day selection.
+private struct FitnessFreshnessContent: View {
+    let data: FitnessFreshnessData
+    @State private var selectedDate: Date?
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        let selected = selectedPoint
+        if let shown = selected ?? data.points.last {
+            VStack(alignment: .leading, spacing: 16) {
+                header(shown, isToday: selected == nil, delta: data.delta7)
+                Card(title: "Fitness & Ermüdung", systemImage: "waveform.path.ecg") {
+                    loadChart(selected: selected, shown: shown)
+                    legend(showsShadow: data.shadow != nil)
+                }
+                Card(title: "Form (Fitness − Ermüdung)", systemImage: "gauge.with.dots.needle.33percent") {
+                    formChart(selected: selected)
+                    formLegend
+                }
+            }
+        }
+    }
+
+    /// The day a selection falls on: the last day at or before the raw x value (bars span their whole day).
+    private var selectedPoint: FitnessFreshness.Point? {
+        guard let selectedDate, let i = ChartMath.floorIndex(data.points.map(\.date), at: selectedDate) else { return nil }
+        return data.points[i]
     }
 
     private func header(_ p: FitnessFreshness.Point, isToday: Bool, delta: Double) -> some View {
@@ -82,16 +134,14 @@ struct FitnessFreshnessView: View {
         .accessibilityElement(children: .contain)
     }
 
-    private func loadChart(_ points: [FitnessFreshness.Point], selected: FitnessFreshness.Point?,
-                           shadow: [SeasonShadow.Point]?, shown: FitnessFreshness.Point) -> some View {
+    private func loadChart(selected: FitnessFreshness.Point?, shown: FitnessFreshness.Point) -> some View {
         let dark = scheme == .dark
-        let values = points.flatMap { [$0.fitness, $0.fatigue] } + (shadow ?? []).map(\.fitness)
-        let ticks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 4)
+        let points = data.points, shadow = data.shadow
+        let ticks = data.loadTicks
         let lower = ticks.first ?? 0, upper = ticks.last ?? 1
         let method = ChartStyle.interpolation(pointCount: points.count)
         let previous = shadow.flatMap { SeasonShadow.fitness(on: shown.date, in: $0) }
-        let sentence = ChartMath.seriesSentence(name: "Fitness", values: points.map(\.fitness), period: "\(points.count) Tagen")
-            + " Ermüdung \(ChartMath.format(shown.fatigue)). "
+        let sentence = data.loadSentence + " Ermüdung \(ChartMath.format(shown.fatigue)). "
             + SeasonShadow.comparisonText(today: shown.fitness, previous: previous)
         return Chart {
             ForEach(points) { p in
@@ -118,7 +168,6 @@ struct FitnessFreshnessView: View {
         }
         .chartYScale(domain: lower...upper)
         .chartXSelection(value: $selectedDate)
-        .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
         .chartStyleAxes(yTicks: ticks, xCount: 4)
         .environment(\.locale, Locale.de)
         .chartStyleAnimation(value: selected?.date)
@@ -130,12 +179,11 @@ struct FitnessFreshnessView: View {
                 series: [("Fitness", points.map { ($0.date, $0.fitness) }), ("Ermüdung", points.map { ($0.date, $0.fatigue) })]))
     }
 
-    private func formChart(_ points: [FitnessFreshness.Point]) -> some View {
-        let forms = points.map(\.form)
+    private func formChart(selected: FitnessFreshness.Point?) -> some View {
+        let points = data.points
         let band = ChartSeries.balancedFormBand
-        let ticks = ChartMath.niceTicks(min: min(forms.min() ?? 0, band.lowerBound), max: max(forms.max() ?? 0, band.upperBound), count: 4)
+        let ticks = data.formTicks
         let lower = ticks.first ?? -10, upper = ticks.last ?? 10
-        let selected = selectedPoint(in: points)
         return Chart {
             RectangleMark(yStart: .value("Band unten", band.lowerBound), yEnd: .value("Band oben", band.upperBound))
                 .foregroundStyle(ChartPalette.band)
@@ -157,12 +205,11 @@ struct FitnessFreshnessView: View {
         }
         .chartYScale(domain: lower...upper)
         .chartXSelection(value: $selectedDate)
-        .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
         .chartStyleAxes(yTicks: ticks, showsX: false)
         .chartStyleHeight(ChartStyle.heightSmall)
         .chartAccessibility(
             label: "Form pro Tag",
-            value: ChartMath.seriesSentence(name: "Form", values: forms, period: "\(points.count) Tagen"))
+            value: data.formSentence)
     }
 
     /// Two poles by sign plus the neutral band (no zone rainbow); the chip in the header carries the form state.
@@ -213,25 +260,14 @@ struct FitnessFreshnessView: View {
     }
 }
 
-/// Small legend for the form colours (same jelly scale as the zones).
-struct FormZoneLegend: View {
-    var body: some View {
-        let zones: [(String, Double)] = [("Frisch", 10), ("Ausgewogen", 0), ("Produktiv", -20), ("Überlastet", -35)]
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), alignment: .leading)], alignment: .leading, spacing: 6) {
-            ForEach(zones, id: \.0) { name, tsb in
-                JellyChip(text: name, fill: Theme.formColor(tsb))
-            }
-        }
-    }
-}
-
 /// Legend entry for the Vorjahres-Schatten: a dashed muted swatch and "Vorjahr".
 struct ShadowLegendItem: View {
     var body: some View {
         Label {
             Text("Vorjahr")
         } icon: {
-            Capsule().stroke(Theme.shadowLine, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 3]))
+            // Same stroke as the chart's previous-year line: reference colour, dotted.
+            Capsule().stroke(ChartPalette.reference, style: ChartStyle.stroke(.previous))
                 .frame(width: 18, height: 2)
         }
         .accessibilityIdentifier("shadow.legend")
@@ -253,16 +289,12 @@ struct ShadowLegend: View {
 
     @ViewBuilder
     private var items: some View {
-        Label { Text("Fitness") } icon: { Circle().fill(Theme.fitnessLine).frame(width: 8, height: 8) }
+        Label { Text("Fitness") } icon: { Circle().fill(ChartPalette.fitness).frame(width: 8, height: 8) }
         Label { Text("Kurs") } icon: {
-            Capsule().stroke(Theme.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [4, 3]))
+            // The course is a target line: reference colour, dashed (as in the chart).
+            Capsule().stroke(ChartPalette.reference, style: ChartStyle.stroke(.target))
                 .frame(width: 18, height: 2)
         }
         if showsShadow { ShadowLegendItem() }
     }
-}
-
-extension Theme {
-    /// Vorjahres-Schatten (G6): a muted line that stays >= 3:1 against the card, never competing with the fitness curve.
-    static let shadowLine = Color.primary.opacity(0.55)
 }

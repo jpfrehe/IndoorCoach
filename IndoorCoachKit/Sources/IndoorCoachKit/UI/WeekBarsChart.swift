@@ -23,9 +23,10 @@ struct WeekBarsChart: View {
     var xStrideCount = 2
     var height: CGFloat = ChartStyle.heightNormal
 
-    /// The bar a selection resolves to.
+    /// The bar a selection resolves to: the last week starting at or before the raw x value (a tap inside a bar's span
+    /// never lands on the following week).
     static func selectedBar(in bars: [Bar], raw: Date?) -> Bar? {
-        guard let raw, let i = ChartMath.nearest(bars.map(\.weekStart), to: raw) else { return nil }
+        guard let raw, let i = ChartMath.floorIndex(bars.map(\.weekStart), at: raw) else { return nil }
         return bars[i]
     }
 
@@ -33,7 +34,7 @@ struct WeekBarsChart: View {
         let flags = ChartSeries.currentWeekFlags(weekStarts: bars.map(\.weekStart), now: .now)
         let selectedBar = Self.selectedBar(in: bars, raw: selection?.wrappedValue)
         let top = max(bars.map(\.value).max() ?? 0, line?.value ?? 0)
-        let ticks = ChartMath.niceTicks(min: 0, max: top, count: 4)
+        let ticks = ChartMath.niceTicks(min: 0, max: top, count: 4).filter { $0 >= 0 }
         let upper = ticks.last ?? 1
         let chart = Chart {
             ForEach(Array(bars.enumerated()), id: \.element.id) { index, bar in
@@ -64,9 +65,8 @@ struct WeekBarsChart: View {
         .chartStyleHeight(height)
         .chartAccessibility(label: accessibilityLabel, value: accessibilityValue)
         if let selection {
-            chart
-                .chartXSelection(value: selection)
-                .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
+            // `chartXSelection` covers tap and drag; a second tap gesture would fight vertical scrolling.
+            chart.chartXSelection(value: selection)
         } else {
             chart
         }

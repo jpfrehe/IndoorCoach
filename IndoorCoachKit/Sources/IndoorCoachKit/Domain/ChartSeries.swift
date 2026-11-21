@@ -38,6 +38,12 @@ public enum ChartSeries {
         return ChartMath.downsampleMinMax(smooth, maxPoints: maxPoints).map { TimedValue(minute: Double($0) / 60, watts: smooth[$0]) }
     }
 
+    /// "Ist" from a series that is already 30-s smoothed (`IntervalCompliance.Result.actualSeries`): thinning only,
+    /// so the mean is not applied twice.
+    public static func thinnedActual(_ smoothed: [Double], maxPoints: Int = maxActualPoints) -> [TimedValue] {
+        ChartMath.downsampleMinMax(smoothed, maxPoints: maxPoints).map { TimedValue(minute: Double($0) / 60, watts: smoothed[$0]) }
+    }
+
     /// "Soll": only the samples around a change (for `.stepEnd`), so edges stay exact; falls back to min/max thinning
     /// when the plan is a long ramp with a change every second.
     public static func targetSteps(_ target: [Double], maxPoints: Int = maxActualPoints) -> [TimedValue] {

@@ -18,7 +18,20 @@ struct ChartDescriptor: AXChartDescriptorRepresentable {
     var xLabel: (Double) -> String = { ChartMath.format($0, decimals: 0) }
     var yLabel: (Double) -> String = { ChartMath.format($0, decimals: 0) }
 
-    func makeChartDescriptor() -> AXChartDescriptor {
+    func makeChartDescriptor() -> AXChartDescriptor { descriptor() }
+
+    /// Refill the existing descriptor: SwiftUI keeps it across updates, so an empty body leaves a stale Audio Graph.
+    func updateChartDescriptor(_ descriptor: AXChartDescriptor) {
+        let fresh = self.descriptor()
+        descriptor.title = fresh.title
+        descriptor.summary = fresh.summary
+        descriptor.xAxis = fresh.xAxis
+        descriptor.yAxis = fresh.yAxis
+        descriptor.additionalAxes = fresh.additionalAxes
+        descriptor.series = fresh.series
+    }
+
+    private func descriptor() -> AXChartDescriptor {
         let all = series.flatMap(\.points)
         let xs = ChartMath.domain(values: all.map(\.x), includeZero: false)
         let ys = ChartMath.domain(values: all.map(\.y), includeZero: false)
@@ -34,8 +47,6 @@ struct ChartDescriptor: AXChartDescriptorRepresentable {
         return AXChartDescriptor(title: title, summary: summary, xAxis: xAxis, yAxis: yAxis,
                                  additionalAxes: [], series: data)
     }
-
-    func updateChartDescriptor(_ descriptor: AXChartDescriptor) {}
 }
 
 enum ChartAccessibility {
@@ -62,7 +73,7 @@ extension View {
     }
 
     /// Adds an Audio Graph on top of `chartAccessibility`.
-    func chartAccessibility(label: String, value: String, descriptor: ChartDescriptor) -> some View {
+    func chartAccessibility<D: AXChartDescriptorRepresentable>(label: String, value: String, descriptor: D) -> some View {
         chartAccessibility(label: label, value: value).accessibilityChartDescriptor(descriptor)
     }
 }

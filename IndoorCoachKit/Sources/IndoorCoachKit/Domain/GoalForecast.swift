@@ -91,23 +91,22 @@ public enum GoalForecast {
         return Formatters.decimal(rounded, digits: rounded == rounded.rounded() ? 0 : 1)
     }
 
+    /// Whether the "Heute" label has room next to the crossing label: both sit below the line, a label is about a fifth
+    /// of the chart wide. With the crossing closer than that, "Heute" is left out (the dot stays).
+    static func todayLabelFits(today: Date, crossing: Date?, end: Date) -> Bool {
+        guard let crossing else { return true }
+        let span = end.timeIntervalSince(today)
+        guard span > 0 else { return true }
+        return crossing.timeIntervalSince(today) / span >= 0.2
+    }
+
     /// Short chart label for the crossing: "22. Jan." (same day as `dayText`).
     static func crossingLabel(_ date: Date, calendar: Calendar) -> String {
-        let f = DateFormatter()
-        f.locale = Locale.de
-        f.calendar = calendar
-        f.timeZone = calendar.timeZone
-        f.dateFormat = "d. MMM"
-        return f.string(from: date)
+        DayFormatters.shared.string(from: date, format: "d. MMM", calendar: calendar)
     }
 
     static func dayText(_ date: Date, calendar: Calendar) -> String {
-        let f = DateFormatter()
-        f.locale = Locale.de
-        f.calendar = calendar
-        f.timeZone = calendar.timeZone
-        f.dateFormat = "d. MMMM"
-        return f.string(from: date)
+        DayFormatters.shared.string(from: date, format: "d. MMMM", calendar: calendar)
     }
 
     private static func sentence(hours: Double, ctlAtGoal: Double, target: Double, reach: Date?, goal: Date,
@@ -122,5 +121,31 @@ public enum GoalForecast {
             return "Bei \(h) erreichst du dein Ziel (Fitness \(targetText)) \(same ? "am" : "schon am") \(dayText(reach, calendar: calendar))."
         }
         return "Bei \(h) erreichst du am \(dayText(goal, calendar: calendar)) Fitness \(fitness) (Ziel \(targetText))."
+    }
+}
+
+/// `DateFormatter`s are expensive to build and the chart body asks for the same label on every render: keep one per
+/// format, calendar and time zone. `DateFormatter` is thread-safe; the lock only guards the dictionary.
+final class DayFormatters: @unchecked Sendable {
+    static let shared = DayFormatters()
+    private let lock = NSLock()
+    private var cache: [String: DateFormatter] = [:]
+
+    func string(from date: Date, format: String, calendar: Calendar) -> String {
+        let key = "\(format)|\(calendar.identifier)|\(calendar.timeZone.identifier)"
+        lock.lock()
+        defer { lock.unlock() }
+        let formatter: DateFormatter
+        if let cached = cache[key] {
+            formatter = cached
+        } else {
+            formatter = DateFormatter()
+            formatter.locale = Locale.de
+            formatter.calendar = calendar
+            formatter.timeZone = calendar.timeZone
+            formatter.dateFormat = format
+            cache[key] = formatter
+        }
+        return formatter.string(from: date)
     }
 }

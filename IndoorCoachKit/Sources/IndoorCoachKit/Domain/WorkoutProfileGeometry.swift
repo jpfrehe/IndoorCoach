@@ -55,7 +55,7 @@ public struct ProfileBlock: Equatable, Sendable {
 /// boundaries; gaps and edges are whole pixels. The small variants squeeze very short intervals (minimum widths, compact
 /// sets) without ever losing the interval count; the detail variant keeps time proportional.
 public enum WorkoutProfileGeometry {
-    public enum Variant: Sendable {
+    public enum Variant: Hashable, Sendable {
         /// `WorkoutRow` 72 × 34 pt.
         case row
         /// Today "next workout" and plan proposal (56–64 pt high).
@@ -86,12 +86,63 @@ public enum WorkoutProfileGeometry {
         }
     }
 
+    /// Most interval repeats the profile will unroll; anything beyond is corrupt data and is neither drawn nor unrolled.
+    public static let maxRepeats = 500
+
+    /// Power fraction above which the detail domain stops growing (a 1000 % FTP peak is data noise).
+    static let maxDomainTop = 10.0
+
+    /// True when a segment asks for more repeats than `maxRepeats` (guards `WorkoutDefinition.steps`' unrolling).
+    public static func exceedsRepeatLimit(_ definition: WorkoutDefinition) -> Bool {
+        definition.segments.contains { ($0.repeatCount ?? 0) > maxRepeats }
+    }
+
+    static func finite(_ power: Double) -> Double { power.isFinite ? power : 0 }
+
     /// Top of the y axis as a fraction of FTP: fixed 1.6 for the minis, `max(1.3, peak + 0.1)` rounded up to 0.1 for the detail.
+    /// Non-finite powers are ignored. The chart axis uses this same value (×100), so axis and blocks share one domain.
     public static func domainTop(for definition: WorkoutDefinition, variant: Variant) -> Double {
         if metrics(variant).fixedDomain { return 1.6 }
+        guard !exceedsRepeatLimit(definition) else { return 1.3 }
         var peak = 0.0
-        for step in definition.steps { peak = max(peak, step.startPower, step.endPower) }
-        return (max(1.3, peak + 0.1) * 10 - 1e-9).rounded(.up) / 10
+        for step in definition.steps { peak = max(peak, finite(step.startPower), finite(step.endPower)) }
+        return (max(1.3, min(peak + 0.1, maxDomainTop)) * 10 - 1e-9).rounded(.up) / 10
+    }
+
+    // MARK: Cache
+
+    private struct CacheKey: Hashable {
+        var definition: WorkoutDefinition
+        var width: CGFloat, height: CGFloat, scale: CGFloat
+        var variant: Variant
+    }
+
+    private final class Cache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var entries: [CacheKey: [ProfileBlock]] = [:]
+
+        func blocks(for key: CacheKey, make: () -> [ProfileBlock]) -> [ProfileBlock] {
+            lock.lock()
+            if let hit = entries[key] { lock.unlock(); return hit }
+            lock.unlock()
+            let blocks = make()
+            lock.lock()
+            // Rows scroll through a few dozen distinct workouts; start over rather than grow without bound.
+            if entries.count >= 128 { entries.removeAll(keepingCapacity: true) }
+            entries[key] = blocks
+            lock.unlock()
+            return blocks
+        }
+    }
+
+    private static let cache = Cache()
+
+    /// `make` through a small cache (key: definition, size, scale, variant). Lists and redraws ask for the same
+    /// geometry on every frame; the result is a pure function of the key.
+    public static func cachedMake(definition: WorkoutDefinition, size: CGSize, scale: CGFloat, variant: Variant) -> [ProfileBlock] {
+        cache.blocks(for: CacheKey(definition: definition, width: size.width, height: size.height, scale: scale, variant: variant)) {
+            make(definition: definition, size: size, scale: scale, variant: variant)
+        }
     }
 
     // MARK: Layout
@@ -119,6 +170,7 @@ public enum WorkoutProfileGeometry {
 
     public static func make(definition: WorkoutDefinition, size: CGSize, scale: CGFloat, variant: Variant) -> [ProfileBlock] {
         guard size.width > 0, size.height > 0, scale > 0 else { return [] }
+        guard !exceedsRepeatLimit(definition) else { return [] }
         let m = metrics(variant)
         let width = Int((size.width * scale).rounded()), height = Int((size.height * scale).rounded())
         guard width > 0, height > 0 else { return [] }
@@ -141,7 +193,7 @@ public enum WorkoutProfileGeometry {
             case .intervals:
                 let n = max(segment.repeatCount ?? 1, 0), on = segment.onDuration ?? 60, off = segment.offDuration ?? 60
                 let info = SetInfo(segment: segmentIndex, firstStep: index, count: n, on: on, off: off,
-                                   onPower: segment.onPower ?? 1.0, offPower: segment.offPower ?? 0.5)
+                                   onPower: finite(segment.onPower ?? 1.0), offPower: finite(segment.offPower ?? 0.5))
                 if m.warpsTime, n >= 2, on > 0, off >= 0 {
                     units.append(.set(sets.count))
                     sets.append(info)
@@ -302,7 +354,7 @@ public enum WorkoutProfileGeometry {
             switch cell.kind {
             case let .step(stepIndex, segment):
                 let step = steps[stepIndex]
-                let p0 = step.startPower, p1 = step.endPower
+                let p0 = finite(step.startPower), p1 = finite(step.endPower)
                 // Cut points: zone boundaries strictly inside the ramp, as fractions of the step.
                 var cuts: [Double] = [0]
                 if abs(p1 - p0) > 1e-9, w > 1 {

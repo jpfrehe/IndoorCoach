@@ -67,13 +67,15 @@ struct GoalForecastCard: View {
         let ticks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 4)
         let lowest = ticks.first ?? 0
         let crossing = result.crossing
+        let showsToday = GoalForecast.todayLabelFits(today: result.curve.first?.date ?? .now, crossing: crossing?.date,
+                                                     end: result.curve.last?.date ?? .now)
         return Chart {
-            // Everything from today on is projection: dashed in the fitness colour, no area.
+            // Everything from today on is projection: solid but muted (dashes mean target/goal only), no area.
             ForEach(result.curve, id: \.date) { p in
                 LineMark(x: .value("Tag", p.date), y: .value("Fitness", p.ctl))
                     .interpolationMethod(ChartStyle.interpolation(pointCount: result.curve.count))
-                    .lineStyle(StrokeStyle(lineWidth: ChartStyle.lineWidth, lineCap: .round, lineJoin: .round, dash: [4, 3]))
-                    .foregroundStyle(ChartPalette.fitness)
+                    .lineStyle(ChartStyle.stroke(.main))
+                    .foregroundStyle(ChartPalette.fitness.opacity(0.7))
             }
             ChartRule(y: .value("Ziel", result.targetCTL), kind: .target, label: "Ziel \(Formatters.decimal(result.targetCTL))")
             if let today = result.curve.first {
@@ -82,7 +84,9 @@ struct GoalForecastCard: View {
                 PointMark(x: .value("Tag", today.date), y: .value("Fitness", today.ctl))
                     .symbolSize(1).foregroundStyle(.clear)
                     .annotation(position: .bottom, alignment: .leading, spacing: 8) {
-                        Text("Heute").font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
+                        if showsToday {
+                            Text("Heute").font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
+                        }
                     }
             }
             if let crossing {

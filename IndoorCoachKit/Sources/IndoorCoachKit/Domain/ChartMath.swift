@@ -8,14 +8,17 @@ public enum ChartMath {
     public static func niceTicks(min lo: Double, max hi: Double, count: Int) -> [Double] {
         var lo = lo, hi = hi
         if lo > hi { swap(&lo, &hi) }
-        if !lo.isFinite || !hi.isFinite { return [0, 1] }
+        if !lo.isFinite || !hi.isFinite || !(hi - lo).isFinite { return [0, 1] }
         if hi - lo < 1e-12 {
+            // Nothing to show (all zero): a plain 0…1 axis that stays inside a 0…upper domain.
+            if lo == 0 { return [0, 1] }
             let pad = Swift.max(abs(lo) * 0.1, 1)
             lo -= pad; hi += pad
         }
-        let raw = (hi - lo) / Double(Swift.max(count - 1, 1))
+        let raw = (hi - lo) / Double(Swift.min(Swift.max(count - 1, 1), 100))
         let mag = pow(10, floor(log10(raw)))
         let step = [1.0, 2, 5, 10].map { $0 * mag }.first { $0 >= raw * (1 - 1e-9) } ?? 10 * mag
+        guard step.isFinite, step > 0, abs(lo / step) < 1e12, abs(hi / step) < 1e12 else { return [0, 1] }
         let first = Int(floor(lo / step + 1e-9)), last = Int(ceil(hi / step - 1e-9))
         let ticks = (first...Swift.max(first, last)).map { round(Double($0) * step * 1e9) / 1e9 }
         return ticks.count >= 2 ? ticks : [ticks[0], ticks[0] + step]
@@ -38,14 +41,15 @@ public enum ChartMath {
     /// X ticks in minutes for a session of `total` seconds: at most four steps of 5/10/15/30/60 min, starting at 0.
     public static func minuteTicks(total: TimeInterval) -> [Double] {
         let minutes = Swift.max(total, 0) / 60
-        guard minutes > 0 else { return [0] }
+        guard minutes.isFinite, minutes > 0 else { return [0] }
         let step = [5.0, 10, 15, 30, 60, 120].first { minutes / $0 <= 4 } ?? 120
-        return (0...Int(minutes / step + 1e-9)).map { Double($0) * step }
+        return (0...Swift.min(Int(minutes / step + 1e-9), 48)).map { Double($0) * step }
     }
 
     /// X ticks in seconds for the log-scaled power curve. 60 min only appears with ≥ 45 min of data (it crowds 20 min).
     public static func powerCurveTicks(maxDuration: TimeInterval) -> [Double] {
         var ticks: [Double] = [5]
+        guard !maxDuration.isNaN else { return ticks }
         for t in [60.0, 300, 1200] where t <= maxDuration { ticks.append(t) }
         if maxDuration >= 45 * 60 { ticks.append(3600) }
         return ticks
@@ -109,6 +113,14 @@ public enum ChartMath {
         return result
     }
 
+    /// Index of the last date at or before `target` (bars and day marks: a tap inside a bar's span selects that bar,
+    /// never the next one). Clamps to the first date when `target` lies before all of them.
+    public static func floorIndex(_ dates: [Date], at target: Date) -> Int? {
+        guard !dates.isEmpty else { return nil }
+        let before = dates.indices.filter { dates[$0] <= target }
+        return before.max { dates[$0] < dates[$1] } ?? dates.indices.min { dates[$0] < dates[$1] }
+    }
+
     /// Index of the date closest to `target` (for tap/drag selection).
     public static func nearest(_ dates: [Date], to target: Date) -> Int? {
         dates.indices.min { abs(dates[$0].timeIntervalSince(target)) < abs(dates[$1].timeIntervalSince(target)) }
@@ -123,13 +135,8 @@ public enum ChartMath {
 
     /// German number text (decimal comma), no grouping.
     public static func format(_ value: Double, decimals: Int = 0) -> String {
-        let f = NumberFormatter()
-        f.locale = Locale.de
-        f.numberStyle = .decimal
-        f.usesGroupingSeparator = false
-        f.minimumFractionDigits = decimals
-        f.maximumFractionDigits = decimals
-        return f.string(from: NSNumber(value: value)) ?? String(value)
+        let d = Swift.max(decimals, 0)
+        return value.formatted(.number.precision(.fractionLength(d)).grouping(.never).locale(Locale.de))
     }
 
     /// One VoiceOver sentence for a time series: last value, trend against the first value, extremes.

@@ -351,4 +351,55 @@ struct WorkoutProfileGeometryTests {
         }
         #expect(bestDetail < .milliseconds(2), "detail best of 20: \(bestDetail)")
     }
+
+    // MARK: Review fixes (V2, L13, L14)
+
+    @Test func detailBlocksStayInsidePlotForTallPeaks() {
+        for peak in [1.7, 2.0] {
+            let d = Self.def([.steady(5, at: 0.5), .intervals(8, on: 20, at: peak, off: 10, at: 0.5), .steady(5, at: 0.5)])
+            let size = CGSize(width: 330, height: 210)
+            let blocks = Self.make(d, size: size, scale: 3, variant: .detail)
+            #expect(!blocks.isEmpty)
+            let top = G.domainTop(for: d, variant: .detail)
+            #expect(top >= peak + 0.1 - 1e-9)
+            for p in blocks.flatMap(\.polygon) {
+                #expect(p.x >= -1e-6 && p.x <= size.width + 1e-6)
+                #expect(p.y >= -1e-6 && p.y <= size.height + 1e-6)
+            }
+            // The tallest block reaches its share of the domain and not a pixel further.
+            let minY = blocks.map { $0.bounds.minY }.min() ?? size.height
+            #expect(abs(minY - size.height * (1 - peak / top)) < 1.5)
+        }
+    }
+
+    @Test func nonFinitePowerNeverBreaksTheGeometry() {
+        let d = Self.def([.steady(5, at: .nan), .steady(5, at: .infinity), .ramp(5, from: -.infinity, to: .nan),
+                          .intervals(3, on: 30, at: .infinity, off: 30, at: .nan)])
+        for variant in [G.Variant.row, .card, .preview, .detail] {
+            let top = G.domainTop(for: d, variant: variant)
+            #expect(top.isFinite && top > 0)
+            let blocks = Self.make(d, size: Self.detailSize, variant: variant)
+            for p in blocks.flatMap(\.polygon) { #expect(p.x.isFinite && p.y.isFinite) }
+        }
+    }
+
+    @Test func absurdRepeatCountsAreRefused() {
+        let d = Self.def([.intervals(G.maxRepeats + 1, on: 1, at: 1.0, off: 1, at: 0.5)])
+        #expect(G.exceedsRepeatLimit(d))
+        #expect(Self.make(d, size: Self.detailSize, variant: .detail).isEmpty)
+        let ok = Self.def([.intervals(G.maxRepeats, on: 1, at: 1.0, off: 1, at: 0.5)])
+        #expect(!G.exceedsRepeatLimit(ok))
+    }
+
+    @Test func cachedGeometryEqualsFreshGeometry() {
+        let d = Self.sweetSpot
+        for variant in [G.Variant.row, .detail] {
+            let fresh = Self.make(d, size: Self.detailSize, variant: variant)
+            #expect(G.cachedMake(definition: d, size: Self.detailSize, scale: 3, variant: variant) == fresh)
+            #expect(G.cachedMake(definition: d, size: Self.detailSize, scale: 3, variant: variant) == fresh)
+        }
+        // A different size must not be served from another key.
+        let other = G.cachedMake(definition: d, size: CGSize(width: 200, height: 100), scale: 3, variant: .detail)
+        #expect(other != Self.make(d, size: Self.detailSize, variant: .detail))
+    }
 }

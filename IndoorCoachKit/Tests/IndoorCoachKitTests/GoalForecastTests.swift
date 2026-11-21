@@ -81,4 +81,14 @@ struct GoalForecastTests {
         let v = GoalForecast.tssPerHour(rides: rides, ftp: 250, thresholdHeartRate: nil, now: now)
         #expect(abs(v - 68) < 1e-9)
     }
+
+    @Test func todayLabelStepsAsideWhenTheCrossingIsClose() {
+        let today = Date(timeIntervalSince1970: 1_700_000_000)
+        let end = today.addingTimeInterval(100 * 86_400)
+        #expect(GoalForecast.todayLabelFits(today: today, crossing: nil, end: end))
+        #expect(GoalForecast.todayLabelFits(today: today, crossing: today.addingTimeInterval(60 * 86_400), end: end))
+        #expect(!GoalForecast.todayLabelFits(today: today, crossing: today.addingTimeInterval(5 * 86_400), end: end))
+        #expect(!GoalForecast.todayLabelFits(today: today, crossing: today, end: end))
+        #expect(GoalForecast.todayLabelFits(today: today, crossing: today, end: today))   // no span: nothing to collide
+    }
 }

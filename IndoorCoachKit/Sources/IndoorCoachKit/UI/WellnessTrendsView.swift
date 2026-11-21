@@ -100,11 +100,17 @@ struct WellnessTrendsView: View {
             }
             ChartRule(y: .value("Basis", baseline), kind: .target, label: "Basis \(Formatters.decimal(baseline, digits: digits))")
             ForEach(Array(pieces.enumerated()), id: \.offset) { n, range in
-                ForEach(trend.points[range], id: \.date) { point in
-                    LineMark(x: .value("Tag", point.date), y: .value(kind.title, point.value), series: .value("Teil", n))
-                        .lineStyle(ChartStyle.stroke(.main))
-                        .foregroundStyle(Theme.accent)
-                        .interpolationMethod(ChartStyle.interpolation(pointCount: range.count))
+                if range.count == 1, let only = trend.points[range].first {
+                    // A lone day after a gap has no line to draw: show it as a dot.
+                    PointMark(x: .value("Tag", only.date), y: .value(kind.title, only.value))
+                        .symbolSize(30).foregroundStyle(Theme.accent)
+                } else {
+                    ForEach(trend.points[range], id: \.date) { point in
+                        LineMark(x: .value("Tag", point.date), y: .value(kind.title, point.value), series: .value("Teil", n))
+                            .lineStyle(ChartStyle.stroke(.main))
+                            .foregroundStyle(Theme.accent)
+                            .interpolationMethod(ChartStyle.interpolation(pointCount: range.count))
+                    }
                 }
             }
             if let lastPoint = trend.points.last {

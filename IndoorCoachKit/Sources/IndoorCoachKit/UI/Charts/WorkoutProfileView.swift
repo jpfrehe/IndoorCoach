@@ -47,6 +47,8 @@ enum WorkoutProfileRenderer {
 
     /// Draws the blocks in array order (off-fill before stakes). `Canvas` hands out the context by `inout`.
     static func draw(_ blocks: [ProfileBlock], in context: inout GraphicsContext, size: CGSize, scale: CGFloat, style: Style) {
+        // Nothing may leave the plot rectangle, whatever the geometry says.
+        context.clip(to: Path(CGRect(origin: .zero, size: size)))
         if style.baseline {
             let line = 1 / scale
             context.fill(Path(CGRect(x: 0, y: size.height - line, width: size.width, height: line)), with: .color(ChartPalette.baseline))
@@ -111,7 +113,7 @@ struct WorkoutProfileView: View, @MainActor Equatable {
         let definition = definition, variant = variant, style = WorkoutProfileRenderer.Style(skipped: skipped)
         let scale = max(displayScale, 1)
         Canvas { context, size in
-            let blocks = WorkoutProfileGeometry.make(definition: definition, size: size, scale: scale, variant: variant)
+            let blocks = WorkoutProfileGeometry.cachedMake(definition: definition, size: size, scale: scale, variant: variant)
             if variant == .preview {
                 // FTP (100 %) as a hairline behind the blocks, snapped to a pixel row.
                 let y = (floor(size.height * (1 - 1 / WorkoutProfileGeometry.domainTop(for: definition, variant: variant)) * scale) + 0.5) / scale
@@ -153,7 +155,7 @@ struct WorkoutProfileChart: View {
     /// Step under the selection, found on the drawn blocks (gaps shift them slightly against the time axis).
     private var selectedStep: Int? {
         guard let selectedMinute, plotSize.width > 0 else { return nil }
-        let blocks = WorkoutProfileGeometry.make(definition: definition, size: plotSize, scale: scale, variant: .detail)
+        let blocks = WorkoutProfileGeometry.cachedMake(definition: definition, size: plotSize, scale: scale, variant: .detail)
         let x = CGFloat(min(max(selectedMinute / totalMinutes, 0), 1)) * plotSize.width
         return WorkoutProfileSupport.stepIndex(atX: x, blocks: blocks)
     }
@@ -201,7 +203,6 @@ struct WorkoutProfileChart: View {
         .chartYScale(domain: 0...domainTop)
         .chartXScale(domain: 0...totalMinutes)
         .chartXSelection(value: $selectedMinute)
-        .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
         .chartLegend(.hidden)
         .chartXAxis {
             AxisMarks(values: ticks) { value in
@@ -214,7 +215,7 @@ struct WorkoutProfileChart: View {
         }
         .chartYAxis {
             AxisMarks(position: .trailing, values: yTicks) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 1 / scale)).foregroundStyle(ChartPalette.grid)
+                // No horizontal grid here: the blocks are drawn behind the plot and a grid would cut through them.
                 AxisValueLabel {
                     if let v = value.as(Int.self) {
                         Text("\(v * ftp / 100) W").font(.caption2).monospacedDigit().foregroundStyle(Theme.axisLabel)
@@ -230,10 +231,11 @@ struct WorkoutProfileChart: View {
                     let origin = CGPoint(x: (frame.minX * scale).rounded() / scale, y: (frame.minY * scale).rounded() / scale)
                     let size = CGSize(width: (frame.width * scale).rounded() / scale, height: (frame.height * scale).rounded() / scale)
                     Canvas { context, canvasSize in
-                        let blocks = WorkoutProfileGeometry.make(definition: definition, size: canvasSize, scale: scale, variant: .detail)
+                        let blocks = WorkoutProfileGeometry.cachedMake(definition: definition, size: canvasSize, scale: scale, variant: .detail)
                         WorkoutProfileRenderer.draw(blocks, in: &context, size: canvasSize, scale: scale, style: style)
                     }
                     .frame(width: size.width, height: size.height)
+                    .clipped()
                     .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { plotSize = $0 })
                     .offset(x: origin.x, y: origin.y)
                     .allowsHitTesting(false)
@@ -242,9 +244,10 @@ struct WorkoutProfileChart: View {
         }
         .transaction { $0.animation = nil }
         .frame(height: height)
-        .accessibilityChartDescriptor(WorkoutProfileAudioGraph(definition: definition, ftp: ftp))
-        .accessibilityLabel("Leistungsprofil \(definition.title)")
-        .accessibilityValue(WorkoutProfileSupport.summary(definition: definition, ftp: ftp))
+        // One VoiceOver element (Swift Charts' own children are dropped) with the Audio Graph attached.
+        .chartAccessibility(label: "Leistungsprofil \(definition.title)",
+                            value: WorkoutProfileSupport.summary(definition: definition, ftp: ftp),
+                            descriptor: WorkoutProfileAudioGraph(definition: definition, ftp: ftp))
         .accessibilityIdentifier("profile.detail")
     }
 }
@@ -256,7 +259,20 @@ struct WorkoutProfileAudioGraph: AXChartDescriptorRepresentable {
     var definition: WorkoutDefinition
     var ftp: Int
 
-    func makeChartDescriptor() -> AXChartDescriptor {
+    func makeChartDescriptor() -> AXChartDescriptor { descriptor() }
+
+    /// Refill the existing descriptor (VoiceOver keeps it): without this the Audio Graph stays on the first workout.
+    func updateChartDescriptor(_ descriptor: AXChartDescriptor) {
+        let fresh = self.descriptor()
+        descriptor.title = fresh.title
+        descriptor.summary = fresh.summary
+        descriptor.xAxis = fresh.xAxis
+        descriptor.yAxis = fresh.yAxis
+        descriptor.additionalAxes = fresh.additionalAxes
+        descriptor.series = fresh.series
+    }
+
+    private func descriptor() -> AXChartDescriptor {
         let points = WorkoutProfileSupport.audioPoints(definition: definition, ftp: ftp)
         let totalMinutes = max(Double(definition.totalDuration) / 60, 1)
         let maxWatts = max(points.map(\.watts).max() ?? 1, 1)
@@ -272,6 +288,4 @@ struct WorkoutProfileAudioGraph: AXChartDescriptorRepresentable {
                                  summary: WorkoutProfileSupport.summary(definition: definition, ftp: ftp),
                                  xAxis: x, yAxis: y, additionalAxes: [], series: [series])
     }
-
-    func updateChartDescriptor(_ descriptor: AXChartDescriptor) {}
 }
