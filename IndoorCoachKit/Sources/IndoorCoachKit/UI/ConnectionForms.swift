@@ -178,6 +178,8 @@ struct MyWhooshLoginForm: View {
     var onConnected: () -> Void = {}
     /// Called when a field gets focus, so a scrolling parent can keep password and button above the keyboard.
     var onEditing: () -> Void = {}
+    /// Zusätzliche Kennung um den Fehlertext (die Einführung nennt sie `onboarding.service.myWhoosh.error`); `whoosh.error` bleibt.
+    var errorContainerID: String?
     static let loginButtonID = "whoosh.login.button"
 
     @State private var email = ""
@@ -210,7 +212,13 @@ struct MyWhooshLoginForm: View {
                 .onSubmit { connect() }
                 .onChange(of: focus) { _, field in if field != nil { onEditing() } }
             if let error {
-                FormError(message: error, identifier: "whoosh.error")
+                if let errorContainerID {
+                    FormError(message: error, identifier: "whoosh.error")
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier(errorContainerID)
+                } else {
+                    FormError(message: error, identifier: "whoosh.error")
+                }
             }
             Button(action: connect) {
                 HStack(spacing: 8) {

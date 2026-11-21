@@ -4,38 +4,42 @@ import UIKit
 #endif
 
 /// How the first-launch onboarding ended.
-public enum OnboardingChoice: Sendable {
-    /// "Strava oder FIT-Dateien? Unter Dienste & Geräte einrichten": close and open Profil → Dienste & Geräte → Strava (OAuth stays there).
-    case strava
+public enum OnboardingChoice: Sendable, Equatable {
     /// "Kurze Tour ansehen": close, then RootView shows the feature tour full screen.
     case tour
     /// "Direkt starten": straight to Heute.
     case start
-    /// "Überspringen": defaults (and anything already changed) are kept.
-    case skipped
+    /// "Übersprungenes jetzt einrichten" (nil: Profil → Dienste & Geräte) oder „Strava jetzt einrichten“ (`.strava`: die Detailseite).
+    case connection(ConnectionID?)
 }
 
-/// Sieben Schritte (docs/20 §4.1). `rides` zeigt vorläufig noch die MyWhoosh-Anmeldung, `extras` und `services` sind Platzhalter
-/// bis zu den Paketen AP3/AP4.
+/// Sieben Schritte (docs/20 §4.1): Willkommen, Training, Fahrten, Ausrüstung, Dienste, Coach, Fertig.
 enum OnboardingStep: Int, CaseIterable {
     case welcome, training, rides, extras, services, coach, done
 }
 
-/// First-launch onboarding: Willkommen → Dein Training → Trainings-App → Coach → Fertig.
-/// Edits the profile directly, like ProfileView. The current step lives in `AppModel.onboardingStep`, so a relaunch resumes there.
+/// First-launch onboarding (docs/20): Willkommen → Dein Training → Womit fährst du drinnen? → Was hast du sonst noch? →
+/// Für dich passt → Coach → Alles bereit. Edits the profile directly, like ProfileView. The current step lives in
+/// `AppModel.onboardingStep`, so a relaunch resumes there.
 struct OnboardingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var whooshEditing = 0
     @AccessibilityFocusState private var titleFocused: Bool
+    /// Die MyWhoosh-Anmeldung läuft (gehört hierher, weil das Formular nach dem Verbinden verschwindet).
     @State private var whooshBusy = false
-    /// While typing, the bottom bar ("Später", "Ohne Claude weiter") would sit right above the keyboard and cover the
-    /// form's own button ("Bei MyWhoosh anmelden", "Prüfen & speichern"); it steps aside until the keyboard is gone.
+    /// Eine andere Verbindung läuft (intervals.icu, Health).
+    @State private var otherBusy = false
+    /// While typing, the bottom bar ("Ohne Verbindung weiter", "Ohne Claude weiter") would sit right above the keyboard and
+    /// cover the form's own button ("Bei MyWhoosh anmelden", "Prüfen & speichern"); it steps aside until the keyboard is gone.
     @State private var keyboardVisible = false
+    @State private var coachSetupOpen = false
     @ScaledMetric(relativeTo: .subheadline) private var guideBadge: CGFloat = 26
     var onFinish: (OnboardingChoice) -> Void
 
     private var step: OnboardingStep { OnboardingStep(rawValue: model.onboardingStep) ?? .welcome }
+    private var connectBusy: Bool { whooshBusy || otherBusy }
+    private var showAll: Bool { model.onboardingServices.answers.showAll }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -44,9 +48,9 @@ struct OnboardingView: View {
                 switch step {
                 case .welcome: welcome
                 case .training: training
-                case .rides: trainingApp
-                case .extras: placeholder("Was hast du sonst noch?")
-                case .services: placeholder("Für dich passt")
+                case .rides: rides(proxy)
+                case .extras: extras
+                case .services: services
                 case .coach: coach
                 case .done: done
                 }
@@ -89,7 +93,7 @@ struct OnboardingView: View {
     private var topBar: some View {
         HStack {
             if step != .welcome {
-                Button { go(to: step.rawValue - 1) } label: {
+                Button(action: back) {
                     // At accessibility sizes "Zurück" and "Überspringen" no longer fit side by side ("Zu-rück"):
                     // the chevron alone carries the back action (VoiceOver still reads "Zurück").
                     // Branch on the view, not a type-erased style: calling a LabelStyle's makeBody directly reads
@@ -103,20 +107,20 @@ struct OnboardingView: View {
                     }
                     .frame(minWidth: 44, minHeight: 44, alignment: .leading)
                 }
-                .disabled(whooshBusy)
+                .disabled(connectBusy)
                 .accessibilityIdentifier("onboarding.back")
             }
             Spacer()
-            // The last step has its own two ways out.
+            // The last step has its own ways out.
             if step != .done {
-                Button { onFinish(.skipped) } label: {
+                Button { go(to: OnboardingStep.done.rawValue) } label: {
                     Text("Überspringen")
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
                 }
-                .disabled(whooshBusy)
-                .accessibilityHint("Startet die App mit den Standardwerten. Alles lässt sich später im Profil ändern.")
+                .disabled(connectBusy)
+                .accessibilityHint("Springt zur Zusammenfassung. Alles lässt sich später im Profil einrichten.")
                 .accessibilityIdentifier("onboarding.skip")
             }
         }
@@ -137,13 +141,23 @@ struct OnboardingView: View {
             case .training:
                 next("Weiter", style: .jelly).disabled(model.profile.trainingDays.isEmpty)
             case .rides:
-                if model.isMyWhooshConnected && !whooshBusy {
+                if model.onboardingServices.answers.rideApps.isEmpty {
+                    next("Weiter ohne Angabe", style: .soft)
+                } else {
+                    next("Weiter", style: .jelly)
+                }
+            case .extras:
+                if model.onboardingServices.answers.extras.isEmpty {
+                    next("Weiter ohne Angabe", style: .soft)
+                } else {
+                    next("Weiter", style: .jelly)
+                }
+            case .services:
+                if model.onboardingSummary.services.contains(where: \.isConnected) {
                     next("Weiter", style: .jelly)
                 } else {
-                    next("Später", style: .soft, id: "onboarding.later").disabled(whooshBusy)
+                    next("Ohne Verbindung weiter", style: .soft, id: "onboarding.later")
                 }
-            case .extras, .services:
-                next("Weiter", style: .jelly)
             case .coach:
                 if model.hasClaudeKey {
                     next("Weiter", style: .jelly)
@@ -151,16 +165,29 @@ struct OnboardingView: View {
                     next("Ohne Claude weiter", style: .soft, id: "onboarding.noClaude")
                 }
             case .done:
-                Button { onFinish(.tour) } label: {
-                    Label("Kurze Tour ansehen", systemImage: "play.circle.fill").frame(maxWidth: .infinity)
+                if model.onboardingServices.stravaAfterwards {
+                    Button { onFinish(.connection(.strava)) } label: {
+                        Label("Strava jetzt einrichten", systemImage: "arrow.right.circle.fill").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.jelly)
+                    .accessibilityIdentifier("onboarding.strava")
+                    Button { onFinish(.tour) } label: {
+                        Label("Kurze Tour ansehen", systemImage: "play.circle.fill").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.soft)
+                    .accessibilityIdentifier("onboarding.tour")
+                } else {
+                    Button { onFinish(.tour) } label: {
+                        Label("Kurze Tour ansehen", systemImage: "play.circle.fill").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.jelly)
+                    .accessibilityIdentifier("onboarding.tour")
+                    Button { onFinish(.start) } label: {
+                        Text("Direkt starten").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.soft)
+                    .accessibilityIdentifier("onboarding.start")
                 }
-                .buttonStyle(.jelly)
-                .accessibilityIdentifier("onboarding.tour")
-                Button { onFinish(.start) } label: {
-                    Text("Direkt starten").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.soft)
-                .accessibilityIdentifier("onboarding.start")
             }
             PageIndicator(current: step.rawValue, count: OnboardingStep.allCases.count)
         }
@@ -174,15 +201,26 @@ struct OnboardingView: View {
     }
 
     private func next(_ title: String, style: some ButtonStyle, id: String = "onboarding.next") -> some View {
-        Button { go(to: step.rawValue + 1) } label: {
+        Button { go(to: step == .rides && showAll ? OnboardingStep.services.rawValue : step.rawValue + 1) } label: {
             Text(title).frame(maxWidth: .infinity)
         }
         .buttonStyle(style)
+        .disabled(connectBusy)
         .accessibilityIdentifier(id)
     }
 
     private func go(to index: Int) {
         withAnimation(.snappy(duration: 0.25)) { model.onboardingStep = index }
+    }
+
+    /// Von „Alle Dienste“ (nach „Alle Dienste zeigen“) geht es zurück zu den Fragen, nicht zu Schritt 3.
+    private func back() {
+        if step == .services && showAll {
+            model.onboardingServices.answers.showAll = false
+            go(to: OnboardingStep.rides.rawValue)
+        } else {
+            go(to: step.rawValue - 1)
+        }
     }
 
     private func title(_ text: String) -> some View {
@@ -199,7 +237,9 @@ struct OnboardingView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    // MARK: 1 · Willkommen
+    private func hint(_ text: String) -> some View { OnboardingHint(text) }
+
+    // MARK: 0 · Willkommen
 
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -208,10 +248,11 @@ struct OnboardingView: View {
             }
             title("Willkommen bei IndoorCoach")
             VStack(alignment: .leading, spacing: 14) {
-                feature("sparkles", "Claude plant deine Woche – passend zu deinen Fahrten.")
+                feature("sparkles", "Dein Coach plant deine Woche – passend zu deinen Fahrten.")
                 feature("snowflake", "Im Winter Arc baust du Fitness auf bis zum Frühjahr.")
-                feature("square.and.arrow.up", "Jede Einheit geht direkt zu MyWhoosh.")
+                feature("square.and.arrow.up", "Deine Einheiten landen direkt in deiner Trainings-App, etwa MyWhoosh oder Zwift.")
             }
+            hint("Kein Konto bei IndoorCoach nötig. Alles, was du gleich verbindest, ist freiwillig.")
         }
     }
 
@@ -224,7 +265,7 @@ struct OnboardingView: View {
         .font(.body)
     }
 
-    // MARK: 2 · Dein Training
+    // MARK: 1 · Dein Training
 
     private var training: some View {
         @Bindable var model = model
@@ -280,76 +321,106 @@ struct OnboardingView: View {
         }
     }
 
-    /// Vorläufig, bis die Fragen- und Empfehlungsschritte gestaltet sind (AP3/AP4).
-    private func placeholder(_ text: String) -> some View {
+    // MARK: 2 · Womit fährst du drinnen? / 3 · Was hast du sonst noch?
+
+    private func rides(_ proxy: ScrollViewProxy) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            title(text)
+            title("Womit fährst du drinnen?")
+            lead("Tippe alles an, was passt. So zeigen wir dir nur, was dir wirklich hilft.")
+            OnboardingRidesStep(
+                scrollTo: { id in proxy.scrollTo(id, anchor: .top) },
+                onShowAll: {
+                    model.onboardingServices.answers.showAll = true
+                    go(to: OnboardingStep.services.rawValue)
+                })
         }
     }
 
-    // MARK: 3 · Trainings-App
-
-    private var trainingApp: some View {
+    private var extras: some View {
         VStack(alignment: .leading, spacing: 16) {
-            title("Deine Trainings-App")
-            lead("Mit MyWhoosh sieht der Coach deine Fahrten und schickt dir die Einheiten direkt dorthin.")
-
-            if model.isMyWhooshConnected && !whooshBusy {
-                Card(title: "MyWhoosh", systemImage: "figure.indoor.cycle") {
-                    let count = model.importedRideCount
-                    Label {
-                        Text(count > 0 ? "Verbunden · \(count) \(count == 1 ? "Fahrt" : "Fahrten") geladen"
-                                       : "Verbunden · noch keine Fahrten gefunden")
-                            .font(.headline)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } icon: {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.done)
-                    }
-                    .accessibilityIdentifier("onboarding.myWhooshStatus")
-                    if let user = model.myWhooshUser { hint(user) }
-                }
-            } else {
-                Card(title: "MyWhoosh", systemImage: "figure.indoor.cycle") {
-                    MyWhooshLoginForm(busy: $whooshBusy, onEditing: { whooshEditing += 1 })
-                    hint("Dein Passwort wird nur zur Anmeldung gesendet und nicht gespeichert.")
-                }
-            }
-
-            Button { onFinish(.strava) } label: {
-                Text("Strava oder FIT-Dateien? Unter Dienste & Geräte einrichten")
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            }
-            .foregroundStyle(Theme.accent)
-            .disabled(whooshBusy)
-            .accessibilityHint("Beendet die Einführung und öffnet die Strava-Einrichtung unter Profil, Dienste und Geräte.")
-            .accessibilityIdentifier("onboarding.strava")
+            title("Was hast du sonst noch?")
+            lead("Auch das hilft dem Coach. Mehrere Antworten möglich.")
+            OnboardingExtrasStep()
         }
     }
 
-    // MARK: 4 · Coach
+    // MARK: 4 · Für dich passt
+
+    private var services: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            title(showAll ? "Alle Dienste" : "Für dich passt")
+            lead("Verbinde, was du möchtest. Nichts davon ist Pflicht, alles geht auch später.")
+            OnboardingServicesStep(whooshBusy: $whooshBusy, otherBusy: $otherBusy) { whooshEditing += 1 }
+        }
+    }
+
+    // MARK: 5 · Coach
 
     private var coach: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let setupOpen = coachSetupOpen || model.hasClaudeKey
+        return VStack(alignment: .leading, spacing: 16) {
             title("Dein Coach")
-            lead("Claude erstellt deinen Wochenplan. Dafür brauchst du einen eigenen API-Key – das dauert zwei Minuten.")
+            lead("Den Wochenplan kann ein KI-Coach für dich schreiben. Das ist freiwillig.")
 
-            Card(title: "So kommst du an den Key", systemImage: "list.number") {
-                guideStep(1, "Öffne die Claude Console und melde dich an.")
-                guideStep(2, "Wähle „API Keys“ und dann „Create Key“.")
-                guideStep(3, "Kopiere den Key und füge ihn unten ein.")
-                Link(destination: URL(string: "https://console.anthropic.com/settings/keys")!) {
-                    Label("console.anthropic.com öffnen", systemImage: "arrow.up.right.square")
-                        .frame(minHeight: 44, alignment: .leading)
-                }
-                .accessibilityIdentifier("onboarding.consoleLink")
+            Card(title: "So oder so", systemImage: "arrow.triangle.branch") {
+                coachChoice("doc.text", "Ohne Claude",
+                            "Du bekommst einen fertigen Beispielplan, der sich an deine Trainingstage hält. Kostenlos.")
+                coachChoice("sparkles", "Mit Claude",
+                            "Ein KI-Coach plant jede Woche neu, passend zu deinen Fahrten und deiner Form. Etwa 10 Cent pro Plan.")
             }
 
-            Card(title: "API-Key", systemImage: "key.fill") {
-                ClaudeKeyForm()
-                hint("Ein Plan kostet etwa 0,10 $. Der Key bleibt im Schlüsselbund dieses iPhones.")
+            if !model.hasClaudeKey {
+                Button {
+                    withAnimation(.snappy(duration: 0.25)) { coachSetupOpen.toggle() }
+                } label: {
+                    HStack {
+                        Text("Claude jetzt einrichten").frame(maxWidth: .infinity, alignment: .leading)
+                        Image(systemName: "chevron.down").rotationEffect(.degrees(setupOpen ? 180 : 0))
+                    }
+                }
+                .buttonStyle(.soft)
+                .accessibilityValue(setupOpen ? "Aufgeklappt" : "Eingeklappt")
+                .accessibilityIdentifier("onboarding.coach.setup")
+            }
+
+            if setupOpen {
+                Card(title: "Was du brauchst", systemImage: "person.crop.circle") {
+                    Text("Ein Konto bei Anthropic, dem Anbieter von Claude, mit etwas Guthaben. Ein claude.ai-Abo reicht dafür nicht. Abgerechnet wird direkt zwischen dir und Anthropic, wir verdienen daran nichts.")
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Card(title: "So kommst du an den Schlüssel", systemImage: "list.number") {
+                    guideStep(1, "Öffne die Claude Console und melde dich an.")
+                    guideStep(2, "Wähle „API Keys“ und dann „Create Key“.")
+                    guideStep(3, "Kopiere den Schlüssel und füge ihn unten ein.")
+                    Link(destination: URL(string: "https://console.anthropic.com/settings/keys")!) {
+                        Label("console.anthropic.com öffnen", systemImage: "arrow.up.right.square")
+                            .frame(minHeight: 44, alignment: .leading)
+                    }
+                    .accessibilityIdentifier("onboarding.consoleLink")
+                    hint("Der Schlüssel (API-Key) ist wie ein Passwort nur für IndoorCoach. Er bleibt im Schlüsselbund dieses iPhones.")
+                }
+
+                Card(title: "Schlüssel", systemImage: "key.fill") {
+                    ClaudeKeyForm()
+                }
+
+                hint("Für einen Plan schickt IndoorCoach deine Trainingsdaten (Fahrten, FTP, Trainingstage) an Anthropic. Gesundheitswerte nur, wenn du es später ausdrücklich erlaubst.")
             }
         }
+    }
+
+    private func coachChoice(_ symbol: String, _ title: String, _ text: String) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline)
+                Text(text).font(.subheadline).foregroundStyle(Theme.rowSecondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: symbol).foregroundStyle(Theme.accent)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func guideStep(_ number: Int, _ text: String) -> some View {
@@ -367,59 +438,79 @@ struct OnboardingView: View {
         .accessibilityLabel("Schritt \(number): \(text)")
     }
 
-    // MARK: 5 · Fertig
+    // MARK: 6 · Alles bereit
+
+    private struct StatusRow: Identifiable {
+        let id: String
+        let title: String
+        let detail: String
+        let isDone: Bool
+        let spoken: String
+    }
 
     private var done: some View {
         let summary = model.onboardingSummary
+        let rows = statusRows(summary)
         return VStack(alignment: .leading, spacing: 16) {
             title("Alles bereit")
-            lead("Das hast du eingerichtet. Fehlendes holst du jederzeit im Profil nach.")
+            lead("Das hast du eingerichtet. Den Rest findest du jederzeit unter Profil → Dienste & Geräte.")
             Card {
-                ForEach(summary.items) { item in
-                    statusRow(item, detail: visualDetail(item, summary: summary))
+                ForEach(rows) { row in statusRow(row) }
+            }
+            if model.isIntervalsConnected, let targets = model.intervalsForwardTargets {
+                Card { IntervalsForwardHint(targets: targets, compact: true) }
+            }
+            if summary.services.contains(where: { !$0.isConnected }) {
+                Button { onFinish(.connection(nil)) } label: {
+                    Text("Übersprungenes jetzt einrichten")
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
-            }
-            if !summary.coachReady {
-                hint("Ohne Claude-Key bekommst du einen Demo-Plan.")
+                .foregroundStyle(Theme.accent)
+                .accessibilityHint("Beendet die Einführung und öffnet Profil, Dienste und Geräte.")
+                .accessibilityIdentifier("onboarding.openConnections")
             }
         }
     }
 
-    private func visualDetail(_ item: OnboardingSummary.Item, summary: OnboardingSummary) -> String {
-        switch item.title {
-        case "Profil":
-            return summary.profileReady
-                ? "FTP \(model.profile.ftp) W · \(model.profile.trainingDays.count) Trainingstage" : "Trainingstag fehlt"
-        case "MyWhoosh":
-            guard summary.myWhooshConnected else { return "Später unter Dienste & Geräte" }
-            return summary.rideCount > 0 ? "\(summary.rideCount) Fahrten geladen" : "Verbunden"
-        default:
-            return summary.coachReady ? "Claude-Key gespeichert" : "Später unter Profil → Coach · Claude"
+    private func statusRows(_ summary: OnboardingSummary) -> [StatusRow] {
+        var rows: [StatusRow] = []
+        let profileDetail = summary.profileReady
+            ? "FTP \(model.profile.ftp) W · \(model.profile.trainingDays.count) Trainingstage" : "Trainingstag fehlt"
+        let profileSpoken = summary.profileReady
+            ? "FTP \(model.profile.ftp) Watt, \(model.profile.trainingDays.count) Trainingstage" : "Trainingstag fehlt"
+        rows.append(StatusRow(id: "profil", title: "Profil", detail: profileDetail, isDone: summary.profileReady,
+                              spoken: "Profil: \(profileSpoken)"))
+        for line in summary.services {
+            rows.append(StatusRow(id: line.id.rawValue.lowercased(), title: line.name, detail: line.visualDetail,
+                                  isDone: line.isConnected, spoken: line.accessibilityLabel))
         }
+        if summary.stravaAfterwards {
+            rows.append(StatusRow(id: "strava", title: "Strava", detail: "Richtest du gleich als Nächstes ein", isDone: false,
+                                  spoken: "Strava: richtest du gleich als Nächstes ein"))
+        }
+        let coachDetail = summary.coachReady ? "Claude-Key gespeichert" : "Beispielplan · Claude später unter Profil → Coach · Claude"
+        let coachSpoken = summary.coachReady ? "Claude-Key gespeichert" : "Beispielplan, Claude später unter Profil, Coach, Claude"
+        rows.append(StatusRow(id: "coach", title: "Coach", detail: coachDetail, isDone: summary.coachReady,
+                              spoken: "Coach: \(coachSpoken)"))
+        return rows
     }
 
-    private func statusRow(_ item: OnboardingSummary.Item, detail: String) -> some View {
+    private func statusRow(_ row: StatusRow) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: item.isDone ? "checkmark.circle.fill" : "minus.circle")
+            Image(systemName: row.isDone ? "checkmark.circle.fill" : "minus.circle")
                 .font(.title3)
-                .foregroundStyle(item.isDone ? Theme.done : Theme.rowSecondary)
+                .foregroundStyle(row.isDone ? Theme.done : Theme.rowSecondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(Theme.rowSecondary)
+                Text(row.title).font(.headline)
+                Text(row.detail).font(.subheadline).foregroundStyle(Theme.rowSecondary)
             }
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(item.accessibilityLabel)
-        .accessibilityIdentifier("onboarding.status.\(item.title.lowercased())")
-    }
-
-    private func hint(_ text: String) -> some View {
-        Text(text)
-            .font(.subheadline)
-            .foregroundStyle(Theme.rowSecondary)
-            .fixedSize(horizontal: false, vertical: true)
+        .accessibilityLabel(row.spoken)
+        .accessibilityIdentifier("onboarding.status.\(row.id)")
     }
 }
 

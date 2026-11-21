@@ -57,9 +57,10 @@ public struct RootView: View {
         .onboardingCover(isPresented: model.needsOnboarding) { choice in
             model.completeOnboarding()
             switch choice {
-            case .strava:
+            case .connection(let id):
+                // nil: Profil → Dienste & Geräte; sonst gleich die Detailseite (z. B. Strava).
                 tab = .profile
-                model.pendingProfileRoute = [.connections, .connection(.strava)]
+                model.pendingProfileRoute = id.map { [.connections, .connection($0)] } ?? [.connections]
             case .tour:
                 tab = .today
                 // Let the onboarding cover finish dismissing before the next full-screen cover is presented.
@@ -67,7 +68,7 @@ public struct RootView: View {
                     try? await Task.sleep(for: .milliseconds(700))
                     showTour = true
                 }
-            case .start, .skipped:
+            case .start:
                 tab = .today
             }
         }

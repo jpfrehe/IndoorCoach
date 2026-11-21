@@ -1,17 +1,15 @@
-import AuthenticationServices
 import SwiftUI
 
 /// Profil → Dienste & Geräte → intervals.icu: Anmelden (OAuth oder API-Key), Pläne senden, Fahrten laden, Trennen.
 struct IntervalsConnectionView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.webAuthenticationSession) private var webAuth
     @State private var apiKey = ""
     @State private var connecting = false
     @State private var keyOpen = false
     @FocusState private var keyFocused: Bool
 
     private static let sharedText = "IndoorCoach sendet deine geplanten Einheiten in deinen intervals.icu-Kalender und liest deine Fahrten. Die Daten gehen direkt an intervals.icu, nicht an uns."
-    private static let forwardText = "Damit Einheiten in Zwift, Garmin, Wahoo oder Rouvy erscheinen, schalte in intervals.icu unter Einstellungen → Connections die Übertragung geplanter Workouts ein."
+    private static let forwardText = IntervalsTexts.forward
 
     private var trimmedKey: String { apiKey.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -23,7 +21,7 @@ struct IntervalsConnectionView: View {
             title: "intervals.icu",
             footer: connected ? "\(Self.sharedText)\n\n\(Self.forwardText)" : Self.sharedText,
             help: ConnectionHelpLink(title: "intervals.icu Einstellungen", systemImage: "gearshape",
-                                     url: URL(string: "https://intervals.icu/settings")!),
+                                     url: IntervalsTexts.settingsURL),
             disconnect: connected
                 ? ConnectionDisconnect(buttonTitle: "intervals.icu trennen", dialogTitle: "intervals.icu trennen?", confirmTitle: "Trennen",
                                        message: "Importierte Fahrten bleiben in der App. Bereits gesendete Einheiten bleiben in deinem intervals.icu-Kalender.",
@@ -72,23 +70,7 @@ struct IntervalsConnectionView: View {
     @ViewBuilder
     private var login: some View {
         if model.intervalsConfig.isOAuthAvailable {
-            Button {
-                connecting = true
-                Task {
-                    defer { connecting = false }
-                    await model.connectIntervals { url in
-                        try await webAuth.authenticate(using: url, callbackURLScheme: IntervalsConfig.callbackScheme,
-                                                       preferredBrowserSession: .shared)
-                    }
-                }
-            } label: {
-                HStack {
-                    Label("Mit intervals.icu verbinden", systemImage: "link").font(.headline)
-                    if connecting { Spacer(); ProgressView() }
-                }
-            }
-            .disabled(connecting)
-            .accessibilityIdentifier("intervals.connect")
+            IntervalsOAuthButton(busy: $connecting)
             DisclosureGroup("API-Key verwenden", isExpanded: $keyOpen) { keyForm }
         } else {
             Text("Die Anmeldung über intervals.icu ist noch nicht verfügbar. Verbinde dich bis dahin mit deinem persönlichen API-Key.")
