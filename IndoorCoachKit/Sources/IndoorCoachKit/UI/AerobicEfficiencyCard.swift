@@ -90,7 +90,7 @@ struct AerobicEfficiencyCard: View {
             }
         }
         .chartYScale(domain: (ticks.first ?? 0)...(ticks.last ?? 1))
-        .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0, decimals: 1) }, xCount: 5)
+        .chartStyleAxes(yTicks: ticks, yLabel: { ChartMath.format($0, decimals: 1) }, xCount: 3)
         .chartYAxisLabel(position: .topTrailing) {
             Text("W/bpm").font(ChartStyle.axisFont).foregroundStyle(Theme.axisLabel)
         }

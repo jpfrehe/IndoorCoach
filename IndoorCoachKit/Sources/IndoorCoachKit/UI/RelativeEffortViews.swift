@@ -132,7 +132,7 @@ struct EffortWeekCard: View {
                 ForEach(weeks) { w in
                     BarMark(x: .value("Woche", w.weekStart, unit: .weekOfYear), y: .value("Relative Effort", w.total),
                             width: .ratio(0.6))
-                        .foregroundStyle(w.id == weeks.last?.id ? Theme.accent : ChartPalette.reference)
+                        .foregroundStyle(w.id == weeks.last?.id ? Theme.accent : ChartPalette.pastBar)
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: ChartStyle.barCornerRadius,
                                                           topTrailingRadius: ChartStyle.barCornerRadius))
                 }

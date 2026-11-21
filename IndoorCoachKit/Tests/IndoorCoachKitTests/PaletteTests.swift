@@ -59,6 +59,13 @@ struct ChartPaletteTests {
     typealias RGB = Palette.RGB
     static let zones = PowerZone.allCases
 
+    /// Vorwochen-Balken: heller als `reference`, aber weiterhin ≥ 3:1 auf der Karte (WCAG 1.4.11), hell und dunkel.
+    @Test(arguments: [false, true]) func pastBarIsLighterThanReferenceButStillReadable(dark: Bool) {
+        let card = Palette.card(dark: dark)
+        #expect(Palette.pastBar(dark: dark).contrast(with: card) >= 3.0)
+        #expect(Palette.pastBar(dark: dark).contrast(with: card) < Palette.reference(dark: dark).contrast(with: card))
+    }
+
     @Test func zoneMarksMeetNonTextContrastOnCards() {
         for zone in Self.zones {
             let light = Palette.mark(zone, dark: false), dark = Palette.mark(zone, dark: true)

@@ -20,6 +20,7 @@ public enum ChartPalette {
     static let fatigue = zone(.z6)
     static let accentMuted = adaptive(Palette.accentMuted(dark: false), Palette.accentMuted(dark: true))
     static let reference = adaptive(Palette.reference(dark: false), Palette.reference(dark: true))
+    static let pastBar = adaptive(Palette.pastBar(dark: false), Palette.pastBar(dark: true))
     static let grid = adaptive(Palette.grid(dark: false), Palette.grid(dark: true))
     static let baseline = adaptive(Palette.baseline(dark: false), Palette.baseline(dark: true))
     static let band = adaptive(Palette.band(dark: false), Palette.band(dark: true))

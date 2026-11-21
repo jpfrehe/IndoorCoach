@@ -140,6 +140,9 @@ public enum Palette {
     public static func accentMuted(dark: Bool) -> RGB { dark ? RGB(hex: 0xA44E74) : RGB(hex: 0xD3749C) }
     /// Comparison, target and FTP lines: primary at 55 % on the card (4.7:1 / 6.0:1).
     public static func reference(dark: Bool) -> RGB { primary(dark: dark).over(card(dark: dark), alpha: 0.55) }
+    /// Earlier weeks in bar charts: a lighter neutral than `reference` (primary at 45 %), still ≥ 3:1 on the card,
+    /// so only the current week carries colour (as in the reference designs).
+    public static func pastBar(dark: Bool) -> RGB { primary(dark: dark).over(card(dark: dark), alpha: 0.45) }
     /// Horizontal grid hairline: primary at 10 % on the card (≈ 1.25:1 / 1.35:1).
     public static func grid(dark: Bool) -> RGB { primary(dark: dark).over(card(dark: dark), alpha: 0.10) }
     /// Baseline hairline: primary at 25 %.
