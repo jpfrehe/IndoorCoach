@@ -1076,7 +1076,8 @@ final class AuditWalkthroughTests: AuditCase {
         shot("3-rides")
         tap(app.buttons["onboarding.skip"], "Überspringen")
         obExpect(step: 6, title: "Alles bereit")
-        check(!app.navigationBars["Heute"].exists, "Nicht auf Heute gelandet")
+        // Heute liegt hinter dem Vollbild-Intro weiter in der Hierarchie; maßgeblich ist, dass das Intro noch offen ist.
+        check(obEl("onboarding.pageIndicator").exists, "Einführung bleibt offen (nicht auf Heute gelandet)")
         check(obEl("onboarding.status.profil").exists, "Zusammenfassung zeigt das Profil")
         check(app.buttons["onboarding.start"].exists, "„Direkt starten“ angeboten")
         shot("7-fertig-nach-skip")
@@ -1103,7 +1104,14 @@ final class AuditWalkthroughTests: AuditCase {
         check(!input(placeholder: "Client-ID", timeout: 1).exists, "Kein Feld „Client-ID“ im Intro")
         shot("5-strava-karte")
         accessibilityAudit("Onboarding-Strava-Karte")
-        obTap("onboarding.service.strava.afterwards", "Strava nach der Einführung einrichten")
+        // Ein Tap auf die Mitte trifft die Beschriftung; ein SwiftUI-Toggle schaltet nur über den Schalter rechts.
+        let afterwards = obEl("onboarding.service.strava.afterwards")
+        if !afterwards.waitForExistence(timeout: 4) { _ = scrollFinding(afterwards) }
+        if let bar = obBarButton() { lift(afterwards, above: bar) }
+        afterwards.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        let switched = Date().addingTimeInterval(3)
+        while (afterwards.value as? String) != "1" && Date() < switched { usleep(200_000) }
+        check((afterwards.value as? String) == "1", "Schalter „Nach der Einführung einrichten“ ist an")
         obAdvance("Weiter")
         obExpect(step: 5, title: "Dein Coach")
         obAdvance("Ohne Claude weiter")
