@@ -979,16 +979,14 @@ final class AuditWalkthroughTests: AuditCase {
     func test15_Onboarding() {
         launch(seed: "empty", extra: ["-uiOnboarding", "YES"])
         route = "onboarding"
-        let indicator = app.otherElements["onboarding.pageIndicator"]
         check(waitFast(text(containing: "Willkommen bei IndoorCoach"), timeout: 8), "Schritt 1 „Willkommen“ beim ersten Start")
-        check(indicator.label == "Schritt 1 von 5", "Seitenanzeige „Schritt 1 von 5“")
+        check(obIndicator.label == "Schritt 1 von 7", "Seitenanzeige „Schritt 1 von 7“ (\(obIndicator.label))")
         check(app.buttons["onboarding.skip"].exists, "„Überspringen“ angeboten")
         shot("1-willkommen")
         accessibilityAudit("Onboarding-Willkommen")
 
         tap(app.buttons["onboarding.next"], "Los geht’s")
-        check(waitFast(text(containing: "Dein Training")), "Schritt 2 „Dein Training“")
-        check(indicator.label == "Schritt 2 von 5", "Seitenanzeige „Schritt 2 von 5“")
+        obExpect(step: 1, title: "Dein Training")
         // The value lives in the stepper's label ("250 W, FTP"), not in a separate static text.
         check(app.steppers["onboarding.ftp"].label.contains("250 W") || text(containing: "250 W").exists, "FTP-Standard 250 W")
         let ftp = app.steppers["onboarding.ftp"]
@@ -1008,27 +1006,42 @@ final class AuditWalkthroughTests: AuditCase {
         accessibilityAudit("Onboarding-Training")
 
         tap(app.buttons["onboarding.next"], "Weiter")
-        check(waitFast(text(containing: "Deine Trainings-App")), "Schritt 3 „Trainings-App“")
-        check(indicator.label == "Schritt 3 von 5", "Seitenanzeige „Schritt 3 von 5“")
-        check(app.buttons["whoosh.login"].exists, "MyWhoosh-Anmeldung angeboten")
-        check(app.buttons["onboarding.strava"].exists, "Link „Strava oder FIT-Dateien?“")
-        shot("3-trainings-app")
-        accessibilityAudit("Onboarding-Trainings-App")
+        obExpect(step: 2, title: "Womit fährst du drinnen?")
+        check(obEl("onboarding.ride.myWhoosh").exists && obEl("onboarding.ride.none").exists, "Kacheln „MyWhoosh“ und „Noch keine App“")
+        check(app.buttons["onboarding.next"].label.contains("ohne Angabe"), "Ohne Auswahl: „Weiter ohne Angabe“ (\(app.buttons["onboarding.next"].label))")
+        check(obEl("onboarding.showAll").exists, "Link „Alle Dienste zeigen“")
+        shot("3-rides")
+        accessibilityAudit("Onboarding-Fahrten")
 
-        tap(app.buttons["onboarding.later"], "Später")
-        check(waitFast(text(containing: "Dein Coach")), "Schritt 4 „Coach“")
-        check(indicator.label == "Schritt 4 von 5", "Seitenanzeige „Schritt 4 von 5“")
-        check(app.buttons["claude.key.save"].exists && !app.buttons["claude.key.save"].isEnabled,
-              "„Prüfen & speichern“ ohne Key deaktiviert")
-        shot("4-coach")
+        tap(app.buttons["onboarding.next"], "Weiter ohne Angabe")
+        obExpect(step: 3, title: "Was hast du sonst noch?")
+        check(obEl("onboarding.extra.appleWatch").exists && obEl("onboarding.extra.none").exists, "Kacheln „Apple Watch“ und „Nichts davon“")
+        check(app.buttons["onboarding.next"].label.contains("ohne Angabe"), "Ohne Auswahl: „Weiter ohne Angabe“ (\(app.buttons["onboarding.next"].label))")
+        shot("4-extras")
+        accessibilityAudit("Onboarding-Extras")
+
+        tap(app.buttons["onboarding.next"], "Weiter ohne Angabe")
+        obExpect(step: 4, title: "Für dich passt")
+        check(!obEl("onboarding.section.recommended").exists, "Ohne Antworten keine empfohlenen Dienste")
+        check(obEl("onboarding.moreServices").exists || anyText(containing: "nichts zu verbinden").exists,
+              "Leerzustand oder „Alle Dienste anzeigen“")
+        check(app.buttons["onboarding.later"].exists, "„Ohne Verbindung weiter“ (onboarding.later)")
+        shot("5-dienste")
+        accessibilityAudit("Onboarding-Dienste")
+
+        tap(app.buttons["onboarding.later"], "Ohne Verbindung weiter")
+        obExpect(step: 5, title: "Dein Coach")
+        check(obEl("onboarding.coach.setup").exists, "Aufklapper „Claude jetzt einrichten“")
+        check(!obEl("claude.key.field").exists, "Key-Feld erst nach dem Aufklappen sichtbar")
+        shot("6-coach")
         accessibilityAudit("Onboarding-Coach")
 
         tap(app.buttons["onboarding.noClaude"], "Ohne Claude weiter")
-        check(waitFast(text(containing: "Alles bereit")), "Schritt 5 „Fertig“")
-        check(indicator.label == "Schritt 5 von 5", "Seitenanzeige „Schritt 5 von 5“")
-        check(app.descendants(matching: .any)["onboarding.status.mywhoosh"].exists, "Status-Checkliste sichtbar")
+        obExpect(step: 6, title: "Alles bereit")
+        check(obEl("onboarding.status.profil").exists, "Checkliste: Profil")
+        check(obEl("onboarding.status.coach").exists, "Checkliste: Coach")
         check(app.buttons["onboarding.tour"].exists, "„Kurze Tour ansehen“ angeboten")
-        shot("5-fertig")
+        shot("7-fertig")
         accessibilityAudit("Onboarding-Fertig")
 
         tap(app.buttons["onboarding.start"], "Direkt starten")
@@ -1055,14 +1068,51 @@ final class AuditWalkthroughTests: AuditCase {
         shot("zweiter-start")
     }
 
+    /// „Überspringen“ springt zur Zusammenfassung „Alles bereit“ (E3), die Einführung bleibt offen.
+    func test15b_SkipJumpsToSummary() {
+        launch(seed: "empty", extra: ["-uiOnboarding", "YES"])
+        route = "onboarding"
+        obWalkToQuestions()
+        shot("3-rides")
+        tap(app.buttons["onboarding.skip"], "Überspringen")
+        obExpect(step: 6, title: "Alles bereit")
+        check(!app.navigationBars["Heute"].exists, "Nicht auf Heute gelandet")
+        check(obEl("onboarding.status.profil").exists, "Zusammenfassung zeigt das Profil")
+        check(app.buttons["onboarding.start"].exists, "„Direkt starten“ angeboten")
+        shot("7-fertig-nach-skip")
+        accessibilityAudit("Onboarding-Skip-Fertig")
+
+        tap(app.buttons["onboarding.start"], "Direkt starten")
+        route = "heute"
+        check(waitFast(app.navigationBars["Heute"], timeout: 8), "„Direkt starten“ führt auf Heute")
+    }
+
+    /// Strava wird im Intro nicht eingerichtet (E5): Karte unter „Für Fortgeschrittene“, Merker, Sprung am Ende.
     func test16_OnboardingStravaChoice() {
         launch(seed: "empty", extra: ["-uiOnboarding", "YES"])
         route = "onboarding"
-        tap(app.buttons["onboarding.next"], "Los geht’s")
-        tap(app.buttons["onboarding.next"], "Weiter")
-        tap(app.buttons["onboarding.strava"], "Strava oder FIT-Dateien? Unter Dienste & Geräte einrichten")
+        obWalkToQuestions()
+        obAdvance("Weiter ohne Angabe")
+        obExpect(step: 3, title: "Was hast du sonst noch?")
+        obTap("onboarding.extra.strava", "Kachel Strava")
+        check(obSelected("onboarding.extra.strava"), "Strava ist gewählt")
+        obAdvance("Weiter")
+        obExpect(step: 4, title: "Für dich passt")
+        check(waitFast(obEl("onboarding.service.strava")), "Karte Strava")
+        check(obEl("onboarding.section.advanced").exists, "Abschnitt „Für Fortgeschrittene“")
+        check(!input(placeholder: "Client-ID", timeout: 1).exists, "Kein Feld „Client-ID“ im Intro")
+        shot("5-strava-karte")
+        accessibilityAudit("Onboarding-Strava-Karte")
+        obTap("onboarding.service.strava.afterwards", "Strava nach der Einführung einrichten")
+        obAdvance("Weiter")
+        obExpect(step: 5, title: "Dein Coach")
+        obAdvance("Ohne Claude weiter")
+        obExpect(step: 6, title: "Alles bereit")
+        check(obEl("onboarding.status.strava").exists, "Checkliste: Strava „richtest du gleich als Nächstes ein“")
+        shot("7-fertig-strava")
+        tap(app.buttons["onboarding.strava"], "Strava jetzt einrichten")
         route = "strava"
-        check(waitFast(app.navigationBars["Strava"], timeout: 8), "Der Link öffnet direkt die Strava-Seite im Profil")
+        check(waitFast(app.navigationBars["Strava"], timeout: 8), "Der Knopf öffnet direkt die Strava-Seite im Profil")
         let clientID = input(placeholder: "Client-ID")
         let end = Date().addingTimeInterval(4)
         while !clientID.isHittable && Date() < end { usleep(200_000) }
@@ -1269,29 +1319,49 @@ final class AuditPerformanceTests: AuditCase {
 
 /// Paket „Öffnung“ (docs/12): Onboarding-Journey, Feature-Tour, Feedback.
 final class AuditOpeningTests: AuditCase {
-    /// UX-Matrix für das Paket „Öffnung“: Onboarding (5 Schritte), Tour und Feedback bei L/Dark und AX5/Light.
+    /// UX-Matrix für das Paket „Öffnung“: Onboarding (7 Schritte), Tour und Feedback bei L/Dark und AX5/Light.
+    /// Antworten sind vorbelegt, damit Schritt 2 die Folgefrage und Schritt 4 mehrere Karten zeigt.
     func testMatrixOpening() {
         let combos: [(size: String, tag: String, dark: Bool)] = [
             ("UICTContentSizeCategoryL", "L-dark", true),
             ("UICTContentSizeCategoryAccessibilityXXXL", "AX5", false)
         ]
+        let answers = "rides=myWhoosh,zwift;device=mac;extras=appleWatch,heartStrap"
         for combo in combos {
             XCUIDevice.shared.appearance = combo.dark ? .dark : .light
             launch(seed: "empty", extra: ["-UIPreferredContentSizeCategoryName", combo.size, "-uiOnboarding", "YES",
-                                          "-uiClaudeStub", "YES", "-uiMyWhooshStubLogin", "YES"])
+                                          "-uiOnboardingAnswers", answers, "-uiBridgeAvailable", "YES", "-uiHealthStub", "YES",
+                                          "-uiClaudeStub", "YES", "-uiMyWhooshStubLogin", "YES", "-uiIntervalsStubLogin", "YES"])
             route = "onboarding"
-            let steps: [(name: String, advance: String)] = [("1-willkommen", "onboarding.next"), ("2-training", "onboarding.next"),
-                                                            ("3-trainings-app", "onboarding.later"), ("4-coach", "onboarding.noClaude")]
+            let steps: [(name: String, grid: [String])] = [
+                ("1-willkommen", []), ("2-training", []),
+                ("3-rides", ["onboarding.ride.myWhoosh", "onboarding.ride.none"]),
+                ("4-extras", ["onboarding.extra.appleWatch", "onboarding.extra.none"]),
+                ("5-dienste", []), ("6-coach", [])
+            ]
             for step in steps {
                 settle()
                 shot("\(combo.tag)-\(step.name)")
                 accessibilityAudit("Onboarding-\(step.name)@\(combo.tag)")
                 app.swipeUp()
                 shot("\(combo.tag)-\(step.name)-scrolled")
-                tap(app.buttons[step.advance], step.advance)
+                if step.name == "2-training" { obPickTrainingDay() }
+                if let first = step.grid.first, let last = step.grid.last {
+                    // AX5: eine Spalte (Kachel fast so breit wie der Bildschirm); die letzte Kachel lässt sich über die Leiste scrollen.
+                    let screen = app.windows.firstMatch.frame
+                    if combo.tag == "AX5" {
+                        check(obEl(first).frame.width > screen.width * 0.6,
+                              "AX5: Kacheln einspaltig (\(Int(obEl(first).frame.width)) von \(Int(screen.width)) pt)")
+                    }
+                    if let bar = obBarButton() { lift(obEl(last), above: bar) }
+                    if let bar = obBarButton() {
+                        check(obEl(last).frame.maxY <= bar.frame.minY + 2, "Letzte Kachel liegt frei über der unteren Leiste")
+                    }
+                }
+                obAdvance(step.name)
             }
             settle()
-            shot("\(combo.tag)-5-fertig")
+            shot("\(combo.tag)-7-fertig")
             accessibilityAudit("Onboarding-fertig@\(combo.tag)")
             tap(app.buttons["onboarding.tour"], "Kurze Tour ansehen")
             route = "tour"
@@ -1317,73 +1387,101 @@ final class AuditOpeningTests: AuditCase {
 
     // ANCHOR-UITEST-O1 (Onboarding-Journey & Verbindungen)
 
-    private func anyElement(_ identifier: String) -> XCUIElement {
-        app.descendants(matching: .any)[identifier].firstMatch
-    }
-
-    /// Launch arguments for the onboarding journey: forced onboarding, stubbed MyWhoosh login and Claude key check.
     /// iOS offers to save the MyWhoosh password in the Passwords app once the login form disappears.
     private func dismissSavePasswordPrompt() {
-        // Not the onboarding's own "Später" (onboarding.later).
-        let notOurs = NSPredicate(format: "(label == 'Später' OR label == 'Not Now') AND identifier != 'onboarding.later'")
+        // Not the onboarding's own "Später" (onboarding.later, onboarding.service.<id>.later).
+        let notOurs = NSPredicate(format: "(label == 'Später' OR label == 'Not Now') AND NOT (identifier BEGINSWITH 'onboarding.')")
         for candidate in [app.buttons.matching(notOurs).firstMatch,
                           XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons.matching(notOurs).firstMatch] {
             if candidate.waitForExistence(timeout: 1.5) { tap(candidate, "Passwort sichern? – Später"); return }
         }
     }
 
+    /// Launch arguments for the onboarding journey: forced onboarding, stubbed MyWhoosh login and Claude key check.
     private var journeyArguments: [String] {
         ["-uiOnboarding", "YES", "-uiMyWhooshStubLogin", "YES", "-uiClaudeStub", "YES"]
     }
 
-    /// Komplette Journey: Stub-Login, geprüfter Test-Key, Fertig → Tour → Heute.
+    /// Komplette Journey P1 (MyWhoosh am Mac): Folgefrage, Karten in Reihenfolge, Stub-Login, Health-Freigabe,
+    /// Brücke „Später“, geprüfter Test-Key, Fertig → Tour → Heute.
     func test29_OnboardingJourneyWithConnections() {
-        launch(seed: "empty", extra: journeyArguments)
+        launch(seed: "empty", extra: journeyArguments + ["-uiBridgeAvailable", "YES", "-uiHealthStub", "YES"])
         route = "onboarding"
-        let indicator = app.otherElements["onboarding.pageIndicator"]
-        check(waitFast(text(containing: "Willkommen bei IndoorCoach"), timeout: 8), "Willkommen")
-        tap(app.buttons["onboarding.next"], "Los geht’s")
-        check(waitFast(text(containing: "Dein Training")), "Dein Training")
-        tap(app.buttons["Montag"], "Trainingstag Montag")
-        tap(app.buttons["onboarding.next"], "Weiter")
+        obWalkToQuestions()
 
-        check(waitFast(text(containing: "Deine Trainings-App")), "Trainings-App")
-        check(indicator.label == "Schritt 3 von 5", "Seitenanzeige „Schritt 3 von 5“")
-        type(anyElement("whoosh.email"), "test@example.com", "MyWhoosh-E-Mail")
-        type(anyElement("whoosh.password"), "irgendein-test-passwort", "MyWhoosh-Passwort")
-        shot("3-login-ausgefuellt")
-        let password = anyElement("whoosh.password")
+        obTap("onboarding.ride.myWhoosh", "Kachel MyWhoosh")
+        check(obSelected("onboarding.ride.myWhoosh"), "MyWhoosh ist gewählt")
+        check(waitFast(obEl("onboarding.device.mac"), timeout: 4), "Folgefrage „Worauf läuft MyWhoosh bei dir?“ erscheint")
+        shot("3-folgefrage")
+        accessibilityAudit("Onboarding-Folgefrage")
+        obTap("onboarding.device.mac", "Gerät Mac")
+        check(obSelected("onboarding.device.mac"), "Mac ist gewählt")
+        obAdvance("Weiter")
+
+        obExpect(step: 3, title: "Was hast du sonst noch?")
+        obTap("onboarding.extra.appleWatch", "Kachel Apple Watch")
+        check(obSelected("onboarding.extra.appleWatch"), "Apple Watch ist gewählt")
+        obAdvance("Weiter")
+
+        obExpect(step: 4, title: "Für dich passt")
+        check(waitFast(obEl("onboarding.service.myWhoosh")), "Karte MyWhoosh")
+        obCheckOrder(["onboarding.service.myWhoosh", "onboarding.service.macBridge", "onboarding.service.appleHealth"],
+                     "MyWhoosh, Mac, Apple Health")
+        shot("5-dienste")
+        accessibilityAudit("Onboarding-Dienste-P1")
+
+        // MyWhoosh: Anmelden klappt das Formular auf, Stub-Login lädt Fahrten.
+        obTap("onboarding.service.myWhoosh.connect", "MyWhoosh „Anmelden“")
+        type(obEl("whoosh.email"), "test@example.com", "MyWhoosh-E-Mail")
+        type(obEl("whoosh.password"), "irgendein-test-passwort", "MyWhoosh-Passwort")
+        shot("5-login-ausgefuellt")
+        let password = obEl("whoosh.password")
         check(((password.value as? String) ?? "").count > 0, "Passwortfeld enthält Text (\((password.value as? String) ?? "nil"))")
         check(app.buttons["whoosh.login"].isEnabled, "Anmelden-Button aktiv")
         tap(app.buttons["whoosh.login"], "Bei MyWhoosh anmelden")
-        let status = anyElement("onboarding.myWhooshStatus")
-        let loginError = anyElement("whoosh.error")
+        let status = obEl("onboarding.myWhooshStatus")
+        let loginError = obEl("whoosh.error")
         let deadline = Date().addingTimeInterval(15)
         while !status.exists && !loginError.exists && Date() < deadline { usleep(250_000) }
         dismissSavePasswordPrompt()
-        shot("3-nach-login")
+        shot("5-nach-login")
         if loginError.exists { check(false, "Login-Fehler: \(loginError.label)") }
         check(status.exists, "Erfolgsstatus nach dem Login")
         check(status.label.contains("Verbunden") && status.label.contains("Fahrten geladen"),
               "Status „Verbunden · N Fahrten geladen“ (\(status.label))")
-        check(!anyElement("whoosh.password").exists, "Passwortfeld nach dem Login weg")
-        shot("3-verbunden")
+        check(!obEl("whoosh.password").exists, "Passwortfeld nach dem Login weg")
+        shot("5-verbunden")
         accessibilityAudit("Onboarding-Verbunden")
-        tap(app.buttons["onboarding.next"], "Weiter")
 
-        check(waitFast(text(containing: "Dein Coach")), "Coach")
-        let testKeyField = scrollUntilExists(anyElement("claude.key.field"), maxSwipes: 6)
-        lift(testKeyField, above: app.buttons["onboarding.noClaude"])
+        // Apple Health: erst die Erklärung, „Weiter zur Freigabe“, danach „Freigabe erteilt“.
+        obTap("onboarding.service.appleHealth.connect", "Health „Weiter zur Freigabe“")
+        check(obWaitLabel(obEl("onboarding.service.appleHealth.status"), contains: "Freigabe erteilt"), "Health-Status „Freigabe erteilt“")
+
+        // Mac-Brücke: „Später“.
+        obTap("onboarding.service.macBridge.later", "Brücke „Später“")
+        check(obWaitLabel(obEl("onboarding.service.macBridge.status"), contains: "Später"), "Brücken-Status „Später“")
+        shot("5-gemischt")
+        accessibilityAudit("Onboarding-Dienste-gemischt")
+        check(app.buttons["onboarding.next"].exists, "Mit Verbindung heißt der Knopf „Weiter“ (onboarding.next)")
+        obAdvance("Weiter")
+
+        obExpect(step: 5, title: "Dein Coach")
+        obTap("onboarding.coach.setup", "Claude jetzt einrichten")
+        let testKeyField = scrollUntilExists(obEl("claude.key.field"), maxSwipes: 6)
+        if let bar = obBarButton() { lift(testKeyField, above: bar) }
         type(testKeyField, "sk-ant-test-0000000000000000000000", "Claude-Test-Key")
         tap(app.buttons["claude.key.save"], "Prüfen & speichern")
-        check(waitFast(anyElement("claude.key.saved"), timeout: 10), "Key geprüft und gespeichert")
-        shot("4-key-gespeichert")
-        tap(app.buttons["onboarding.next"], "Weiter")
+        check(waitFast(obEl("claude.key.saved"), timeout: 10), "Key geprüft und gespeichert")
+        shot("6-key-gespeichert")
+        obAdvance("Weiter")
 
-        check(waitFast(text(containing: "Alles bereit")), "Fertig")
-        check(anyElement("onboarding.status.mywhoosh").label.contains("verbunden"), "MyWhoosh in der Checkliste verbunden")
-        check(anyElement("onboarding.status.coach").label.contains("Claude-Key gespeichert"), "Coach in der Checkliste eingerichtet")
-        shot("5-fertig")
+        obExpect(step: 6, title: "Alles bereit")
+        check(obEl("onboarding.status.mywhoosh").label.lowercased().contains("verbunden"), "MyWhoosh in der Checkliste verbunden (\(obEl("onboarding.status.mywhoosh").label))")
+        check(obEl("onboarding.status.applehealth").label.contains("Freigabe erteilt"), "Health in der Checkliste „Freigabe erteilt“ (\(obEl("onboarding.status.applehealth").label))")
+        check(obEl("onboarding.status.macbridge").label.contains("Sekundendaten vom Mac"), "Brücke in der Checkliste: Ort „Sekundendaten vom Mac“ (\(obEl("onboarding.status.macbridge").label))")
+        check(obEl("onboarding.status.coach").label.contains("Claude-Key gespeichert"), "Coach in der Checkliste eingerichtet (\(obEl("onboarding.status.coach").label))")
+        check(obEl("onboarding.openConnections").exists, "„Übersprungenes jetzt einrichten“ vorhanden")
+        shot("7-fertig")
         accessibilityAudit("Onboarding-Fertig-verbunden")
 
         tap(app.buttons["onboarding.tour"], "Kurze Tour ansehen")
@@ -1402,26 +1500,137 @@ final class AuditOpeningTests: AuditCase {
         check(!text(containing: "Alles bereit").exists, "Onboarding geschlossen")
     }
 
+    /// P2 (Zwift + Strava): intervals.icu-Karte mit Hinweis, Web-Anmeldung gestubbt, Folge-Hinweis in der Karte und am Ende.
+    func test29b_OnboardingZwiftIntervals() {
+        launch(seed: "empty", extra: ["-uiOnboarding", "YES", "-uiIntervalsStubLogin", "YES"])
+        route = "onboarding"
+        obWalkToQuestions()
+
+        obTap("onboarding.ride.zwift", "Kachel Zwift")
+        check(obSelected("onboarding.ride.zwift"), "Zwift ist gewählt")
+        check(!obEl("onboarding.device.mac").exists, "Keine Folgefrage bei Zwift")
+        obAdvance("Weiter")
+        obExpect(step: 3, title: "Was hast du sonst noch?")
+        obTap("onboarding.extra.strava", "Kachel Strava")
+        obAdvance("Weiter")
+
+        obExpect(step: 4, title: "Für dich passt")
+        check(waitFast(obEl("onboarding.service.intervalsICU")), "Karte intervals.icu")
+        check(anyText(containing: "nur über Strava").exists, "Hinweis „Fahrten, die nur über Strava ankommen …“")
+        check(obEl("onboarding.service.strava").exists, "Strava als Fortgeschrittene daneben")
+        shot("5-intervals-karte")
+        accessibilityAudit("Onboarding-intervals-Karte")
+
+        obTap("onboarding.service.intervalsICU.connect", "Mit intervals.icu verbinden")
+        let status = obEl("onboarding.service.intervalsICU.status")
+        check(obWaitLabel(status, contains: "Verbunden als", timeout: 12), "Status „Verbunden als …“ (\(status.label))")
+        check(status.label.contains("Tobias"), "Athletenname „Tobias“ im Status")
+        check(waitFast(obEl("onboarding.intervals.settings"), timeout: 4), "Folge-Hinweis mit Link zu den intervals.icu-Einstellungen")
+        check(anyText(containing: "Zwift").exists, "Folge-Hinweis nennt Zwift")
+        shot("5-intervals-verbunden")
+        accessibilityAudit("Onboarding-intervals-verbunden")
+        obAdvance("Weiter")
+
+        obExpect(step: 5, title: "Dein Coach")
+        obAdvance("Ohne Claude weiter")
+        obExpect(step: 6, title: "Alles bereit")
+        check(obEl("onboarding.status.intervalsicu").label.lowercased().contains("verbunden"),
+              "intervals.icu in der Checkliste verbunden (\(obEl("onboarding.status.intervalsicu").label))")
+        check(obEl("onboarding.intervals.settings").exists, "Folge-Hinweis erscheint in „Alles bereit“ erneut")
+        shot("7-fertig-intervals")
+        accessibilityAudit("Onboarding-Fertig-intervals")
+    }
+
+    /// P4 (Einsteiger): exklusive Kachel „Noch keine App“, Tipp, Brustgurt über Blatt, „Später“ in der Checkliste.
+    func test29c_OnboardingBeginner() {
+        launch(seed: "empty", extra: ["-uiOnboarding", "YES"])
+        route = "onboarding"
+        obWalkToQuestions()
+
+        obTap("onboarding.ride.none", "Kachel „Noch keine App“")
+        check(obSelected("onboarding.ride.none"), "„Noch keine App“ ist gewählt")
+        check(waitFast(anyText(containing: "kostenlose App"), timeout: 4), "Tipp „kostenlose App wie MyWhoosh“ sichtbar")
+        shot("3-keine-app")
+        accessibilityAudit("Onboarding-Einsteiger-Tipp")
+        obTap("onboarding.ride.zwift", "Kachel Zwift")
+        check(obSelected("onboarding.ride.zwift") && !obSelected("onboarding.ride.none"), "Zwift wählt „Noch keine App“ ab")
+        obTap("onboarding.ride.none", "Kachel „Noch keine App“")
+        check(obSelected("onboarding.ride.none") && !obSelected("onboarding.ride.zwift"), "„Noch keine App“ wählt Zwift ab")
+        obAdvance("Weiter")
+
+        obExpect(step: 3, title: "Was hast du sonst noch?")
+        obTap("onboarding.extra.heartStrap", "Kachel Brustgurt")
+        check(obSelected("onboarding.extra.heartStrap"), "Brustgurt ist gewählt")
+        obAdvance("Weiter")
+
+        obExpect(step: 4, title: "Für dich passt")
+        check(waitFast(obEl("onboarding.service.strap")), "Karte Brustgurt")
+        shot("5-gurt-karte")
+        accessibilityAudit("Onboarding-Gurt-Karte")
+        obTap("onboarding.service.strap.connect", "„Gurt koppeln“")
+        check(waitFast(obEl("strap.explainer.continue"), timeout: 8), "Blatt mit Erklärung des Brustgurts (strap.explainer.continue)")
+        shot("5-gurt-blatt")
+        accessibilityAudit("Onboarding-Gurt-Blatt")
+        tap(obEl("onboarding.sheet.done"), "Blatt „Fertig“")
+        check(waitFast(obEl("onboarding.service.strap.later"), timeout: 6), "Zurück auf derselben Karte")
+        obTap("onboarding.service.strap.later", "Gurt „Später“")
+        obAdvance("Weiter")
+
+        obExpect(step: 5, title: "Dein Coach")
+        obAdvance("Ohne Claude weiter")
+        obExpect(step: 6, title: "Alles bereit")
+        let strap = obEl("onboarding.status.strap")
+        check(strap.exists && strap.label.contains("Später unter Profil → Dienste & Geräte → Brustgurt"),
+              "Checkliste: „Später unter Profil → Dienste & Geräte → Brustgurt“ (\(strap.label))")
+        check(obEl("onboarding.openConnections").exists, "„Übersprungenes jetzt einrichten“ vorhanden")
+        shot("7-fertig-einsteiger")
+        accessibilityAudit("Onboarding-Fertig-Einsteiger")
+    }
+
+    /// P5 (Fortgeschrittene): „Alle Dienste zeigen“ springt zu Schritt 4, Zurück führt zu Schritt 2 (nicht 3).
+    func test29d_OnboardingShowAll() {
+        launch(seed: "empty", extra: ["-uiOnboarding", "YES"])
+        route = "onboarding"
+        obWalkToQuestions()
+
+        obTap("onboarding.showAll", "„Ich kenne mich aus – alle Dienste zeigen“")
+        obExpect(step: 4, title: "Alle Dienste")
+        check(!text(containing: "Für dich passt").exists, "Keine Überschrift „Für dich passt“")
+        check(!obEl("onboarding.section.recommended").exists, "Keine Empfehlungs-Überschrift")
+        check(obEl("onboarding.section.advanced").exists, "Abschnitt „Für Fortgeschrittene“")
+        check(obEl("onboarding.service.strava").exists, "Strava unter „Für Fortgeschrittene“")
+        shot("5-alle-dienste")
+        accessibilityAudit("Onboarding-Alle-Dienste")
+
+        tap(app.buttons["onboarding.back"], "Zurück")
+        obExpect(step: 2, title: "Womit fährst du drinnen?")
+        check(!text(containing: "Was hast du sonst noch?").exists, "Schritt „Was hast du sonst noch?“ wurde übersprungen")
+        shot("3-rides-zurueck")
+    }
+
     /// Falscher Key zeigt einen Fehler und wird nicht gespeichert; nach Abbruch macht der nächste Start am selben Schritt weiter.
     func test30_OnboardingWrongKeyAndResume() {
         launch(seed: "empty", extra: journeyArguments)
         route = "onboarding"
-        let indicator = app.otherElements["onboarding.pageIndicator"]
-        tap(app.buttons["onboarding.next"], "Los geht’s")
-        tap(app.buttons["onboarding.next"], "Weiter")
-        tap(app.buttons["onboarding.later"], "Später")
-        check(waitFast(text(containing: "Dein Coach")), "Coach")
+        obWalkToQuestions()
+        obAdvance("Weiter ohne Angabe")
+        obExpect(step: 3, title: "Was hast du sonst noch?")
+        obAdvance("Weiter ohne Angabe")
+        obExpect(step: 4, title: "Für dich passt")
+        obAdvance("Ohne Verbindung weiter")
+        obExpect(step: 5, title: "Dein Coach")
 
-        let keyField = scrollUntilExists(anyElement("claude.key.field"), maxSwipes: 6)
-        lift(keyField, above: app.buttons["onboarding.noClaude"])
+        obTap("onboarding.coach.setup", "Claude jetzt einrichten")
+        let keyField = scrollUntilExists(obEl("claude.key.field"), maxSwipes: 6)
+        if let bar = obBarButton() { lift(keyField, above: bar) }
         type(keyField, "sk-ant-wrong-0000000000000000", "falscher Claude-Key")
         tap(app.buttons["claude.key.save"], "Prüfen & speichern")
-        check(waitFast(anyElement("claude.key.error"), timeout: 10), "Fehlertext bei falschem Key")
-        check(!anyElement("claude.key.saved").exists, "Falscher Key wird nicht gespeichert")
+        check(waitFast(obEl("claude.key.error"), timeout: 10), "Fehlertext bei falschem Key")
+        check(!obEl("claude.key.saved").exists, "Falscher Key wird nicht gespeichert")
         check(app.buttons["onboarding.noClaude"].exists, "„Ohne Claude weiter“ bleibt möglich")
-        shot("4-falscher-key")
+        shot("6-falscher-key")
         accessibilityAudit("Onboarding-Falscher-Key")
-        check(indicator.label == "Schritt 4 von 5", "Seitenanzeige „Schritt 4 von 5“")
+        check(obIndicator.label == "Schritt 6 von 7", "Seitenanzeige „Schritt 6 von 7“ (\(obIndicator.label))")
 
         // Abbruch mitten im Onboarding, dann normaler Start (ohne -uiOnboarding): gleicher Schritt.
         app.terminate()
@@ -1429,9 +1638,57 @@ final class AuditOpeningTests: AuditCase {
         launch(seed: nil, extra: ["-uiClaudeStub", "YES"])
         route = "onboarding"
         check(waitFast(text(containing: "Dein Coach"), timeout: 8), "Wiederaufnahme beim Schritt „Coach“")
-        check(app.otherElements["onboarding.pageIndicator"].label == "Schritt 4 von 5", "Seitenanzeige weiter „Schritt 4 von 5“")
+        check(obIndicator.label == "Schritt 6 von 7", "Seitenanzeige weiter „Schritt 6 von 7“ (\(obIndicator.label))")
         check(!text(containing: "Willkommen bei IndoorCoach").exists, "Nicht wieder von vorn")
-        shot("4-wiederaufnahme")
+        shot("6-wiederaufnahme")
+    }
+
+    /// Die Antworten überleben einen Neustart: gleiche Karten auf Schritt 4.
+    func test30b_ResumeKeepsAnswers() {
+        launch(seed: "empty", extra: ["-uiOnboarding", "YES", "-uiHealthStub", "YES"])
+        route = "onboarding"
+        obWalkToQuestions()
+        obTap("onboarding.ride.myWhoosh", "Kachel MyWhoosh")
+        obAdvance("Weiter")
+        obExpect(step: 3, title: "Was hast du sonst noch?")
+        obTap("onboarding.extra.appleWatch", "Kachel Apple Watch")
+        obAdvance("Weiter")
+        obExpect(step: 4, title: "Für dich passt")
+        check(waitFast(obEl("onboarding.service.myWhoosh")), "Karte MyWhoosh vor dem Abbruch")
+        check(waitFast(obEl("onboarding.service.appleHealth")), "Karte Apple Health vor dem Abbruch")
+        shot("5-vor-abbruch")
+
+        app.terminate()
+        log("Terminated app mid-onboarding")
+        launch(seed: nil, extra: ["-uiHealthStub", "YES"])
+        route = "onboarding"
+        obExpect(step: 4, title: "Für dich passt")
+        check(waitFast(obEl("onboarding.service.myWhoosh")), "Karte MyWhoosh nach dem Neustart")
+        check(waitFast(obEl("onboarding.service.appleHealth")), "Karte Apple Health nach dem Neustart")
+        check(!text(containing: "Willkommen bei IndoorCoach").exists, "Nicht wieder von vorn")
+        shot("5-wiederaufnahme")
+        accessibilityAudit("Onboarding-Wiederaufnahme")
+    }
+
+    /// Token-Endpunkt antwortet 401: der Fehler steht auf der Karte im Intro, „Ohne Verbindung weiter“ bleibt möglich.
+    func test30c_IntervalsLoginError() {
+        launch(seed: "empty", extra: ["-uiOnboarding", "YES", "-uiIntervalsStubLogin", "YES", "-uiIntervalsStubLoginFails", "YES",
+                                      "-uiOnboardingAnswers", "rides=zwift", "-uiOnboardingStep", "4"])
+        route = "onboarding"
+        obExpect(step: 4, title: "Für dich passt")
+        check(waitFast(obEl("onboarding.service.intervalsICU")), "Karte intervals.icu")
+        obTap("onboarding.service.intervalsICU.connect", "Mit intervals.icu verbinden")
+        let error = obEl("onboarding.service.intervalsICU.error")
+        check(waitFast(error, timeout: 12), "Fehlertext auf der Karte (onboarding.service.intervalsICU.error)")
+        check(!error.label.isEmpty, "Fehlertext ist nicht leer (\(error.label))")
+        check(!obWaitLabel(obEl("onboarding.service.intervalsICU.status"), contains: "Verbunden als", timeout: 1), "Karte ist nicht verbunden")
+        check(obEl("onboarding.service.intervalsICU.connect").exists, "Hauptaktion erneut möglich")
+        shot("5-intervals-fehler")
+        accessibilityAudit("Onboarding-intervals-Fehler")
+
+        check(app.buttons["onboarding.later"].exists, "„Ohne Verbindung weiter“ bleibt möglich (onboarding.later)")
+        tap(app.buttons["onboarding.later"], "Ohne Verbindung weiter")
+        obExpect(step: 5, title: "Dein Coach")
     }
 
     // ANCHOR-UITEST-O2 (Feature-Tour & Tipps)
