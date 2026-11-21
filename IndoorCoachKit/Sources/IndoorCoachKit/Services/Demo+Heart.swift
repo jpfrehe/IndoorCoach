@@ -1,7 +1,8 @@
 import Foundation
 
 extension DemoData {
-    /// Demo-Ruhepuls für „Dein Herz im Winter Arc“: ein Tageswert je Tag der letzten 110 Tage, sinkt von 58 auf 53 bpm.
+    /// Demo-Ruhepuls für „Dein Herz im Winter Arc“: ein Tageswert je Tag der letzten 110 Tage, sinkt von 59 auf 52 bpm
+    /// (steil genug, dass der Monatsvergleich an jedem Tag des Jahres klar fällt, trotz Rauschen und Rundung).
     /// Deterministisch, synthetisch; nur im Demo-Modus gezeigt.
     static func heartRestingDailies(now: Date = .now, calendar: Calendar = .current) -> [HealthDaily] {
         let today = calendar.startOfDay(for: now)
@@ -10,7 +11,7 @@ extension DemoData {
         return (0..<110).compactMap { back in
             guard let day = calendar.date(byAdding: .day, value: -back, to: today) else { return nil }
             let progress = 1 - Double(back) / 109
-            let value = 58 - 5 * progress + Double.random(in: -0.8...0.8, using: &rng)
+            let value = 59 - 7 * progress + Double.random(in: -0.6...0.6, using: &rng)
             return HealthDaily(date: day, metric: .restingHR, value: value.rounded(), source: source)
         }.reversed()
     }
