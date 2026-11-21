@@ -1089,7 +1089,7 @@ final class AuditWalkthroughTests: AuditCase {
     }
 
     func test16c_IntervalsConnection() {
-        // a) Standard: nicht verbunden, OAuth in diesem Build nicht freigeschaltet -> nur der API-Key-Weg.
+        // a) Standard: nicht verbunden, Client-ID in Info.plist -> OAuth-Knopf vorn, API-Key eingeklappt darunter.
         launch()
         route = "intervals"
         openConnections()
@@ -1097,13 +1097,18 @@ final class AuditWalkthroughTests: AuditCase {
         check(scrollUntilExists(rowElement, maxSwipes: 6).exists, "Zeile intervals.icu in Dienste & Geräte")
         tap(rowElement, "Zeile intervals.icu")
         check(waitFast(app.navigationBars["intervals.icu"], timeout: 6), "Detailseite intervals.icu öffnet")
-        check(text(containing: "noch nicht verfügbar").waitForExistence(timeout: 4), "Hinweis: Anmeldung über intervals.icu noch nicht verfügbar")
+        let oauth = scrollUntilExists(app.buttons["intervals.connect"].firstMatch, maxSwipes: 6)
+        check(oauth.waitForExistence(timeout: 4) && oauth.isEnabled, "Knopf „Mit intervals.icu verbinden“ aktiv")
+        check(!text(containing: "noch nicht verfügbar").exists, "Kein Hinweis „noch nicht verfügbar“ mit Client-ID")
+        shot("nicht-verbunden")
+        let disclosure = scrollUntilExists(app.buttons["API-Key verwenden"].firstMatch, maxSwipes: 6)
+        check(disclosure.exists, "Aufklapper „API-Key verwenden“")
+        if disclosure.exists { tap(disclosure, "API-Key verwenden") }
         let keyField = scrollUntilExists(app.secureTextFields["intervals.apiKey"].firstMatch, maxSwipes: 6)
-        check(keyField.waitForExistence(timeout: 4), "API-Key-Feld sichtbar")
+        check(keyField.waitForExistence(timeout: 4), "API-Key-Feld nach dem Aufklappen sichtbar")
         let connectKey = scrollUntilExists(app.buttons["intervals.connectKey"].firstMatch, maxSwipes: 6)
         check(connectKey.exists && !connectKey.isEnabled, "„Mit API-Key verbinden“ ist ohne Eingabe deaktiviert")
-        check(!app.buttons["intervals.connect"].exists, "Kein OAuth-Knopf ohne Client-ID")
-        shot("nicht-verbunden")
+        shot("api-key-aufgeklappt")
         accessibilityAudit("intervals.icu (nicht verbunden)")
 
         // b) Verbunden (Debug-Seed, kein Netzwerk, Zugang nur im Speicher).

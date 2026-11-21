@@ -166,7 +166,8 @@ Dazu kommen 59 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusiv
 
 ## Datenschutz & Secrets
 
-- Claude-API-Key, Strava-Tokens und die MyWhoosh-Sitzung liegen nur im iOS-Schlüsselbund, nie im Code oder in Dateien.
+- Claude-API-Key, Strava- und intervals.icu-Tokens und die MyWhoosh-Sitzung liegen nur im iOS-Schlüsselbund, nie im Code oder in Dateien.
+- intervals.icu: Anmeldung per OAuth mit PKCE. Die Client-ID in `Config/Info.plist` ist öffentlich; das Client-Secret der intervals.icu-App gehört nicht in App oder Repository (nur Passwortmanager).
 - Das MyWhoosh-Passwort wird nicht gespeichert.
 - Mac-Brücke: nur gekoppelte iPhones bekommen Fahrten, nur im lokalen Netz und nur verschlüsselt. Das Geheimnis wird bei der Kopplung zusätzlich mit Einmalschlüsseln geschützt, und nach 10 falschen Codes schließt das Kopplungsfenster.
 - Das Diagnose-Log schwärzt Tokens, E-Mail-Adressen und den Namen deines Macs.

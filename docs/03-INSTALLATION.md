@@ -67,12 +67,12 @@ Die Startzeit wird für Kalendereinträge verwendet.
 ## 5a. intervals.icu verbinden (Pläne für Zwift, Garmin, Wahoo, Rouvy; Fahrten)
 
 1. **Profil → Dienste & Geräte → intervals.icu**.
-2. **Mit intervals.icu verbinden** öffnet die Anmeldung bei intervals.icu (OAuth). Solange die App dort noch nicht freigegeben ist, steht stattdessen der Weg über den **persönlichen API-Key**: intervals.icu → Einstellungen → Developer Settings → API-Key kopieren → einfügen → **Mit API-Key verbinden**. Der Schlüssel liegt nur im Schlüsselbund.
+2. **Mit intervals.icu verbinden** öffnet die Anmeldung bei intervals.icu (OAuth). Alternativ unter **API-Key verwenden** den **persönlichen API-Key** eintragen: intervals.icu → Einstellungen → Developer Settings → API-Key kopieren → einfügen → **Mit API-Key verbinden**. Der Schlüssel liegt nur im Schlüsselbund.
 3. Danach lädt die App deine Fahrten der letzten 210 Tage samt FIT-Datei (Sekundendaten). Fahrten, die schon über Strava oder MyWhoosh da sind, werden ergänzt statt verdoppelt. Fahrten, die nur über Strava in intervals.icu ankommen, liefert intervals.icu nicht aus.
 4. Mit „Neue Pläne automatisch senden“ landen übernommene Einheiten als Workout in deinem intervals.icu-Kalender. Damit sie in **Zwift, Garmin, Wahoo oder Rouvy** erscheinen, in intervals.icu unter Einstellungen → Connections die Übertragung geplanter Workouts einschalten.
 5. **Trennen** meldet die App bei intervals.icu ab und löscht den Zugang auf dem iPhone. Importierte Fahrten und gesendete Einheiten bleiben.
 
-**Für die App-Store-Version (einmalig, Entwickler):** unter <https://intervals.icu/oauth/apply> eine App beantragen, als Redirect `indoorcoach://localhost/intervals` eintragen, Scopes `ACTIVITY:READ,CALENDAR:WRITE`, nach der Freigabe „Public client“ und „Require PKCE“ setzen und die Client-ID in `Config/Info.plist` unter `IntervalsClientID` eintragen (die Client-ID ist öffentlich, ein Client-Secret braucht die App nicht).
+**Für die App-Store-Version (einmalig, Entwickler):** unter <https://intervals.icu/oauth/apply> eine App beantragen, als Redirect `indoorcoach://localhost/intervals` eintragen, Scopes `ACTIVITY:READ,CALENDAR:WRITE`, nach der Freigabe „Public client“ und „Require PKCE“ setzen und die Client-ID in `Config/Info.plist` unter `IntervalsClientID` eintragen (erledigt: Client-ID `1969`). Die Client-ID ist öffentlich. Das Client-Secret, das intervals.icu dabei ausgibt, braucht die App **nicht** und gehört weder in die App noch ins Repository noch in eine xcconfig, sondern nur in einen Passwortmanager: Alles im App-Bundle lässt sich auslesen. Der Token-Endpunkt verlangt für diese App PKCE (`code_verifier`) statt Secret (geprüft am 21.11.2026). Bei Verdacht auf ein Leck das Secret bei intervals.icu neu erzeugen.
 
 ## 6. Planen → Kalender → MyWhoosh
 

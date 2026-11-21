@@ -88,7 +88,7 @@ Entscheidung: direkt Stufe 2, gleich App-Store-tauglich. Stufe 1 (Zwift über de
 |---|---|
 | Anmeldung | OAuth 2.0 Authorization Code mit **PKCE (S256)** über `ASWebAuthenticationSession`; `state` wird geprüft |
 | Kein Geheimnis in der App | intervals.icu erlaubt öffentliche Clients mit PKCE ohne Client-Secret [B]; kein eigener Server nötig |
-| Client-ID | öffentlich, steht in `Info.plist` (`IntervalsClientID`). **Vorläufig leer**, bis die App unter intervals.icu/oauth/apply freigegeben ist; die App-Einstellung „Public client“ und „Require PKCE“ dort setzen |
+| Client-ID | öffentlich, steht in `Info.plist` (`IntervalsClientID`). Freigegeben, Client-ID `1969`. Das ausgegebene Client-Secret bleibt außerhalb von App und Repository (nur Passwortmanager); der Token-Endpunkt verlangt für diese App `code_verifier` und kein Secret (Probe mit ungültigem Code am 21.11.2026) |
 | Redirect | `indoorcoach://localhost/intervals` (vorhandenes URL-Schema), muss bei intervals.icu exakt eingetragen sein |
 | Scopes | nur `ACTIVITY:READ,CALENDAR:WRITE` |
 | Token | nur Access-Token (intervals.icu kennt kein Refresh), im Schlüsselbund; geht nur an `intervals.icu` |
@@ -118,7 +118,7 @@ Abschluss: Code- und Security-Review, alle Unit-Tests, UI-Tests auf 402 pt und i
 ### Stand nach der Umsetzung
 
 - Security-Review: keine kritischen Befunde; umgesetzt u. a. Absturzschutz bei unplausiblen Zahlen, Zugang zuerst lokal löschen und dann bei intervals.icu abmelden, Weiterleitungen nur innerhalb von `https://intervals.icu`, gzip mit Größenlimit beim Entpacken, Schlüsselbund-Fehler sichtbar, 401 und 403 getrennt, Token-Anfrage mit `grant_type` und `redirect_uri`.
-- Bekannte Grenzen: Löschen per `external_id` greift laut API nur für Termine, die die eigene OAuth-App angelegt hat; mit API-Key bleibt ein gelöschter Termin evtl. in intervals.icu. Die Download-Größe wird erst nach dem Laden geprüft. Token-Austausch und Scope-Antwort sind erst nach der OAuth-Freigabe am echten Server prüfbar.
+- Bekannte Grenzen: Löschen per `external_id` greift laut API nur für Termine, die die eigene OAuth-App angelegt hat; mit API-Key bleibt ein gelöschter Termin evtl. in intervals.icu. Die Download-Größe wird erst nach dem Laden geprüft. Token-Austausch mit echtem Code und Scope-Antwort sind erst mit der ersten Anmeldung eines echten Kontos geprüft.
 
 ## Quellen
 
