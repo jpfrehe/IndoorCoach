@@ -101,7 +101,7 @@ struct WorkoutDetailContent: View {
             .padding(.top, 8)
 
             Card {
-                PowerProfileChart(definition: d, ftp: ftp, height: 210)
+                WorkoutProfileChart(definition: d, ftp: ftp)
                 Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 12) {
                     GridRow {
                         StatTile(title: "Dauer", value: Formatters.duration(d.totalDuration))
@@ -326,7 +326,7 @@ private struct AdjustSheet: View {
         let ftp = model.profile.ftp
         let shown = result?.definition ?? base
         return Card(title: "Vorschau", systemImage: "eye") {
-            PowerProfileChart(definition: shown, ftp: ftp, showAxes: false, height: 110)
+            WorkoutProfileView(definition: shown, ftp: ftp, variant: .preview, height: 110).equatable()
                 .accessibilityHidden(true)
             let before = "\(WorkoutAdjust.minutes(base.totalDuration)) min"
             let after = "\(WorkoutAdjust.minutes(shown.totalDuration)) min"

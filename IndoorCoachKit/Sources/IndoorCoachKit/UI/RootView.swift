@@ -90,6 +90,7 @@ public struct RootView: View {
             await model.syncRides()
             await model.syncFromBridge(announce: false)
         }
+        .chartGalleryOverlay()   // DEBUG: -uiChartGallery YES
     }
 }
 

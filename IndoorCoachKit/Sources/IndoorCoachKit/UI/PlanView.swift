@@ -335,7 +335,7 @@ struct ProposalReview: View {
                             Spacer()
                             TypeBadge(type: w.definition.type)
                         }
-                        PowerProfileChart(definition: w.definition, ftp: model.profile.ftp, showAxes: false, height: 56)
+                        WorkoutProfileView(definition: w.definition, ftp: model.profile.ftp, variant: .card, height: 56).equatable()
                         Text("\(Formatters.duration(w.definition.totalDuration)) · TSS \(Int(w.definition.estimatedTSS.rounded())) · \(w.definition.summary)")
                             .font(.caption).foregroundStyle(.secondary)
                         Label(w.rationale, systemImage: "lightbulb")
