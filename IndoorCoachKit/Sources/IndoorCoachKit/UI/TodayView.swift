@@ -140,7 +140,7 @@ struct TodayDashboard: View {
                         Spacer()
                         TypeBadge(type: d.type)
                     }
-                    PowerProfileChart(definition: d, ftp: model.profile.ftp, showAxes: false, height: 64)
+                    WorkoutProfileView(definition: d, ftp: model.profile.ftp, variant: .card, height: 64).equatable()
                     HStack {
                         StatTile(title: "Dauer", value: Formatters.duration(d.totalDuration))
                         StatTile(title: "TSS", value: "\(Int(d.estimatedTSS.rounded()))")

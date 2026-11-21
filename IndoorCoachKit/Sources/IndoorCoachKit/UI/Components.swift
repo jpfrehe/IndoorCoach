@@ -232,109 +232,20 @@ struct TypeIcon: View {
     }
 }
 
-// MARK: - Power profile chart
-
-struct PowerProfileChart: View {
-    var definition: WorkoutDefinition
-    var ftp: Int
-    var showAxes = true
-    var height: CGFloat = 180
-
-    struct Bar: Identifiable {
-        let id: Int
-        let x0: Double, x1: Double, y: Double
-        let zone: PowerZone
-    }
-
-    /// Ramps are split into slices so the stair-step shape follows the target power.
-    var bars: [Bar] {
-        var out: [Bar] = []
-        var i = 0
-        for step in definition.steps where step.duration > 0 {
-            let slices = step.startPower == step.endPower ? 1 : max(4, step.duration / 60)
-            let width = Double(step.duration) / Double(slices)
-            for s in 0..<slices {
-                let frac = (Double(s) + 0.5) / Double(slices)
-                let p = step.startPower + (step.endPower - step.startPower) * frac
-                let x0 = (Double(step.start) + width * Double(s)) / 60
-                out.append(Bar(id: i, x0: x0, x1: x0 + width / 60, y: p * 100, zone: PowerZone(fractionOfFTP: p)))
-                i += 1
-            }
-        }
-        return out
-    }
-
-    var body: some View {
-        let bars = self.bars
-        let maxY = max(130, (bars.map(\.y).max() ?? 100) + 10)
-        Chart {
-            ForEach(bars) { bar in
-                RectangleMark(xStart: .value("Start", bar.x0), xEnd: .value("Ende", bar.x1),
-                              yStart: .value("Basis", 0), yEnd: .value("% FTP", bar.y))
-                    .foregroundStyle(Theme.fill(bar.zone))
-                // Jelly cap: the deeper tone gives every bar ≥ 3:1 against the card (WCAG 1.4.11).
-                RectangleMark(xStart: .value("Start", bar.x0), xEnd: .value("Ende", bar.x1),
-                              yStart: .value("Kappe", max(0, bar.y - maxY * 0.035)), yEnd: .value("% FTP", bar.y))
-                    .foregroundStyle(Theme.cap(bar.zone))
-            }
-            RuleMark(y: .value("FTP", 100))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                .foregroundStyle(.secondary)
-                .annotation(position: .top, alignment: .leading) {
-                    if showAxes { Text("FTP \(ftp) W").font(.caption2).foregroundStyle(.secondary) }
-                }
-        }
-        .chartYScale(domain: 0...maxY)
-        .chartXScale(domain: 0...(Double(definition.totalDuration) / 60))
-        .chartXAxis {
-            if showAxes {
-                AxisMarks(values: .automatic(desiredCount: 6)) { value in
-                    AxisGridLine()
-                    AxisValueLabel { if let v = value.as(Double.self) { Text("\(Int(v))′").foregroundStyle(Theme.axisLabel) } }
-                }
-            }
-        }
-        .chartYAxis {
-            if showAxes {
-                AxisMarks(position: .leading, values: [50, 100, 150].filter { Double($0) <= maxY }) { value in
-                    AxisGridLine()
-                    AxisValueLabel { if let v = value.as(Int.self) { Text("\(v * ftp / 100) W").foregroundStyle(Theme.axisLabel) } }
-                }
-            }
-        }
-        .frame(height: height)
-        // One element instead of one per bar slice (VoiceOver read 20–70 "x bis y" fragments).
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Leistungsprofil \(definition.title)")
-        .accessibilityValue(accessibilitySummary)
-    }
-
-    var accessibilitySummary: String {
-        let peak = definition.steps.map { max($0.startPower, $0.endPower) }.max() ?? 0
-        return "\(Formatters.duration(definition.totalDuration)), \(definition.segments.count) Abschnitte, "
-            + "Spitze \(Int((peak * 100).rounded())) % FTP (\(Int((peak * Double(ftp)).rounded())) W)"
-    }
-}
+// MARK: - Zone distribution
 
 struct ZoneDistributionBar: View {
     var definition: WorkoutDefinition
 
     var body: some View {
         let zones = definition.timeInZones()
-        let total = max(1, zones.values.reduce(0, +))
         VStack(alignment: .leading, spacing: 8) {
-            GeometryReader { geo in
-                HStack(spacing: 2) {
-                    ForEach(PowerZone.allCases) { zone in
-                        if let seconds = zones[zone], seconds > 0 {
-                            Theme.color(for: zone)
-                                .frame(width: max(3, geo.size.width * Double(seconds) / Double(total) - 2))
-                        }
-                    }
-                }
-            }
-            .frame(height: 12)
-            .clipShape(Capsule())
+            SegmentedBar(items: PowerZone.allCases.compactMap { zone in
+                guard let seconds = zones[zone], seconds > 0 else { return nil }
+                return SegmentedBar.Item(id: zone.rawValue, value: Double(seconds), color: ChartPalette.zone(zone))
+            }, variant: .thin)
+            // The legend below carries the values for VoiceOver.
+            .accessibilityHidden(true)
             FlowLegend(items: PowerZone.allCases.compactMap { zone in
                 guard let s = zones[zone], s > 0 else { return nil }
                 return (zone, "\(zone.shortName) \(Formatters.duration(s))")
@@ -349,7 +260,7 @@ struct FlowLegend: View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), alignment: .leading)], alignment: .leading, spacing: 6) {
             ForEach(items, id: \.0) { zone, text in
                 HStack(spacing: 6) {
-                    Circle().fill(Theme.color(for: zone)).frame(width: 8, height: 8)
+                    Circle().fill(ChartPalette.zone(zone)).frame(width: 8, height: 8)
                     Text(text).font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
@@ -366,30 +277,37 @@ struct WorkoutRow: View {
 
     var body: some View {
         let d = workout.definition
-        HStack(spacing: 12) {
-            if !typeSize.isAccessibilitySize { TypeIcon(type: d.type) }
-            VStack(alignment: .leading, spacing: 3) {
-                HStack {
-                    Text(workout.title).font(.body.weight(.semibold)).lineLimit(2)
-                    if workout.status != .planned {
-                        Image(systemName: workout.status.symbol)
-                            .foregroundStyle(workout.status == .done ? Theme.done : .secondary)
+        let skipped = workout.status == .skipped
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                if !typeSize.isAccessibilitySize { TypeIcon(type: d.type) }
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text(workout.title).font(.body.weight(.semibold)).lineLimit(2)
+                        if workout.status != .planned {
+                            Image(systemName: workout.status.symbol)
+                                .foregroundStyle(workout.status == .done ? Theme.done : .secondary)
+                        }
+                        if workout.calendarEventID != nil {
+                            Image(systemName: "calendar.badge.checkmark").foregroundStyle(Theme.rowSecondary).font(.caption)
+                        }
                     }
-                    if workout.calendarEventID != nil {
-                        Image(systemName: "calendar.badge.checkmark").foregroundStyle(Theme.rowSecondary).font(.caption)
-                    }
+                    Text(Self.dayLabel(workout.date)).font(.subheadline).foregroundStyle(Theme.rowSecondary)
+                    // IF lives in the detail; in the row it wrapped to "IF / 0,79" on 375 pt screens.
+                    Text("\(Formatters.duration(d.totalDuration)) · TSS \(Int(d.estimatedTSS.rounded()))")
+                        .font(.caption).foregroundStyle(Theme.rowSecondary).monospacedDigit()
                 }
-                Text(Self.dayLabel(workout.date)).font(.subheadline).foregroundStyle(Theme.rowSecondary)
-                // IF lives in the detail; in the row it wrapped to "IF / 0,79" on 375 pt screens.
-                Text("\(Formatters.duration(d.totalDuration)) · TSS \(Int(d.estimatedTSS.rounded()))")
-                    .font(.caption).foregroundStyle(Theme.rowSecondary).monospacedDigit()
+                Spacer(minLength: 0)
+                if !typeSize.isAccessibilitySize {
+                    WorkoutProfileView(definition: d, ftp: ftp, variant: .row, skipped: skipped)
+                        .equatable()
+                        .frame(width: 72)
+                }
             }
-            Spacer(minLength: 0)
-            // At accessibility text sizes the mini chart would squeeze the title to a few letters.
-            if !typeSize.isAccessibilitySize {
-                PowerProfileChart(definition: d, ftp: ftp, showAxes: false, height: 34)
-                    .frame(width: 72)
-                    .opacity(workout.status == .skipped ? 0.4 : 1)
+            // At accessibility text sizes the profile moves below the text instead of squeezing the title.
+            if typeSize.isAccessibilitySize {
+                WorkoutProfileView(definition: d, ftp: ftp, variant: .accessibilityRow, skipped: skipped)
+                    .equatable()
             }
         }
         .padding(.vertical, 4)
