@@ -250,18 +250,20 @@ final class AuditWalkthroughTests: AuditCase {
         type(goal, " – Ötztaler Radmarathon '27 🚴", "Zielfeld")
         shot("goal-typed")
 
-        // The Winter-Arc section sits above the training days and the Form is lazy: scroll them into existence.
+        // The Form is lazy: scroll the training days into existence (they sit in "Verfügbarkeit" on the start page).
         // Audit 3: the profile keyboard has "Fertig" (Ziel is multi-line; on the SE the emoji keyboard covered the list).
         let done = app.buttons["keyboard.done"]
         check(done.exists, "Tastatur hat „Fertig“")
         if done.exists { tap(done, "Fertig") } else if app.keyboards.firstMatch.exists { app.swipeDown(velocity: .fast) }
         check(!app.keyboards.firstMatch.exists, "„Fertig“ schließt die Tastatur")
-        tap(scrollUntilExists(app.buttons["Montag"], maxSwipes: 14), "Trainingstag Montag")   // SE: längeres Formular
+        tap(scrollUntilExists(app.buttons["Montag"], maxSwipes: 8), "Trainingstag Montag")
         check(app.buttons["Montag"].isSelected, "Montag ist als gewählt markiert")
 
         // Close the goal keyboard first (Form does not scroll the key field into view while it is up).
         if app.keyboards.firstMatch.exists { app.swipeDown(velocity: .fast) }
-        let key = scrollUntilExists(app.secureTextFields.firstMatch, maxSwipes: 12)
+        // AP4: der Claude-Key liegt auf der Unterseite „Coach · Claude“.
+        tap(scrollUntilExists(app.descendants(matching: .any)["profile.coach"].firstMatch), "Profil → Coach · Claude")
+        let key = scrollUntilExists(app.secureTextFields.firstMatch, maxSwipes: 4)
         log("Keyboard after goal", app.keyboards.firstMatch.exists ? "offen" : "zu")
         type(key, "sk-ant-test", "API-Key-Feld (zu kurz)")
         let save = app.buttons["claude.key.save"]
@@ -277,6 +279,7 @@ final class AuditWalkthroughTests: AuditCase {
         shot("key-saved")
         tap(app.buttons["API-Key entfernen"], "API-Key entfernen")
         check(app.secureTextFields.firstMatch.waitForExistence(timeout: 3), "Key-Feld wieder leer nach Entfernen")
+        back()
 
         _ = scrollUntilExists(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Strava verbinden'")).firstMatch)
         let clientID = input(placeholder: "Client-ID")
@@ -719,6 +722,7 @@ final class AuditWalkthroughTests: AuditCase {
 
         openTab("Profil")
         route = "profil"
+        tap(scrollUntilExists(app.descendants(matching: .any)["profile.reminders"].firstMatch), "Profil → Erinnerungen")
         let toggle = app.descendants(matching: .any)["reminder.toggle"].firstMatch
         check(scrollUntilExists(toggle).exists, "Schalter „Wochenrückblick am Sonntag“ im Profil")
         shot("erinnerung")
@@ -775,7 +779,8 @@ final class AuditWalkthroughTests: AuditCase {
     func test24_DiagnosticsShareSheet() {
         launch()
         openTab("Profil")
-        let export = scrollUntilExists(app.buttons["diagnostics.export"], maxSwipes: 14)
+        tap(scrollUntilExists(app.descendants(matching: .any)["profile.help"].firstMatch), "Profil → Hilfe & Feedback")
+        let export = scrollUntilExists(app.buttons["diagnostics.export"], maxSwipes: 8)
         check(export.exists, "„Diagnose exportieren“ im Profil")
         tap(export, "Diagnose exportieren")
         let share = app.buttons["diagnostics.share"]
@@ -927,6 +932,7 @@ final class AuditWalkthroughTests: AuditCase {
 
         openTab("Profil")
         route = "profil"
+        tap(scrollUntilExists(app.descendants(matching: .any)["profile.reminders"].firstMatch), "Profil → Erinnerungen")
         let toggle = app.descendants(matching: .any)["reminder.workoutToggle"].firstMatch
         check(scrollUntilExists(toggle).exists, "Schalter „Erinnerung 30 Minuten vor der Einheit“ im Profil")
         shot("einheiten-erinnerung")
@@ -1223,7 +1229,8 @@ final class AuditOpeningTests: AuditCase {
             tap(app.buttons["tour.skip"], "Tour überspringen")
             route = "feedback"
             openTab("Profil")
-            let open = scrollUntilExists(app.descendants(matching: .any)["feedback.open"].firstMatch, maxSwipes: 20)
+            tap(scrollUntilExists(app.descendants(matching: .any)["profile.help"].firstMatch), "Profil → Hilfe & Feedback")
+            let open = scrollUntilExists(app.descendants(matching: .any)["feedback.open"].firstMatch, maxSwipes: 8)
             tap(open, "Feedback & Wünsche")
             settle()
             shot("\(combo.tag)-feedback")
@@ -1393,8 +1400,9 @@ final class AuditOpeningTests: AuditCase {
     func test32_FeedbackFormAndTour() {
         launch()
         openTab("Profil")
-        let open = scrollUntilExists(app.descendants(matching: .any)["feedback.open"].firstMatch, maxSwipes: 14)
-        check(open.exists, "Zeile „Feedback & Wünsche“ im Profil")
+        tap(scrollUntilExists(app.descendants(matching: .any)["profile.help"].firstMatch), "Profil → Hilfe & Feedback")
+        let open = scrollUntilExists(app.descendants(matching: .any)["feedback.open"].firstMatch, maxSwipes: 8)
+        check(open.exists, "Zeile „Feedback & Wünsche“ auf „Hilfe & Feedback“")
         tap(open, "Feedback & Wünsche")
         route = "feedback"
         settle()
@@ -1438,14 +1446,14 @@ final class AuditOpeningTests: AuditCase {
         tap(app.buttons["feedback.done"], "Erledigt")
         back()
 
-        let tour = scrollUntilExists(app.descendants(matching: .any)["help.tour"].firstMatch, maxSwipes: 14)
+        let tour = scrollUntilExists(app.descendants(matching: .any)["help.tour"].firstMatch, maxSwipes: 8)
         check(tour.exists, "Zeile „App-Einführung ansehen“")
         tap(tour, "App-Einführung ansehen")
         let skip = app.buttons["tour.skip"]
         check(skip.waitForExistence(timeout: 8), "Tour öffnet")
         shot("tour-aus-hilfe")
         tap(skip, "Tour überspringen")
-        check(app.navigationBars["Profil"].waitForExistence(timeout: 6), "Zurück im Profil")
+        check(app.navigationBars["Hilfe & Feedback"].waitForExistence(timeout: 6), "Zurück auf „Hilfe & Feedback“")
     }
 }
 
@@ -1547,7 +1555,7 @@ final class AuditBridgeTests: AuditCase {
         accessibilityAudit("Verlauf-Abzeichen")
 
         openTab("Profil")
-        let row = scrollUntilExists(anyElement("profile.bridge"), maxSwipes: 14)
+        let row = scrollUntilExists(anyElement("profile.bridge"), maxSwipes: 10)
         check(row.exists, "Profil: Zeile „Sekundendaten vom Mac“")
         check(row.label.contains("Lenas MacBook Air"), "Zeile zeigt den Mac (\(row.label))")
         shot("profil")

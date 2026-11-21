@@ -7,7 +7,6 @@ struct ProfileView: View {
     @Environment(\.webAuthenticationSession) private var webAuth
     @State private var stravaSecretInput = ""
     @State private var confirmDisconnect = false
-    @State private var confirmDeleteAll = false
     @State private var showFITImporter = false
     /// iPhone SE: "Client-Secret" wraps onto two lines; a tap on the label line now focuses the field too (audit 3).
     @FocusState private var stravaSecretFocused: Bool
@@ -22,9 +21,9 @@ struct ProfileView: View {
             Form {
                 athleteSection(model)
                 goalSection(model)
-                winterArcSection(model)
                 availabilitySection(model)
-                coachSection(model)
+                seasonSection(model)
+                // ANCHOR-CONNECTIONS (AP2 ersetzt diesen Block durch „Dienste & Geräte“)
                 stravaSection(model).id(ProfileView.stravaSectionID)
                 myWhooshSection(model)
                 // ANCHOR-STRAP (Geräte → Brustgurt)
@@ -34,13 +33,6 @@ struct ProfileView: View {
                     }
                     .accessibilityIdentifier("profile.strap")
                 }
-                // ANCHOR-STRENGTH (Profil → Kraft)
-                Section("Training") {
-                    NavigationLink { StrengthSettingsView() } label: {
-                        Label("Kraft", systemImage: "dumbbell").frame(minHeight: 44)
-                    }
-                    .accessibilityIdentifier("profile.strength")
-                }
                 // ANCHOR-W3D (Profil → Datenquellen)
                 Section("Daten") {
                     NavigationLink { DataSourcesView() } label: {
@@ -48,14 +40,7 @@ struct ProfileView: View {
                     }
                     .accessibilityIdentifier("profile.dataSources")
                 }
-                // ANCHOR-W4C (Profil → Datenschutz: Claude-Einwilligung)
-                ClaudePrivacySection()
-                // ANCHOR-K2-PROFIL (Erinnerungen)
-                ReminderSection()
-
-                helpSection()
-                infoSection
-                dataSection(model)
+                appSection(model)
             }
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
@@ -140,47 +125,30 @@ struct ProfileView: View {
         }
     }
 
-    private func winterArcSection(_ model: AppModel) -> some View {
-        @Bindable var model = model
-        let season = WinterArc.defaultSeason(containing: .now)
-        return Section {
-            DatePicker("Saisonstart", selection: Binding(get: { model.profile.arcStart ?? season.start },
-                                                          set: { model.profile.arcStart = $0 }),
-                       displayedComponents: .date)
-            LabeledContent("Ziel-Tag", value: (model.winterArc(rides: model.allRides())?.goal ?? season.goal)
-                .formatted(.dateTime.day().month(.wide).year().locale(Locale.de)))
-            Stepper(value: Binding(get: { Int(model.profile.targetCTL ?? 0) },
-                                   set: { model.profile.targetCTL = $0 == 0 ? nil : Double($0) }),
-                    in: 0...150, step: 1) {
-                LabeledContent("Ziel-Fitness", value: model.profile.targetCTL.map { Formatters.decimal($0) } ?? "automatisch")
+    private func seasonSection(_ model: AppModel) -> some View {
+        let goalDay = model.winterArc(rides: model.allRides())?.goal ?? WinterArc.defaultSeason(containing: .now).goal
+        return Section("Saison & Training") {
+            NavigationLink { WinterArcSettingsView() } label: {
+                LabeledContent {
+                    Text(goalDay.formatted(.dateTime.day().month(.abbreviated).locale(Locale.de)))
+                } label: {
+                    Label("Winter Arc", systemImage: "snowflake")
+                }
+                .frame(minHeight: 44)
             }
-        } header: { Text("Winter Arc") } footer: {
-            Text("Vom Saisonstart bis zum Ziel-Tag baust du Fitness auf. Ziel-Tag ist dein Zieldatum, wenn es höchstens 8 Monate nach dem Start liegt, sonst der 21. März. „Automatisch“ setzt das Ziel auf +35 % der Start-Fitness, mindestens +15.")
+            .accessibilityIdentifier("profile.winterArc")
+            // ANCHOR-STRENGTH (Profil → Kraft)
+            NavigationLink { StrengthSettingsView() } label: {
+                Label("Kraft", systemImage: "dumbbell").frame(minHeight: 44)
+            }
+            .accessibilityIdentifier("profile.strength")
         }
     }
 
     private func availabilitySection(_ model: AppModel) -> some View {
         @Bindable var model = model
         return Section {
-            HStack(spacing: 6) {
-                ForEach(1...7, id: \.self) { day in
-                    let on = model.profile.trainingDays.contains(day)
-                    Button {
-                        if on { model.profile.trainingDays.removeAll { $0 == day } }
-                        else { model.profile.trainingDays.append(day); model.profile.trainingDays.sort() }
-                    } label: {
-                        Text(AthleteProfile.weekdayNames[day] ?? "")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 36)
-                            .foregroundStyle(on ? Theme.ink : .primary)
-                            .background(on ? AnyShapeStyle(Theme.sunset) : AnyShapeStyle(.quaternary),
-                                        in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(AthleteProfile.weekdayLongNames[day] ?? "")
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                }
-            }
+            WeekdayPicker(days: $model.profile.trainingDays)
             Stepper(value: $model.profile.weeklyHours, in: 1...20, step: 0.5) {
                 LabeledContent("Wochenbudget", value: "\(Formatters.decimal(model.profile.weeklyHours, digits: 1)) h")
             }
@@ -198,15 +166,30 @@ struct ProfileView: View {
         }
     }
 
-    private func coachSection(_ model: AppModel) -> some View {
-        @Bindable var model = model
-        return Section {
-            ClaudeKeyForm(showsRemove: true)
-            Picker("Modell", selection: $model.profile.model) {
-                ForEach(ClaudeModel.allCases) { Text($0.label).tag($0.rawValue) }
+    private func appSection(_ model: AppModel) -> some View {
+        Section("App") {
+            NavigationLink { CoachSettingsView() } label: {
+                LabeledContent {
+                    Text(model.hasClaudeKey ? "Bereit" : "Key fehlt")
+                } label: {
+                    Label("Coach · Claude", systemImage: "sparkles")
+                }
+                .frame(minHeight: 44)
             }
-        } header: { Text("Coach · Claude") } footer: {
-            Text("API-Key aus console.anthropic.com (nicht das claude.ai-Abo). Der Key liegt nur im Schlüsselbund dieses iPhones. Ein Plan kostet mit Opus 5.5 ca. 0,10 $.")
+            .accessibilityIdentifier("profile.coach")
+            // ANCHOR-K2-PROFIL (Erinnerungen)
+            NavigationLink { ReminderSettingsView() } label: {
+                Label("Erinnerungen", systemImage: "bell").frame(minHeight: 44)
+            }
+            .accessibilityIdentifier("profile.reminders")
+            NavigationLink { HelpView() } label: {
+                Label("Hilfe & Feedback", systemImage: "questionmark.circle").frame(minHeight: 44)
+            }
+            .accessibilityIdentifier("profile.help")
+            NavigationLink { StorageView() } label: {
+                Label("Daten auf diesem iPhone", systemImage: "internaldrive").frame(minHeight: 44)
+            }
+            .accessibilityIdentifier("profile.storage")
         }
     }
 
@@ -270,6 +253,7 @@ struct ProfileView: View {
                 }
                 .disabled(model.stravaClientID.isEmpty || (!model.hasStravaSecret && stravaSecretInput.isEmpty))
             }
+            Link(destination: URL(string: "https://www.strava.com/settings/api")!) { Label("Strava API-Einstellungen", systemImage: "gearshape") }
         } header: { Text("Strava") } footer: {
             if !model.isStravaConnected {
                 Text("Einmalig unter strava.com/settings/api eine eigene API-App anlegen. Als „Authorization Callback Domain“ localhost eintragen. Client-ID und Client-Secret hier einfügen.")
@@ -314,33 +298,9 @@ struct ProfileView: View {
             Button { showFITImporter = true } label: {
                 Label("FIT-Dateien importieren …", systemImage: "doc.badge.plus")
             }
+            Link(destination: URL(string: "https://workout.mywhoosh.com")!) { Label("MyWhoosh Workout Builder", systemImage: "figure.indoor.cycle") }
         } header: { Text("MyWhoosh") } footer: {
             Text("Einheiten landen direkt in MyWhoosh unter „Custom Workouts“ und im MyWhoosh-Kalender, deine gefahrenen Einheiten lädt die App von dort zurück – ganz ohne Strava. Nutzt die inoffizielle MyWhoosh-Schnittstelle; sie kann sich jederzeit ändern. Dann bleiben die .zwo-Datei und der FIT-Import (Dateien-App, auch von Zwift oder Wahoo) als Weg. Dein Passwort wird nur zur Anmeldung gesendet und nicht gespeichert.")
-        }
-    }
-
-    private func helpSection() -> some View {
-        HelpFeedbackSection()
-    }
-
-    private var infoSection: some View {
-        Section("Links") {
-            Link(destination: URL(string: "https://www.strava.com/settings/api")!) { Label("Strava API-Einstellungen", systemImage: "gearshape") }
-            Link(destination: URL(string: "https://console.anthropic.com/settings/keys")!) { Label("Claude Console – API-Keys", systemImage: "key") }
-            Link(destination: URL(string: "https://workout.mywhoosh.com")!) { Label("MyWhoosh Workout Builder", systemImage: "figure.indoor.cycle") }
-        }
-    }
-
-    private func dataSection(_ model: AppModel) -> some View {
-        Section {
-            Button("Alle Daten löschen", role: .destructive) { confirmDeleteAll = true }
-                .confirmationDialog("Alle Daten löschen?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
-                    Button("Alle Daten löschen", role: .destructive) { Task { await model.deleteAllData() } }
-                } message: {
-                    Text("Gelöscht werden alle Fahrten und geplanten Einheiten, die Kalendereinträge der App samt Kalender „Indoor Training“, Claude-API-Key, Strava-Zugang und -Client-Secret sowie Profil und Einstellungen. Deine Daten bei Strava bleiben erhalten. Das lässt sich nicht rückgängig machen.")
-                }
-        } header: { Text("Daten") } footer: {
-            Text("Entfernt alles, was IndoorCoach auf diesem iPhone gespeichert hat.")
         }
     }
 }
