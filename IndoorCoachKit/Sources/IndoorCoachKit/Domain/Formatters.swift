@@ -6,6 +6,15 @@ extension Locale {
 }
 
 public enum Formatters {
+    /// "A", "A und B", "A, B und C" (deutsche Aufzählung ohne Komma vor „und“); leer bleibt leer.
+    public static func germanList(_ items: [String], conjunction: String = "und") -> String {
+        switch items.count {
+        case 0: ""
+        case 1: items[0]
+        default: items.dropLast().joined(separator: ", ") + " \(conjunction) " + items[items.count - 1]
+        }
+    }
+
     /// "1:05 h", "45 min", "30 s".
     public static func duration(_ seconds: Int) -> String {
         if seconds == 0 { return "0 min" }

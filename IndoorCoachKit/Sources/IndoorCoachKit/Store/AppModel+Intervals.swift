@@ -6,36 +6,63 @@ extension AppModel {
     // MARK: - Verbinden und trennen
 
     /// OAuth mit PKCE über das übergebene Web-Auth (ASWebAuthenticationSession in der UI). Ohne Client-ID bleibt nur der API-Key.
-    public func connectIntervals(authenticate: (URL) async throws -> URL) async {
+    /// `true`, wenn verbunden. Bricht die Nutzerin die Web-Anmeldung ab, ist das kein Fehler: kein Text, kein Banner, `false`.
+    /// Jeder andere Fehler steht in `lastIntervalsError` (die Einführung liegt über dem Banner) und im Banner.
+    @discardableResult
+    public func connectIntervals(authenticate: (URL) async throws -> URL) async -> Bool {
+        lastIntervalsError = nil
         guard intervalsConfig.isOAuthAvailable else {
-            show(IntervalsError.notConfigured.localizedDescription, error: true); return
+            reportIntervalsConnectFailure(IntervalsError.notConfigured); return false
         }
         let state = UUID().uuidString
         let verifier = IntervalsPKCE.makeVerifier()
         Log.notice(.intervals, "Verbinden gestartet")
         do {
             let url = intervalsConfig.authorizeURL(state: state, codeChallenge: IntervalsPKCE.challenge(for: verifier))
-            let callback = try await authenticate(url)
+            let callback: URL
+            #if DEBUG
+            if let stub = intervalsWebAuthOverride { callback = try await stub(url) } else { callback = try await authenticate(url) }
+            #else
+            callback = try await authenticate(url)
+            #endif
             let credential = try await intervals.completeAuthorization(callbackURL: callback, expectedState: state, codeVerifier: verifier)
             await finishIntervalsConnect(name: credential.athleteName)
+            return true
         } catch {
-            Log.error(.intervals, "Verbinden fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
-            show(error.localizedDescription, error: true)
+            if Self.isWebAuthCancellation(error) {
+                Log.notice(.intervals, "Anmeldung abgebrochen")
+                return false
+            }
+            reportIntervalsConnectFailure(error)
+            return false
         }
+    }
+
+    /// Die Nutzerin hat die Anmeldeseite geschlossen (ASWebAuthenticationSessionError.canceledLogin = 1) oder die Aufgabe wurde abgebrochen.
+    static func isWebAuthCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        let ns = error as NSError
+        return ns.domain == "com.apple.AuthenticationServices.WebAuthenticationSession" && ns.code == 1
+    }
+
+    private func reportIntervalsConnectFailure(_ error: Error) {
+        Log.error(.intervals, "Verbinden fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
+        lastIntervalsError = error.localizedDescription
+        show(error.localizedDescription, error: true)
     }
 
     /// Übergangsweg: persönlicher API-Key des eigenen Kontos. Der Key wird zuerst geprüft und erst dann gespeichert.
     @discardableResult
     public func connectIntervals(apiKey: String) async -> Bool {
         Log.notice(.intervals, "Verbinden mit API-Key gestartet")
+        lastIntervalsError = nil
         do {
             let name = try await intervals.connect(apiKey: apiKey)
             defaults.set(name, forKey: Keys.intervalsAthleteName)
             await finishIntervalsConnect(name: name)
             return true
         } catch {
-            Log.error(.intervals, "Verbinden fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
-            show(error.localizedDescription, error: true)
+            reportIntervalsConnectFailure(error)
             return false
         }
     }

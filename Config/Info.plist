@@ -58,6 +58,8 @@
 	</array>
 	<key>IntervalsClientID</key>
 	<string>1969</string>
+	<key>BridgeDownloadURL</key>
+	<string></string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

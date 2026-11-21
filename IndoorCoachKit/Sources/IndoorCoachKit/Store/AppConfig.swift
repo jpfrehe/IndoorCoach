@@ -23,6 +23,20 @@ public enum AppConfig {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
+    /// Download der Mac-App „IndoorCoach Brücke“ (Info.plist `BridgeDownloadURL`). Leer, bis es einen Bezugsweg gibt
+    /// (notarisierte DMG über GitHub Releases, docs/20 E1): solange blendet die Einführung die Brücke aus.
+    public static var bridgeDownloadURL: URL? {
+        bridgeDownloadURL(from: Bundle.main.object(forInfoDictionaryKey: "BridgeDownloadURL") as? String)
+    }
+
+    /// Leer oder ungültig → nil; angenommen wird nur `https` mit Host.
+    static func bridgeDownloadURL(from raw: String?) -> URL? {
+        guard let text = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty,
+              let url = URL(string: text), url.scheme?.lowercased() == "https",
+              let host = url.host, !host.isEmpty else { return nil }
+        return url
+    }
+
     /// Public repository; feedback goes to its issue forms (`FeedbackDraft`).
     public static let repoURL = URL(string: "https://github.com/jpfrehe/IndoorCoach")!
 

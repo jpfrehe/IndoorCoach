@@ -131,11 +131,14 @@ extension View {
 }
 
 #if DEBUG
-/// UI-test transport for the onboarding journey (`-uiMyWhooshStubLogin YES`, `-uiClaudeStub YES`).
+/// UI-test transport for the onboarding journey (`-uiMyWhooshStubLogin YES`, `-uiClaudeStub YES`, `-uiIntervalsStubLogin YES`).
 /// Stubbed services answer locally; everything else goes to the network.
 struct JourneyStubTransport: HTTPTransport {
     var stubLogin: Bool
     var stubClaude: Bool
+    /// intervals.icu: token endpoint and `athlete/0` (never the network); with `intervalsFails` the token endpoint answers 401.
+    var stubIntervals = false
+    var intervalsFails = false
     var network: HTTPTransport = URLSessionTransport()
 
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
@@ -157,6 +160,16 @@ struct JourneyStubTransport: HTTPTransport {
             }
             if url.path.contains("profile/activities") { return reply(200, Self.activities, url) }
             return reply(200, #"{"message":"ok"}"#, url)
+        }
+        if stubIntervals, url.host == "intervals.icu" {
+            try await Task.sleep(for: .milliseconds(400))
+            switch url.path {
+            case "/api/oauth/token":
+                if intervalsFails { return reply(401, #"{"error":"invalid_grant"}"#, url) }
+                return reply(200, #"{"access_token":"stub-intervals-token","scope":"ACTIVITY:READ,CALENDAR:WRITE","athlete":{"id":"i-stub","name":"Tobias"}}"#, url)
+            case "/api/v1/athlete/0": return reply(200, #"{"id":"i-stub","name":"Tobias"}"#, url)
+            default: return reply(200, "[]", url)   // activities, events/bulk, …
+            }
         }
         return try await network.data(for: request)
     }
@@ -235,12 +248,27 @@ public enum AppEnvironment {
         // UI-test hooks for the onboarding journey: `-uiMyWhooshStubLogin YES` (not signed in, any login works) and
         // `-uiClaudeStub YES` (`/v1/models`: 200 for keys containing "sk-ant-test", else 401). Both keep secrets
         // in memory, so nothing leaks into the simulator's Keychain between runs.
+        // `-uiIntervalsStubLogin YES`: the web sign-in is replaced by a function that answers with a callback right away
+        // (`AppModel.intervalsWebAuthOverride`, used by `connectIntervals(authenticate:)`); token endpoint and `athlete/0`
+        // are stubbed. `-uiIntervalsStubLoginFails YES` makes the token endpoint answer 401.
         let stubLogin = UserDefaults.standard.bool(forKey: "uiMyWhooshStubLogin")
         let stubClaude = UserDefaults.standard.bool(forKey: "uiClaudeStub")
-        if stubLogin || stubClaude {
-            return AppModel(context: container.mainContext, secrets: InMemorySecretStore(),
-                            transport: JourneyStubTransport(stubLogin: stubLogin, stubClaude: stubClaude),
-                            myWhooshStore: InMemoryMyWhooshSessionStore())
+        let stubIntervals = UserDefaults.standard.bool(forKey: "uiIntervalsStubLogin")
+        let intervalsFails = UserDefaults.standard.bool(forKey: "uiIntervalsStubLoginFails")
+        if stubLogin || stubClaude || stubIntervals {
+            let model = AppModel(context: container.mainContext, secrets: InMemorySecretStore(),
+                                 transport: JourneyStubTransport(stubLogin: stubLogin, stubClaude: stubClaude,
+                                                                 stubIntervals: stubIntervals, intervalsFails: intervalsFails),
+                                 myWhooshStore: InMemoryMyWhooshSessionStore(),
+                                 intervalsConfig: stubIntervals ? IntervalsConfig(clientID: "stub-client") : IntervalsConfig())
+            if stubIntervals {
+                model.intervalsWebAuthOverride = { url in
+                    let state = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "state" }?.value ?? ""
+                    try await Task.sleep(for: .milliseconds(300))
+                    return URL(string: "\(IntervalsConfig.defaultRedirectURI)?code=stub&state=\(state)")!
+                }
+            }
+            return model
         }
         #endif
         return AppModel(context: container.mainContext, secrets: KeychainSecretStore())

@@ -75,8 +75,23 @@ public final class AppModel {
             defaults.set(onboardingStep, forKey: Keys.onboardingStep)
         }
     }
+    /// Antworten und Entscheidungen der Einführung (Dienst-Auswahl, docs/20 §9); persistiert, damit ein Neustart dort weitermacht.
+    public var onboardingServices: OnboardingServicesState {
+        didSet {
+            guard onboardingServices != oldValue else { return }
+            if let data = try? JSONEncoder().encode(onboardingServices) { defaults.set(data, forKey: Keys.onboardingServices) }
+        }
+    }
     /// Message of the last failed MyWhoosh sign-in, for forms that cannot show the banner (onboarding cover).
     public private(set) var lastMyWhooshError: String?
+    /// Message of the last failed intervals.icu sign-in (the banner sits behind the onboarding cover). A cancelled web sign-in is no error.
+    public internal(set) var lastIntervalsError: String?
+    /// Tests: ersetzt `AppConfig.bridgeDownloadURL` (E1).
+    @ObservationIgnored var bridgeDownloadURLOverride: URL?
+    #if DEBUG
+    /// UI tests (`-uiIntervalsStubLogin YES`): ersetzt die Web-Anmeldung (ASWebAuthenticationSession) von `connectIntervals(authenticate:)`.
+    @ObservationIgnored public var intervalsWebAuthOverride: ((URL) async throws -> URL)?
+    #endif
     /// Not observed: filled lazily from view bodies, must not trigger re-renders.
     @ObservationIgnored private var seriesCache: (key: Int, series: FitnessFreshness.Series)?
     public private(set) var proposalSource: WorkoutSource = .demo
@@ -161,8 +176,11 @@ public final class AppModel {
         static let intervalsUnreadable = "intervals.unreadable"
         /// Weeks (Monday as yyyy-MM-dd) whose Wochenrückblick card was dismissed on Heute.
         static let weeklyReviewDismissed = "weeklyReview.dismissed.v1"
-        /// Current step of the 5-step onboarding (resume after relaunch).
-        static let onboardingStep = "onboarding.step.v2"
+        /// Current step of the 7-step onboarding (resume after relaunch). v2 (5 Schritte) wird beim Start umgerechnet und entfernt.
+        static let onboardingStep = "onboarding.step.v3"
+        static let onboardingStepV2 = "onboarding.step.v2"
+        /// Antworten und Entscheidungen der Einführung (`OnboardingServicesState` als JSON).
+        static let onboardingServices = "onboarding.services.v1"
         /// IndoorCoach Brücke: name of the paired Mac, last successful pickup, ids of rides already received.
         static let bridgeMacName = "bridge.macName.v1"
         static let bridgeLastSync = "bridge.lastSync.v1"
@@ -173,7 +191,7 @@ public final class AppModel {
         /// `resetHealthState()` auf, die Strava-/MyWhoosh-Geheimnisse liegen im Keychain.)
         static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport,
                           intervalsLastImport, intervalsAthleteName, intervalsUnreadable,
-                          weeklyReviewDismissed, onboardingStep, bridgeMacName, bridgeLastSync, bridgeKnownIDs,
+                          weeklyReviewDismissed, onboardingStep, onboardingServices, bridgeMacName, bridgeLastSync, bridgeKnownIDs,
                           recordingPending, recordingAttached, // ANCHOR-REC
                           legLoadKept, manualJokerWeeks, strengthTemplates, strengthDays, strapPeripheral,
                           healthExportSettings, healthExportLedger, planFeedback]
@@ -216,7 +234,9 @@ public final class AppModel {
             profile = AthleteProfile()
         }
         stravaClientID = defaults.string(forKey: Keys.stravaClientID) ?? ""
-        onboardingStep = min(max(defaults.integer(forKey: Keys.onboardingStep), 0), Self.onboardingStepCount - 1)
+        onboardingStep = Self.loadOnboardingStep(defaults: defaults)
+        onboardingServices = defaults.data(forKey: Keys.onboardingServices)
+            .flatMap { try? JSONDecoder().decode(OnboardingServicesState.self, from: $0) } ?? OnboardingServicesState()
         lastSync = defaults.object(forKey: Keys.lastSync) as? Date
         hasImportedRides = defaults.bool(forKey: Keys.ridesImported)
         lastMyWhooshImport = defaults.object(forKey: Keys.myWhooshLastImport) as? Date
@@ -234,6 +254,20 @@ public final class AppModel {
     }
 
     // MARK: - Onboarding
+
+    /// Liest den Schritt aus v3; fehlt er, wird ein alter v2-Schritt einmal umgerechnet (Tabelle in `migratedStep`).
+    /// Der v2-Schlüssel wird danach in jedem Fall entfernt.
+    private static func loadOnboardingStep(defaults: UserDefaults) -> Int {
+        defer { defaults.removeObject(forKey: Keys.onboardingStepV2) }
+        var step = 0
+        if defaults.object(forKey: Keys.onboardingStep) != nil {
+            step = defaults.integer(forKey: Keys.onboardingStep)
+        } else if let migrated = migratedStep(v2: defaults.object(forKey: Keys.onboardingStepV2) as? Int) {
+            step = migrated
+            defaults.set(migrated, forKey: Keys.onboardingStep)
+        }
+        return min(max(step, 0), onboardingStepCount - 1)
+    }
 
     /// Pure decision: an explicit flag wins; without one, only a fresh install needs onboarding.
     static func needsOnboarding(completedFlag: Bool?, isExistingInstall: Bool) -> Bool {
@@ -274,19 +308,32 @@ public final class AppModel {
     }
 
     #if DEBUG
-    /// UI tests: `-uiSeed …` skips onboarding; `-uiOnboarding YES` forces it (`NO` skips it).
+    /// UI tests: `-uiSeed …` skips onboarding; `-uiOnboarding YES` forces it (`NO` skips it) and also clears the service answers.
+    /// While onboarding is due: `-uiOnboardingStep n` starts at step n, `-uiOnboardingAnswers "rides=myWhoosh,zwift;device=mac;extras=appleWatch,heartStrap"`
+    /// presets the answers (`showAll=true` is possible too).
     private func applyUITestOnboardingOverride() {
         let args = UserDefaults.standard
         if args.object(forKey: "uiOnboarding") != nil {
             needsOnboarding = args.bool(forKey: "uiOnboarding")
             // A forced onboarding starts at the top; a plain relaunch (no flag) resumes the stored step.
-            if needsOnboarding { onboardingStep = 0 }
+            if needsOnboarding {
+                onboardingStep = 0
+                onboardingServices = OnboardingServicesState()
+            }
         } else if args.string(forKey: "uiSeed") != nil {
             needsOnboarding = false
         } else {
+            applyUITestOnboardingPreset(args)
             return
         }
         defaults.set(!needsOnboarding, forKey: Keys.onboardingCompleted)
+        applyUITestOnboardingPreset(args)
+    }
+
+    private func applyUITestOnboardingPreset(_ args: UserDefaults) {
+        guard needsOnboarding else { return }
+        if let raw = args.string(forKey: "uiOnboardingAnswers") { onboardingServices.answers = ServiceAnswers.parseUITest(raw) }
+        if args.object(forKey: "uiOnboardingStep") != nil { onboardingStep = args.integer(forKey: "uiOnboardingStep") }
     }
     #endif
 
@@ -814,6 +861,7 @@ public final class AppModel {
         plannerRequested = false
         seriesCache = nil
         onboardingStep = 0
+        onboardingServices = OnboardingServicesState()
         for key in Keys.all { defaults.removeObject(forKey: key) }
         RecordingStore().clear() // ANCHOR-REC: interim file of an unfinished recording
         // Feedback draft (FeedbackView keeps it in @AppStorage so it survives the trip to GitHub).

@@ -15,8 +15,10 @@ public enum OnboardingChoice: Sendable {
     case skipped
 }
 
+/// Sieben Schritte (docs/20 §4.1). `rides` zeigt vorläufig noch die MyWhoosh-Anmeldung, `extras` und `services` sind Platzhalter
+/// bis zu den Paketen AP3/AP4.
 enum OnboardingStep: Int, CaseIterable {
-    case welcome, training, trainingApp, coach, done
+    case welcome, training, rides, extras, services, coach, done
 }
 
 /// First-launch onboarding: Willkommen → Dein Training → Trainings-App → Coach → Fertig.
@@ -42,7 +44,9 @@ struct OnboardingView: View {
                 switch step {
                 case .welcome: welcome
                 case .training: training
-                case .trainingApp: trainingApp
+                case .rides: trainingApp
+                case .extras: placeholder("Was hast du sonst noch?")
+                case .services: placeholder("Für dich passt")
                 case .coach: coach
                 case .done: done
                 }
@@ -132,12 +136,14 @@ struct OnboardingView: View {
                 next("Los geht’s", style: .jelly)
             case .training:
                 next("Weiter", style: .jelly).disabled(model.profile.trainingDays.isEmpty)
-            case .trainingApp:
+            case .rides:
                 if model.isMyWhooshConnected && !whooshBusy {
                     next("Weiter", style: .jelly)
                 } else {
                     next("Später", style: .soft, id: "onboarding.later").disabled(whooshBusy)
                 }
+            case .extras, .services:
+                next("Weiter", style: .jelly)
             case .coach:
                 if model.hasClaudeKey {
                     next("Weiter", style: .jelly)
@@ -271,6 +277,13 @@ struct OnboardingView: View {
                 .accessibilityIdentifier("onboarding.weeklyHours")
                 hint("So viel Zeit hast du pro Woche für das Training.")
             }
+        }
+    }
+
+    /// Vorläufig, bis die Fragen- und Empfehlungsschritte gestaltet sind (AP3/AP4).
+    private func placeholder(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            title(text)
         }
     }
 

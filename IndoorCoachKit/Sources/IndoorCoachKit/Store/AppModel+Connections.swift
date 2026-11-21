@@ -3,7 +3,7 @@ import Foundation
 // Verbindungsstatus für Profil → Dienste & Geräte (docs/18-KONZEPT-PROFIL-VERBINDUNGEN.md, „Datenmodell“).
 // Der Status wird nur aus vorhandenen Werten abgeleitet; neu ist allein `AppModel.syncErrors` (nur im Speicher).
 
-public enum ConnectionID: String, CaseIterable, Hashable, Sendable {
+public enum ConnectionID: String, CaseIterable, Hashable, Codable, Sendable {
     case strava, myWhoosh, intervalsICU, macBridge, fitImport, appleHealth, strap
 }
 
