@@ -8,6 +8,8 @@ struct FitnessFreshnessView: View {
     @Query(sort: \StoredRide.startDate) private var storedRides: [StoredRide]
     @State private var range: FitnessFreshness.Range = .days90
     @State private var selectedDate: Date?
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         let series = model.fitnessSeries(rides: storedRides.map(\.summary))
@@ -31,7 +33,7 @@ struct FitnessFreshnessView: View {
                     }
                     Card(title: "Form (Fitness − Ermüdung)", systemImage: "gauge.with.dots.needle.33percent") {
                         formChart(points)
-                        FormZoneLegend()
+                        formLegend
                     }
                 } else {
                     EmptyStateView(title: "Noch keine Fahrten", systemImage: "chart.line.uptrend.xyaxis",
@@ -56,8 +58,8 @@ struct FitnessFreshnessView: View {
             Text(isToday ? "Heute" : p.date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale.de)))
                 .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
             HStack {
-                StatTile(title: "Fitness", value: Formatters.decimal(p.fitness), dot: Theme.fitness)
-                StatTile(title: "Ermüdung", value: Formatters.decimal(p.fatigue), dot: Theme.fatigue)
+                StatTile(title: "Fitness", value: Formatters.decimal(p.fitness), dot: ChartPalette.fitness)
+                StatTile(title: "Ermüdung", value: Formatters.decimal(p.fatigue), dot: ChartPalette.fatigue)
                 StatTile(title: "Form", value: (p.form > 0 ? "+" : "") + Formatters.decimal(p.form), dot: Theme.formColor(p.form))
             }
             HStack(spacing: 8) {
@@ -82,63 +84,104 @@ struct FitnessFreshnessView: View {
 
     private func loadChart(_ points: [FitnessFreshness.Point], selected: FitnessFreshness.Point?,
                            shadow: [SeasonShadow.Point]?, shown: FitnessFreshness.Point) -> some View {
-        Chart {
+        let dark = scheme == .dark
+        let values = points.flatMap { [$0.fitness, $0.fatigue] } + (shadow ?? []).map(\.fitness)
+        let ticks = ChartMath.niceTicks(min: values.min() ?? 0, max: values.max() ?? 1, count: 4)
+        let lower = ticks.first ?? 0, upper = ticks.last ?? 1
+        let method = ChartStyle.interpolation(pointCount: points.count)
+        let previous = shadow.flatMap { SeasonShadow.fitness(on: shown.date, in: $0) }
+        let sentence = ChartMath.seriesSentence(name: "Fitness", values: points.map(\.fitness), period: "\(points.count) Tagen")
+            + " Ermüdung \(ChartMath.format(shown.fatigue)). "
+            + SeasonShadow.comparisonText(today: shown.fitness, previous: previous)
+        return Chart {
             ForEach(points) { p in
-                AreaMark(x: .value("Tag", p.date), y: .value("Fitness", p.fitness))
-                    .foregroundStyle(LinearGradient(colors: [Theme.fitness.opacity(0.35), Theme.fitness.opacity(0)],
-                                                    startPoint: .top, endPoint: .bottom))
-                    .interpolationMethod(.monotone)
-                LineMark(x: .value("Tag", p.date), y: .value("Wert", p.fitness), series: .value("Kurve", "Fitness"))
-                    .foregroundStyle(Theme.fitnessLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .interpolationMethod(.monotone)
-                LineMark(x: .value("Tag", p.date), y: .value("Wert", p.fatigue), series: .value("Kurve", "Ermüdung"))
-                    .foregroundStyle(Theme.fatigueLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                    .interpolationMethod(.monotone)
+                AreaMark(x: .value("Tag", p.date), yStart: .value("Basis", lower), yEnd: .value("Fitness", p.fitness))
+                    .interpolationMethod(method)
+                    .foregroundStyle(ChartStyle.area(ChartPalette.fitness, dark: dark))
             }
-            // G6: last year's fitness over the same days (dashed, muted).
+            // G6: last year's fitness over the same days (dotted, muted), above the area, below the main lines.
             ForEach(shadow ?? []) { p in
                 LineMark(x: .value("Tag", p.date), y: .value("Wert", p.fitness), series: .value("Kurve", "Vorjahr"))
-                    .foregroundStyle(Theme.shadowLine)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 4]))
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(method)
+                    .foregroundStyle(ChartPalette.reference)
+                    .lineStyle(ChartStyle.stroke(.previous))
             }
-            if let selected {
-                RuleMark(x: .value("Auswahl", selected.date))
-                    .foregroundStyle(Theme.ink.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            ForEach(points) { p in
+                LineMark(x: .value("Tag", p.date), y: .value("Wert", p.fitness), series: .value("Kurve", "Fitness"))
+                    .interpolationMethod(method).lineStyle(ChartStyle.stroke(.main)).foregroundStyle(ChartPalette.fitness)
+                LineMark(x: .value("Tag", p.date), y: .value("Wert", p.fatigue), series: .value("Kurve", "Ermüdung"))
+                    .interpolationMethod(method).lineStyle(ChartStyle.stroke(.main)).foregroundStyle(ChartPalette.fatigue)
             }
+            HighlightPoint(x: .value("Tag", shown.date), y: .value("Fitness", shown.fitness), color: ChartPalette.fitness,
+                           baseline: selected == nil ? nil : .value("Basis", lower), dark: dark)
+            HighlightPoint(x: .value("Tag", shown.date), y: .value("Ermüdung", shown.fatigue), color: ChartPalette.fatigue, dark: dark)
         }
+        .chartYScale(domain: lower...upper)
         .chartXSelection(value: $selectedDate)
         .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
-        .chartLegend(.hidden)
-        .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                AxisGridLine()
-                AxisValueLabel(format: .dateTime.day().month(.abbreviated).locale(Locale.de))
-                    .foregroundStyle(Theme.axisLabel)
-            }
-        }
-        .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel().foregroundStyle(Theme.axisLabel) } }
-        .frame(height: 200)
-        .accessibilityLabel("Verlauf von Fitness und Ermüdung")
-        .accessibilityValue(SeasonShadow.comparisonText(
-            today: shown.fitness, previous: shadow.flatMap { SeasonShadow.fitness(on: shown.date, in: $0) }))
+        .chartStyleAxes(yTicks: ticks, xCount: 4)
+        .environment(\.locale, Locale.de)
+        .chartStyleAnimation(value: selected?.date)
+        .chartStyleHeight(ChartStyle.heightLarge - 10)
+        .chartAccessibility(
+            label: "Verlauf von Fitness und Ermüdung", value: sentence,
+            descriptor: ChartAccessibility.timeSeries(
+                title: "Verlauf von Fitness und Ermüdung", summary: sentence, yTitle: "Punkte",
+                series: [("Fitness", points.map { ($0.date, $0.fitness) }), ("Ermüdung", points.map { ($0.date, $0.fatigue) })]))
     }
 
     private func formChart(_ points: [FitnessFreshness.Point]) -> some View {
-        Chart(points) { p in
-            BarMark(x: .value("Tag", p.date, unit: .day), y: .value("Form", p.form))
-                .foregroundStyle(Theme.formColor(p.form))
-            RuleMark(y: .value("Null", 0)).foregroundStyle(Theme.axisLabel.opacity(0.6))
+        let forms = points.map(\.form)
+        let band = ChartSeries.balancedFormBand
+        let ticks = ChartMath.niceTicks(min: min(forms.min() ?? 0, band.lowerBound), max: max(forms.max() ?? 0, band.upperBound), count: 4)
+        let lower = ticks.first ?? -10, upper = ticks.last ?? 10
+        let selected = selectedPoint(in: points)
+        return Chart {
+            RectangleMark(yStart: .value("Band unten", band.lowerBound), yEnd: .value("Band oben", band.upperBound))
+                .foregroundStyle(ChartPalette.band)
+                .annotation(position: .overlay, alignment: .trailing, spacing: 2) {
+                    Text("ausgewogen").font(ChartStyle.ruleLabelFont).foregroundStyle(Theme.axisLabel)
+                }
+            ForEach(points) { p in
+                BarMark(x: .value("Tag", p.date, unit: .day), y: .value("Form", p.form))
+                    .foregroundStyle(ChartSeries.formSide(p.form) == .recovered ? ChartPalette.fitness : ChartPalette.fatigue)
+            }
+            RuleMark(y: .value("Null", 0))
+                .lineStyle(StrokeStyle(lineWidth: ChartStyle.hairline(displayScale: displayScale)))
+                .foregroundStyle(ChartStyle.baselineColor)
+            if let selected {
+                RuleMark(x: .value("Auswahl", selected.date))
+                    .lineStyle(StrokeStyle(lineWidth: ChartStyle.hairline(displayScale: displayScale)))
+                    .foregroundStyle(ChartPalette.reference.opacity(0.4))
+            }
         }
+        .chartYScale(domain: lower...upper)
         .chartXSelection(value: $selectedDate)
         .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
-        .chartXAxis(.hidden)
-        .chartYAxis { AxisMarks { _ in AxisGridLine(); AxisValueLabel().foregroundStyle(Theme.axisLabel) } }
-        .frame(height: 110)
-        .accessibilityLabel("Form pro Tag")
+        .chartStyleAxes(yTicks: ticks, showsX: false)
+        .chartStyleHeight(ChartStyle.heightSmall)
+        .chartAccessibility(
+            label: "Form pro Tag",
+            value: ChartMath.seriesSentence(name: "Form", values: forms, period: "\(points.count) Tagen"))
+    }
+
+    /// Two poles by sign plus the neutral band (no zone rainbow); the chip in the header carries the form state.
+    private var formLegend: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 14) { formLegendItems }
+            VStack(alignment: .leading, spacing: 6) { formLegendItems }
+        }
+        .font(.caption)
+        .foregroundStyle(Theme.rowSecondary)
+    }
+
+    @ViewBuilder
+    private var formLegendItems: some View {
+        Label { Text("Erholt (über 0)") } icon: { Circle().fill(ChartPalette.fitness).frame(width: 8, height: 8) }
+        Label { Text("Belastet (0 und darunter)") } icon: { Circle().fill(ChartPalette.fatigue).frame(width: 8, height: 8) }
+        Label { Text("ausgewogen (−10 bis +5)") } icon: {
+            RoundedRectangle(cornerRadius: 2).fill(ChartPalette.band).frame(width: 12, height: 8)
+        }
     }
 
     private func legend(showsShadow: Bool) -> some View {
@@ -153,8 +196,8 @@ struct FitnessFreshnessView: View {
 
     @ViewBuilder
     private func legendItems(showsShadow: Bool) -> some View {
-        Label { Text("Fitness (42 Tage)") } icon: { Circle().fill(Theme.fitnessLine).frame(width: 8, height: 8) }
-        Label { Text("Ermüdung (7 Tage)") } icon: { Circle().fill(Theme.fatigueLine).frame(width: 8, height: 8) }
+        Label { Text("Fitness (42 Tage)") } icon: { Circle().fill(ChartPalette.fitness).frame(width: 8, height: 8) }
+        Label { Text("Ermüdung (7 Tage)") } icon: { Circle().fill(ChartPalette.fatigue).frame(width: 8, height: 8) }
         if showsShadow { ShadowLegendItem() }
     }
 
