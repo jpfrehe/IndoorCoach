@@ -86,7 +86,7 @@ Voraussetzung: Paket „HR · Brustgurt-Basis“ im Build, ein BLE-Brustgurt (TI
 
 | # | Schritt | Erwartung | ✓ |
 |---|---|---|---|
-| 7.1 | *Profil → Geräte → Brustgurt* | Erklärseite „Nur dein Pulsgurt. Nichts verlässt das iPhone.“ | ☐ |
+| 7.1 | *Profil → Dienste & Geräte → Brustgurt* | Erklärseite „Nur dein Pulsgurt. Nichts verlässt das iPhone.“ | ☐ |
 | 7.2 | „Weiter“ | iOS fragt nach Bluetooth, Text nennt den Brustgurt. *Erlauben* | ☐ |
 | 7.3 | Suche, Gurt in der Liste antippen: „Verbinden“ | Gurt erscheint mit Signalstärke, nach dem Verbinden Live-Puls, plausibel zum Gefühl | ☐ |
 | 7.4 | Fähigkeiten ansehen | RR-Intervalle „✓ empfangen“ (sonst notieren), Akku in %, Gurtname, Modellhinweis | ☐ |

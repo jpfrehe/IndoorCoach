@@ -27,7 +27,7 @@ Zeitbedarf: ca. 20 Minuten beim ersten Mal.
    - **Website**: beliebig, z. B. `http://localhost`
    - **Authorization Callback Domain**: `localhost`
 2. **Client ID** und **Client Secret** notieren.
-3. In der App: **Profil → Strava** → Client-ID und Client-Secret eintragen → **Mit Strava verbinden**.
+3. In der App: **Profil → Dienste & Geräte → Strava** → Client-ID und Client-Secret eintragen → **Mit Strava verbinden**.
 4. Im Strava-Login „Alle Aktivitäten anzeigen“ (inkl. privater) erlauben.
 5. Die App lädt automatisch die letzten 210 Tage. Danach synchronisiert sie bei jedem App-Start inkrementell
    (oder per Pull-to-Refresh).
@@ -48,7 +48,7 @@ Die Startzeit wird für Kalendereinträge verwendet.
 
 ## 5. MyWhoosh verbinden (Upload und Fahrten)
 
-1. **Profil → MyWhoosh** → E-Mail und Passwort → **Bei MyWhoosh anmelden**.
+1. **Profil → Dienste & Geräte → MyWhoosh** → E-Mail und Passwort → **Bei MyWhoosh anmelden**.
    - Gespeichert wird nur die Sitzung im Schlüsselbund, nie das Passwort.
    - Wer sich bei MyWhoosh mit Google oder Apple anmeldet, legt dort zuerst ein Passwort fest.
 2. Nach der Anmeldung lädt die App deine Fahrten der letzten 210 Tage aus MyWhoosh. Danach holt sie bei jedem Start neue nach; „Fahrten aus MyWhoosh laden“ lädt das ganze Fenster neu.
@@ -57,7 +57,7 @@ Die Startzeit wird für Kalendereinträge verwendet.
    1. Im Terminal `scripts/install-bridge.sh` ausführen: baut die Release-Version, signiert sie mit deinem Apple-Development-Zertifikat (ohne Entwicklerkonto in Xcode, ohne Profil; ohne Zertifikat ad hoc), installiert sie nach `/Programme` und startet sie. Alternativ in Xcode das Scheme **IndoorCoachBridge** auf **My Mac** ausführen.
    2. Im Fenster „Einrichtung“ **MyWhoosh-Ordner freigeben**. Der Dialog steht schon in `~/Library/Containers/com.whoosh.whooshgame/…/MyWhoosh/Content/Data`, also auf „Freigeben“ klicken. Fragt macOS, ob die Brücke auf Daten anderer Apps zugreifen darf, auf „Erlauben“ klicken.
    3. **iPhone koppeln** zeigt einen 6-stelligen Code. Fragt macOS nach dem **lokalen Netzwerk**, auf „Erlauben“ klicken.
-   4. Auf dem iPhone **Profil → MyWhoosh → Sekundendaten vom Mac** (oder Verlauf → Leistung → „Einrichten“) öffnen, den Mac antippen und den Code eingeben. Auch iOS fragt nach dem lokalen Netzwerk.
+   4. Auf dem iPhone **Profil → Dienste & Geräte → Sekundendaten vom Mac** (oder Verlauf → Leistung → „Einrichten“) öffnen, den Mac antippen und den Code eingeben. Auch iOS fragt nach dem lokalen Netzwerk.
    5. Ab jetzt holt das iPhone neue Fahrten beim Öffnen der App ab, solange beide im selben WLAN sind. Fahrten, die schon aus der MyWhoosh-Liste kamen, werden um die Sekundendaten **ergänzt**.
 4. **Ohne Mac:** **FIT-Dateien importieren …** (Dateien-App oder „Öffnen in IndoorCoach“, auch von Zwift, Wahoo oder Garmin). Vorhandene Fahrten werden ergänzt statt übersprungen.
 

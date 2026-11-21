@@ -8,7 +8,7 @@
   <img alt="SwiftUI · SwiftData · Swift Charts" src="https://img.shields.io/badge/SwiftUI-SwiftData%20%C2%B7%20Charts-FFB38A">
   <img alt="Claude API" src="https://img.shields.io/badge/Planung-Claude%20API-B5175A">
   <img alt="Kein Backend" src="https://img.shields.io/badge/Backend-keins-24131D">
-  <img alt="949 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-949-5EDBB8">
+  <img alt="973 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-973-5EDBB8">
   <a href="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
@@ -38,7 +38,7 @@ Viele fahren im Winter nicht nur Rolle: dienstags Studio, samstags Laufen, und m
 |:---:|:---:|:---:|:---:|
 | <img src="docs/screenshots/17-heute-kraft.png" width="200" alt="Heute mit Schnellstart Kraft und Andere Einheit"> | <img src="docs/screenshots/18-kraft-start.png" width="200" alt="Kraft starten: wie letzte Woche, mit Gurt aufzeichnen oder nachtragen"> | <img src="docs/screenshots/19-kraft-detail.png" width="200" alt="Krafteinheit Beine: Härte 7, Muskel-Last 385, Übungen mit Sätzen und Gewicht"> | <img src="docs/screenshots/20-herz-winterarc.png" width="200" alt="Dein Herz im Winter Arc: Aufwärm-Puls, Ruhepuls, aerobe Effizienz und Krafteinheiten je Monat"> |
 
-- **Brustgurt direkt am iPhone:** Jeder Bluetooth-Pulsgurt (z. B. Wahoo TICKR, Polar H10, Garmin HRM) verbindet sich in *Profil → Geräte*. Puls auf der Rolle auch ohne Mac-Brücke, mit Live Activity auf dem Sperrbildschirm und automatischem Wiederverbinden.
+- **Brustgurt direkt am iPhone:** Jeder Bluetooth-Pulsgurt (z. B. Wahoo TICKR, Polar H10, Garmin HRM) verbindet sich in *Profil → Dienste & Geräte → Brustgurt*. Puls auf der Rolle auch ohne Mac-Brücke, mit Live Activity auf dem Sperrbildschirm und automatischem Wiederverbinden.
 - **Krafttraining im Studio:** Schnellstart „wie letzte Woche“, Übungsliste zum Abhaken (41 Übungen, Vorlagen, Sätze × Wdh × Gewicht), am Ende Härte und „Beine schwer?“ – oder in unter 15 Sekunden nachtragen. Kraft läuft in einer eigenen **Muskel-Spur** und verfälscht nicht deine Rad-Fitness.
 - **Andere Einheit:** Laufband, Kurs, Rudergerät – aerobe Einheiten zählen mit geschätzter Puls-TSS zur Wochenlast.
 - **Check-in vor der Einheit:** Drei Tipps, alles optional – und bei einem schlechten Tag gibt es Angebote: kürzer, leichter, gegen Grundlage tauschen oder Joker – „angepasst statt ausgefallen“.
@@ -159,7 +159,7 @@ Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im
 cd IndoorCoach/IndoorCoachKit && swift test
 ```
 
-Dazu kommen 57 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
+Dazu kommen 58 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
 
 **CI/CD:** GitHub Actions baut iPhone-App und Mac-Brücke und testet jeden Push ([ci.yml](.github/workflows/ci.yml)). Ein Tag `v1.2.3` startet [release.yml](.github/workflows/release.yml): Archiv, Signierung per App-Store-Connect-API-Key, Upload zu TestFlight. Einrichtung in [docs/13-APP-STORE-RELEASE.md](docs/13-APP-STORE-RELEASE.md).
 
