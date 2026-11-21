@@ -6,7 +6,7 @@ struct ConnectionsView: View {
     @Environment(AppModel.self) private var model
     @State private var showFITImporter = false
 
-    private static let rideServices: [ConnectionID] = [.strava, .myWhoosh, .macBridge, .fitImport]
+    private static let rideServices: [ConnectionID] = [.strava, .myWhoosh, .intervalsICU, .macBridge, .fitImport]
     private static let deviceServices: [ConnectionID] = [.appleHealth, .strap]
 
     var body: some View {
@@ -14,7 +14,7 @@ struct ConnectionsView: View {
             Section {
                 ForEach(Self.rideServices, id: \.self) { row($0) }
             } header: { Text("Fahrten & Pläne") } footer: {
-                Text("Fahrten kommen von hier, neue Pläne gehen an MyWhoosh.")
+                Text("Fahrten kommen von hier, neue Pläne gehen an MyWhoosh oder intervals.icu.")
             }
             Section {
                 ForEach(Self.deviceServices, id: \.self) { row($0) }
@@ -64,6 +64,7 @@ struct ConnectionsView: View {
         switch id {
         case .strava: "profile.strava"
         case .myWhoosh: "profile.mywhoosh"
+        case .intervalsICU: "profile.intervals"
         case .macBridge: "profile.bridge"
         case .fitImport: "profile.fitImport"
         case .appleHealth: "profile.dataSources"
@@ -123,6 +124,7 @@ struct ConnectionDestination: View {
         switch id {
         case .strava: StravaConnectionView()
         case .myWhoosh: MyWhooshConnectionView()
+        case .intervalsICU: IntervalsConnectionView()
         case .macBridge: MacBridgeView()
         case .appleHealth: DataSourcesView()
         case .strap: DevicesView()

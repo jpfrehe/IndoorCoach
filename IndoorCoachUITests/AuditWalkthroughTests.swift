@@ -1088,6 +1088,52 @@ final class AuditWalkthroughTests: AuditCase {
         check(input(placeholder: "Client-ID").exists, "Zugangsdaten zum erneuten Verbinden sichtbar")
     }
 
+    func test16c_IntervalsConnection() {
+        // a) Standard: nicht verbunden, OAuth in diesem Build nicht freigeschaltet -> nur der API-Key-Weg.
+        launch()
+        route = "intervals"
+        openConnections()
+        let rowElement = app.descendants(matching: .any).matching(identifier: "profile.intervals").firstMatch
+        check(scrollUntilExists(rowElement, maxSwipes: 6).exists, "Zeile intervals.icu in Dienste & Geräte")
+        tap(rowElement, "Zeile intervals.icu")
+        check(waitFast(app.navigationBars["intervals.icu"], timeout: 6), "Detailseite intervals.icu öffnet")
+        check(text(containing: "noch nicht verfügbar").waitForExistence(timeout: 4), "Hinweis: Anmeldung über intervals.icu noch nicht verfügbar")
+        let keyField = scrollUntilExists(app.secureTextFields["intervals.apiKey"].firstMatch, maxSwipes: 6)
+        check(keyField.waitForExistence(timeout: 4), "API-Key-Feld sichtbar")
+        let connectKey = scrollUntilExists(app.buttons["intervals.connectKey"].firstMatch, maxSwipes: 6)
+        check(connectKey.exists && !connectKey.isEnabled, "„Mit API-Key verbinden“ ist ohne Eingabe deaktiviert")
+        check(!app.buttons["intervals.connect"].exists, "Kein OAuth-Knopf ohne Client-ID")
+        shot("nicht-verbunden")
+        accessibilityAudit("intervals.icu (nicht verbunden)")
+
+        // b) Verbunden (Debug-Seed, kein Netzwerk, Zugang nur im Speicher).
+        launch(extra: ["-uiIntervalsConnectedSeed", "YES"])
+        route = "intervals"
+        openConnections()
+        let connectedRow = scrollUntilExists(app.descendants(matching: .any).matching(identifier: "profile.intervals").firstMatch, maxSwipes: 6)
+        var rowEnd = Date().addingTimeInterval(6)
+        while !connectedRow.label.contains("Verbunden") && Date() < rowEnd { usleep(200_000) }
+        rowEnd = Date()
+        check(connectedRow.exists && connectedRow.label.contains("Verbunden"), "Zeile zeigt „Verbunden“ (\(connectedRow.label))")
+        tap(connectedRow, "Zeile intervals.icu")
+        check(waitFast(app.navigationBars["intervals.icu"], timeout: 6), "Detailseite intervals.icu öffnet (verbunden)")
+        let toggle = scrollUntilExists(app.descendants(matching: .any)["intervals.autoSend"].firstMatch, maxSwipes: 6)
+        check(toggle.exists, "Schalter „Neue Pläne automatisch senden“")
+        let disconnect = scrollUntilExists(app.buttons["intervals.disconnect"].firstMatch, maxSwipes: 10)
+        check(disconnect.exists, "Knopf „intervals.icu trennen“ ganz unten")
+        shot("verbunden")
+        tap(disconnect, "intervals.icu trennen")
+        let dialog = app.staticTexts["intervals.icu trennen?"]
+        check(dialog.waitForExistence(timeout: 4), "Rückfrage „intervals.icu trennen?“")
+        let cancel = app.buttons["Abbrechen"].firstMatch
+        if cancel.waitForExistence(timeout: 3) { cancel.tap() } else { app.tap() }
+        var gone = Date().addingTimeInterval(4)
+        while dialog.exists && Date() < gone { usleep(200_000) }
+        gone = Date()
+        check(!dialog.exists, "Rückfrage ist nach Abbrechen verschwunden")
+        check(app.buttons["intervals.disconnect"].exists, "Nach Abbrechen bleibt die Verbindung bestehen")
+    }
+
     // MARK: Scenario – Kalender verweigert
 
     func test11_Scenario_CalendarDenied() {

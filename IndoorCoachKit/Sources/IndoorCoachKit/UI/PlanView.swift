@@ -104,6 +104,15 @@ struct PlanView: View {
                         } label: { Label("Alle an MyWhoosh senden", systemImage: "paperplane") }
                     }
                 }
+                if model.isIntervalsConnected {
+                    ToolbarItem(placement: .secondaryAction) {
+                        Button {
+                            Task { await model.sendUpcomingToIntervals() }
+                        } label: { Label("Alle an intervals.icu senden", systemImage: "paperplane") }
+                        .disabled(model.isSendingToIntervals)
+                        .accessibilityIdentifier("plan.sendIntervals")
+                    }
+                }
             }
             .sheet(isPresented: $showGenerator) {
                 PlanGeneratorSheet()

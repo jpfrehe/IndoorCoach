@@ -188,6 +188,42 @@ struct ConnectionStatusTests {
         #expect(model.syncErrors[.myWhoosh] == nil)
     }
 
+    // MARK: intervals.icu
+
+    func signInIntervals(_ credential: IntervalsCredential, lastImport: Date? = nil) {
+        SecretIntervalsCredentialStore(secrets: secrets).saveCredential(credential)
+        model.lastIntervalsImport = lastImport
+        model.refreshCredentialState()
+    }
+
+    @Test func intervalsIsListedRightAfterMyWhoosh() {
+        let ids = ConnectionID.allCases
+        #expect(ConnectionID.intervalsICU.rawValue == "intervalsICU")
+        #expect(ids.firstIndex(of: .intervalsICU) == ids.firstIndex(of: .myWhoosh)! + 1)
+        let d = model.connection(.intervalsICU, strap: strap)
+        #expect(d.name == "intervals.icu" && d.roles == [.rides, .plans] && d.rolesText == "Fahrten · Pläne")
+        #expect(!d.systemImage.isEmpty)
+    }
+
+    @Test func intervalsStatusFollowsTheCredential() {
+        #expect(status(.intervalsICU) == .notConnected)
+        let sync = Date(timeIntervalSince1970: 1_794_000_000)
+        signInIntervals(.oauth(accessToken: "t-123456", athleteID: "i1", athleteName: "Lena"), lastImport: sync)
+        #expect(status(.intervalsICU) == .connected(detail: "Lena", lastSync: sync))
+        #expect(!model.intervalsUsesAPIKey)
+        signInIntervals(.apiKey("key-123456"))
+        #expect(status(.intervalsICU) == .connected(detail: "Persönlicher API-Key", lastSync: nil))
+        #expect(model.intervalsUsesAPIKey)
+        #expect(model.connectedServiceCount(strap: strap) == 1)
+    }
+
+    @Test func intervalsErrorBeatsConnected() {
+        signInIntervals(.apiKey("key-123456"))
+        model.syncErrors[.intervalsICU] = "Zugang abgelaufen – bitte neu verbinden."
+        #expect(status(.intervalsICU) == .error("Zugang abgelaufen – bitte neu verbinden."))
+        #expect(model.connectionsNeedingAttention == 1)
+    }
+
     // MARK: Mac-Brücke
 
     @Test func bridgePairedAndUnpaired() {

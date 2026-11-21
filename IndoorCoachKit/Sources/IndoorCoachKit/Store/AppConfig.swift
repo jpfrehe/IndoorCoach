@@ -16,6 +16,13 @@ public enum AppConfig {
         return components.url
     }
 
+    /// Public OAuth client id of the intervals.icu app (`IntervalsClientID` in Info.plist). Public client with PKCE:
+    /// there is no client secret anywhere. Empty until the app is approved at intervals.icu/oauth/apply.
+    public static var intervalsClientID: String {
+        (Bundle.main.object(forInfoDictionaryKey: "IntervalsClientID") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
     /// Public repository; feedback goes to its issue forms (`FeedbackDraft`).
     public static let repoURL = URL(string: "https://github.com/jpfrehe/IndoorCoach")!
 

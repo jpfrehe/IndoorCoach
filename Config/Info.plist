@@ -56,11 +56,13 @@
 			</dict>
 		</dict>
 	</array>
+	<key>IntervalsClientID</key>
+	<string></string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>Strava OAuth Callback</string>
+			<string>OAuth Callback (Strava, intervals.icu)</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>indoorcoach</string>

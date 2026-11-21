@@ -26,6 +26,8 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
     public var targetCTL: Double? = nil
     /// Send accepted plans straight to MyWhoosh when connected.
     public var autoSendToMyWhoosh: Bool = true
+    /// Send accepted plans straight to intervals.icu when connected.
+    public var autoSendToIntervals: Bool = true
     /// Weekly local notification on Sunday 18:00 pointing at the Wochenrückblick (opt-in, K2).
     public var weeklyReviewReminder: Bool = false
     /// Local notification 30 minutes before each planned workout of the next 14 days (opt-in, G7).
@@ -44,7 +46,7 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case name, ftp, weightKg, thresholdHeartRate, goal, goalDate, weeklyHours, trainingDays, longestSessionMinutes,
              preferredStartHour, preferredStartMinute, notes, planHorizonDays, model,
-             restingHeartRate, maxHeartRate, arcStart, targetCTL, autoSendToMyWhoosh, weeklyReviewReminder, workoutReminder,
+             restingHeartRate, maxHeartRate, arcStart, targetCTL, autoSendToMyWhoosh, autoSendToIntervals, weeklyReviewReminder, workoutReminder,
              warmupCheckWatts, warmupCheckBaseSince
     }
 
@@ -72,6 +74,7 @@ public struct AthleteProfile: Codable, Equatable, Sendable {
         arcStart = try c.decodeIfPresent(Date.self, forKey: .arcStart)
         targetCTL = try c.decodeIfPresent(Double.self, forKey: .targetCTL)
         autoSendToMyWhoosh = try c.decodeIfPresent(Bool.self, forKey: .autoSendToMyWhoosh) ?? d.autoSendToMyWhoosh
+        autoSendToIntervals = try c.decodeIfPresent(Bool.self, forKey: .autoSendToIntervals) ?? d.autoSendToIntervals
         weeklyReviewReminder = try c.decodeIfPresent(Bool.self, forKey: .weeklyReviewReminder) ?? d.weeklyReviewReminder
         workoutReminder = try c.decodeIfPresent(Bool.self, forKey: .workoutReminder) ?? d.workoutReminder
         warmupCheckWatts = try c.decodeIfPresent(Int.self, forKey: .warmupCheckWatts)

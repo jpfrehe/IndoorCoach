@@ -18,6 +18,8 @@ public struct Keychain: Sendable {
         case stravaClientSecret = "strava.clientSecret"
         case stravaTokens = "strava.tokens"
         case myWhooshSession = "mywhoosh.session"
+        /// intervals.icu: OAuth access token or personal API key (JSON of `IntervalsCredential`).
+        case intervalsCredential = "intervals.credential"
         /// IndoorCoach Brücke: the long pairing secret (Mac: its own; iPhone: the paired Mac's).
         case bridgeSecret = "bridge.secret"
     }

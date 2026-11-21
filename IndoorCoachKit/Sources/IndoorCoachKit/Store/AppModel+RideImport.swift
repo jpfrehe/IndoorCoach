@@ -8,8 +8,9 @@ extension AppModel {
     public func syncRides(userInitiated: Bool = false) async {
         if isStravaConnected { await syncStrava() }
         if isMyWhooshConnected { await importMyWhooshRides(announce: userInitiated) }
-        if userInitiated && !isStravaConnected && !isMyWhooshConnected {
-            show("Keine Datenquelle verbunden – verbinde Strava oder MyWhoosh unter Profil → Dienste & Geräte oder importiere FIT-Dateien.", error: false)
+        if isIntervalsConnected { await importIntervalsRides(announce: userInitiated) }
+        if userInitiated && !isStravaConnected && !isMyWhooshConnected && !isIntervalsConnected {
+            show("Keine Datenquelle verbunden – verbinde Strava, MyWhoosh oder intervals.icu unter Profil → Dienste & Geräte oder importiere FIT-Dateien.", error: false)
         }
     }
 

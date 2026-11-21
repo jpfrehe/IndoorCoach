@@ -96,7 +96,7 @@ struct StorageView: View {
                     .confirmationDialog("Alle Daten löschen?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
                         Button("Alle Daten löschen", role: .destructive) { Task { await model.deleteAllData() } }
                     } message: {
-                        Text("Gelöscht werden alle Fahrten, geplanten Einheiten und Krafttrainings, Gesundheits- und Morgenmessungs-Daten, die Kalendereinträge der App samt Kalender „Indoor Training“, alle Erinnerungen, Claude-API-Key, Strava-Zugang und -Client-Secret, MyWhoosh-Anmeldung, Mac-Kopplung, der gespeicherte Brustgurt sowie Profil und Einstellungen. Deine Daten bei Strava und MyWhoosh bleiben erhalten. Das lässt sich nicht rückgängig machen.")
+                        Text("Gelöscht werden alle Fahrten, geplanten Einheiten und Krafttrainings, Gesundheits- und Morgenmessungs-Daten, die Kalendereinträge der App samt Kalender „Indoor Training“, alle Erinnerungen, Claude-API-Key, Strava-Zugang und -Client-Secret, MyWhoosh-Anmeldung, intervals.icu-Zugang, Mac-Kopplung, der gespeicherte Brustgurt sowie Profil und Einstellungen. Deine Daten bei Strava, MyWhoosh und intervals.icu bleiben erhalten. Das lässt sich nicht rückgängig machen.")
                     }
             } footer: {
                 Text("Entfernt alles, was IndoorCoach auf diesem iPhone gespeichert hat.")

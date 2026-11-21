@@ -8,7 +8,7 @@ import OSLog
 /// runs through `Redactor.scrub` before it reaches the unified log.
 public enum Log {
     public enum Category: String, CaseIterable, Sendable {
-        case strava, claude, calendar, sync, plan, mywhoosh, bridge
+        case strava, claude, calendar, sync, plan, mywhoosh, intervals, bridge
         /// User-visible banners and app-level events.
         case app
         // ANCHOR-STRAP: Brustgurt-Verbindung und Gerätetest (nur Zähler/Status, keine Pulswerte)

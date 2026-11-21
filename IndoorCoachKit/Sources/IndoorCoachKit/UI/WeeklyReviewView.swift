@@ -107,7 +107,7 @@ struct WeeklyReviewView: View {
                         .accessibilityAddTraits(.isHeader)
                     ForEach(reviews.dropFirst()) { WeeklyReviewDetailCard(review: $0, ftp: model.profile.ftp, prominent: false) }
                 }
-                Text("Quellen: deine Fahrten (Strava, MyWhoosh, FIT-Import), deine Kraft- und anderen Einheiten und dein Plan in IndoorCoach. Die Gesamtwoche addiert nur Stunden und Anzahl – Rad und Kraft werden nicht umgerechnet. TSS aus Leistung und FTP, Relative Effort wie auf der Verlaufsseite.")
+                Text("Quellen: deine Fahrten (Strava, MyWhoosh, intervals.icu, FIT-Import), deine Kraft- und anderen Einheiten und dein Plan in IndoorCoach. Die Gesamtwoche addiert nur Stunden und Anzahl – Rad und Kraft werden nicht umgerechnet. TSS aus Leistung und FTP, Relative Effort wie auf der Verlaufsseite.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)

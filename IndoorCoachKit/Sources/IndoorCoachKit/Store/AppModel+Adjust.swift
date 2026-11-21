@@ -34,7 +34,7 @@ extension AppModel {
         if !failed { show("Original wiederhergestellt.", error: false) }
     }
 
-    /// Updates the calendar event and replaces the MyWhoosh workout, if the workout was sent before.
+    /// Updates the calendar event and replaces the MyWhoosh and intervals.icu workout, if the workout was sent before.
     /// A failure keeps the local change and shows the usual error banner. Returns true if anything failed.
     func propagateChange(of workout: StoredWorkout) async -> Bool {
         let id = workout.persistentModelID
@@ -60,6 +60,12 @@ extension AppModel {
            let w = context.model(for: id) as? StoredWorkout, !w.isDeleted {
             if !failed { banner = nil }
             await sendToMyWhoosh([w]) // replaces the earlier upload and calendar task
+            if banner?.isError == true { failed = true }
+        }
+        if workout.intervalsSentAt != nil, isIntervalsConnected,
+           let w = context.model(for: id) as? StoredWorkout, !w.isDeleted {
+            if !failed { banner = nil }
+            await sendToIntervals([w]) // upsert replaces the calendar entry (same external_id)
             if banner?.isError == true { failed = true }
         }
         return failed

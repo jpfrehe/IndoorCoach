@@ -83,6 +83,7 @@ public struct RootView: View {
             model.applyBridgeStubSeed()
             model.applyComplianceSeed()   // -uiComplianceSeed YES (after bootstrap: needs the demo rides)
             model.applyConnectionErrorSeed()   // -uiConnectionErrorSeed YES
+            model.applyIntervalsConnectedSeed()   // -uiIntervalsConnectedSeed YES
             #endif
             await model.rescheduleWorkoutReminders()
             await model.syncRides()
@@ -217,6 +218,11 @@ public enum AppEnvironment {
                                  myWhooshStore: InMemoryMyWhooshSessionStore())
             model.installBridgeStub()
             return model
+        }
+        // `-uiIntervalsConnectedSeed YES`: der erfundene Zugang bleibt im Speicher, nie im Schlüsselbund; kein Netzwerk.
+        if UserDefaults.standard.bool(forKey: "uiIntervalsConnectedSeed") {
+            return AppModel(context: container.mainContext, secrets: InMemorySecretStore(), transport: StubTransport(),
+                            myWhooshStore: InMemoryMyWhooshSessionStore())
         }
         // End-to-end hook: `-uiBridgeEndpoint host:mainPort:pairingPort` talks to a real bridge without Bonjour,
         // secrets in memory.

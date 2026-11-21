@@ -4,7 +4,7 @@ import Foundation
 // Der Status wird nur aus vorhandenen Werten abgeleitet; neu ist allein `AppModel.syncErrors` (nur im Speicher).
 
 public enum ConnectionID: String, CaseIterable, Hashable, Sendable {
-    case strava, myWhoosh, macBridge, fitImport, appleHealth, strap
+    case strava, myWhoosh, intervalsICU, macBridge, fitImport, appleHealth, strap
 }
 
 /// Wofür ein Dienst in der App genutzt wird (Zeile „Fahrten · Pläne“).
@@ -71,6 +71,7 @@ extension AppModel {
         let (name, image, roles): (String, String, [ConnectionRole]) = switch id {
         case .strava: ("Strava", "figure.outdoor.cycle", [.rides])
         case .myWhoosh: ("MyWhoosh", "figure.indoor.cycle", [.rides, .plans])
+        case .intervalsICU: ("intervals.icu", "calendar.badge.clock", [.rides, .plans])
         case .macBridge: ("Sekundendaten vom Mac", "macbook.and.iphone", [.secondData])
         case .fitImport: ("FIT-Dateien importieren …", "doc.badge.plus", [.rides])
         case .appleHealth: ("Apple Health", "heart.text.square", [.recovery])
@@ -118,6 +119,10 @@ extension AppModel {
             if let expiry = myWhooshSessionExpiry, expiry <= Date.now.addingTimeInterval(30) { return .needsSetup("Anmeldung abgelaufen") }
             if let failure { return .error(failure) }
             return .connected(detail: myWhooshUser, lastSync: lastMyWhooshImport)
+        case .intervalsICU:
+            if let failure { return .error(failure) }
+            guard isIntervalsConnected else { return .notConnected }
+            return .connected(detail: intervalsAthleteName ?? "Persönlicher API-Key", lastSync: lastIntervalsImport)
         case .macBridge:
             guard isBridgePaired else { return .notConnected }
             if let failure { return .error(failure) }

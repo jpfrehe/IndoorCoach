@@ -122,6 +122,24 @@ public final class AppModel {
     /// Cached JWT expiry of the stored session, so status views never read the Keychain.
     public private(set) var myWhooshSessionExpiry: Date?
     public private(set) var isSendingToMyWhoosh = false
+    // intervals.icu (Logik in AppModel+Intervals.swift)
+    let intervalsStore: IntervalsCredentialStore
+    let intervals: IntervalsClient
+    let intervalsConfig: IntervalsConfig
+    /// Verbunden (OAuth oder API-Key). Wird in `refreshCredentialState` aus dem Schlüsselbund abgeleitet.
+    public internal(set) var isIntervalsConnected = false
+    /// Name des Kontos (OAuth-Antwort bzw. Prüfung des API-Keys); nil, wenn unbekannt oder nicht verbunden.
+    public internal(set) var intervalsAthleteName: String?
+    /// Der persönliche API-Key ist hinterlegt (kein OAuth).
+    public internal(set) var intervalsUsesAPIKey = false
+    public internal(set) var lastIntervalsImport: Date?
+    public internal(set) var isSendingToIntervals = false
+    /// Nur Debug-UI-Tests (`seedIntervalsConnected`): der Seed-Zugang ist erfunden, also gehen keine Anfragen raus.
+    @ObservationIgnored var intervalsNetworkDisabled = false
+    /// Zählt Verbinden/Trennen: Abläufe, die nach einem `await` zurückkehren, prüfen, ob der Zugang noch derselbe ist.
+    @ObservationIgnored var intervalsGeneration = 0
+    /// Einheiten, die während eines laufenden Sendens dazukamen; das laufende Senden schickt sie hinterher mit.
+    @ObservationIgnored var pendingIntervalsSends: [PersistentIdentifier] = []
     public var isMyWhooshConnected: Bool { myWhooshUser != nil }
     let defaults: UserDefaults
     let calendarService: CalendarService
@@ -136,6 +154,11 @@ public final class AppModel {
         static let onboardingCompleted = "onboarding.completed.v1"
         static let ridesImported = "rides.imported.v1"
         static let myWhooshLastImport = "mywhoosh.lastImport"
+        static let intervalsLastImport = "intervals.lastImport"
+        /// Name des Kontos bei API-Key-Anmeldung (der Key selbst liegt im Schlüsselbund).
+        static let intervalsAthleteName = "intervals.athleteName"
+        /// IDs von Aktivitäten, die dauerhaft keine Daten liefern (gedeckelt, siehe `rememberUnreadableIntervalsActivities`).
+        static let intervalsUnreadable = "intervals.unreadable"
         /// Weeks (Monday as yyyy-MM-dd) whose Wochenrückblick card was dismissed on Heute.
         static let weeklyReviewDismissed = "weeklyReview.dismissed.v1"
         /// Current step of the 5-step onboarding (resume after relaunch).
@@ -149,6 +172,7 @@ public final class AppModel {
         /// Everything "Alle Daten löschen" removes – add every new persisted key here. (Health-Zustand und Anker räumt
         /// `resetHealthState()` auf, die Strava-/MyWhoosh-Geheimnisse liegen im Keychain.)
         static let all = [profile, stravaClientID, lastSync, onboardingCompleted, ridesImported, myWhooshLastImport,
+                          intervalsLastImport, intervalsAthleteName, intervalsUnreadable,
                           weeklyReviewDismissed, onboardingStep, bridgeMacName, bridgeLastSync, bridgeKnownIDs,
                           recordingPending, recordingAttached, // ANCHOR-REC
                           legLoadKept, manualJokerWeeks, strengthTemplates, strengthDays, strapPeripheral,
@@ -171,13 +195,20 @@ public final class AppModel {
 
     public init(context: ModelContext, secrets: SecretStore, defaults: UserDefaults = .standard,
                 transport: HTTPTransport = URLSessionTransport(),
-                myWhooshStore: MyWhooshSessionStore = KeychainMyWhooshSessionStore()) {
+                myWhooshStore: MyWhooshSessionStore = KeychainMyWhooshSessionStore(),
+                intervalsConfig: IntervalsConfig = IntervalsConfig()) {
         self.context = context
         self.secrets = secrets
         self.defaults = defaults
         self.transport = transport
         self.myWhooshStore = myWhooshStore
         self.myWhoosh = MyWhooshClient(store: myWhooshStore, transport: transport)
+        let intervalsStore = SecretIntervalsCredentialStore(secrets: secrets)
+        self.intervalsStore = intervalsStore
+        self.intervalsConfig = intervalsConfig
+        // Standard-Transport: Weiterleitungen verlassen intervals.icu nie; injizierte (Test-)Transporte bleiben unverändert.
+        self.intervals = IntervalsClient(config: intervalsConfig, store: intervalsStore,
+                                         transport: transport is URLSessionTransport ? RestrictedRedirectTransport() : transport)
         self.calendarService = CalendarService()
         if let data = defaults.data(forKey: Keys.profile), let p = try? JSONDecoder().decode(AthleteProfile.self, from: data) {
             profile = p
@@ -189,6 +220,7 @@ public final class AppModel {
         lastSync = defaults.object(forKey: Keys.lastSync) as? Date
         hasImportedRides = defaults.bool(forKey: Keys.ridesImported)
         lastMyWhooshImport = defaults.object(forKey: Keys.myWhooshLastImport) as? Date
+        lastIntervalsImport = defaults.object(forKey: Keys.intervalsLastImport) as? Date
         bridge.load(defaults: defaults)
         loadHealthState() // ANCHOR-W3B
         refreshCredentialState()
@@ -269,6 +301,15 @@ public final class AppModel {
         let whooshSession = myWhooshStore.loadSession()
         myWhooshUser = whooshSession?.username
         myWhooshSessionExpiry = whooshSession?.expiresAt
+        let intervalsCredential = intervalsStore.loadCredential()
+        isIntervalsConnected = intervalsCredential != nil
+        if case .apiKey? = intervalsCredential {
+            intervalsUsesAPIKey = true
+            intervalsAthleteName = defaults.string(forKey: Keys.intervalsAthleteName)
+        } else {
+            intervalsUsesAPIKey = false
+            intervalsAthleteName = intervalsCredential?.athleteName
+        }
     }
 
     // MARK: - MyWhoosh (B21, unofficial API)
@@ -425,6 +466,10 @@ public final class AppModel {
         lastSync = nil
         hasImportedRides = false
         lastMyWhooshImport = nil
+        lastIntervalsImport = nil
+        intervalsStore.saveCredential(nil)
+        intervalsNetworkDisabled = false
+        syncErrors[.intervalsICU] = nil
         profile = AthleteProfile()
         stravaClientID = ""
         // Debug-only: start without Claude key / Strava secret (Strava tokens are left untouched).
@@ -622,9 +667,7 @@ public final class AppModel {
         } else {
             show("\(created.count) Einheiten übernommen.", error: false)
         }
-        if isMyWhooshConnected && profile.autoSendToMyWhoosh {
-            await sendToMyWhoosh(created)
-        }
+        await sendToPlanDestinations(created)
         // ANCHOR-P4-APPMODEL (Erinnerung vor geplanten Einheiten)
         await rescheduleWorkoutReminders()
     }
@@ -686,6 +729,7 @@ public final class AppModel {
     public func delete(_ workout: StoredWorkout) async {
         let eventID = workout.calendarEventID
         let whooshID = workout.myWhooshWorkoutID, whooshTask = workout.myWhooshTaskID
+        let intervalsID = workout.intervalsSentAt != nil ? workout.id.uuidString : nil
         context.delete(workout)
         guard saveReportingErrors("Das Löschen") else { return }
         await rescheduleWorkoutReminders()
@@ -697,6 +741,12 @@ public final class AppModel {
         // Best effort: keep MyWhoosh in sync, but never block local deletion on the unofficial API.
         if let whooshTask { try? await myWhoosh.deleteTask(whooshTask) }
         if let whooshID { try? await myWhoosh.delete(workoutID: whooshID) }
+        // Dito intervals.icu: der Termin trägt die UUID der Einheit als `external_id`.
+        if let intervalsID, isIntervalsConnected, !intervalsNetworkDisabled {
+            do { try await intervals.deleteWorkouts(externalIDs: [intervalsID]) } catch {
+                Log.error(.intervals, "Termin nicht entfernt: \(type(of: error))")
+            }
+        }
     }
 
     public func setStatus(_ status: WorkoutStatus, for workout: StoredWorkout) {
@@ -747,6 +797,7 @@ public final class AppModel {
         secrets.setSecret(nil, for: .stravaClientSecret)
         secrets.tokenStore.saveTokens(nil)
         myWhooshStore.saveSession(nil)
+        await intervals.disconnect() // OAuth: Freigabe bei intervals.icu widerrufen (Best Effort), Zugang lokal löschen
         UserDefaults.standard.removeObject(forKey: "mywhoosh.deviceId")
         secrets.setSecret(nil, for: .bridgeSecret)
         bridge.reset()
@@ -758,6 +809,7 @@ public final class AppModel {
         lastSync = nil
         hasImportedRides = false
         lastMyWhooshImport = nil
+        lastIntervalsImport = nil
         proposal = nil
         plannerRequested = false
         seriesCache = nil

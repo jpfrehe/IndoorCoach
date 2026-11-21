@@ -23,6 +23,11 @@ struct DeleteAllDataTests {
         defaults.set(Date.now, forKey: AppModel.Keys.lastSync)
         defaults.set(true, forKey: AppModel.Keys.ridesImported)
         defaults.set(Date.now, forKey: AppModel.Keys.myWhooshLastImport)
+        defaults.set(Date.now, forKey: AppModel.Keys.intervalsLastImport)
+        defaults.set("Jan", forKey: AppModel.Keys.intervalsAthleteName)
+        defaults.set(["i7"], forKey: AppModel.Keys.intervalsUnreadable)
+        SecretIntervalsCredentialStore(secrets: secrets).saveCredential(.apiKey("key-123456"))
+        model.syncErrors[.intervalsICU] = "Zugang abgelaufen – bitte neu verbinden."
         defaults.set(["2026-11-16"], forKey: AppModel.Keys.weeklyReviewDismissed)
         secrets.setSecret("c2VjcmV0", for: .bridgeSecret)
         defaults.set("Lenas MacBook Air", forKey: AppModel.Keys.bridgeMacName)
@@ -47,6 +52,7 @@ struct DeleteAllDataTests {
         model.setStravaClientSecret("client-secret")
         secrets.saveTokens(StravaTokens(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, athleteName: "Test"))
         model.refreshCredentialState()
+        #expect(model.isIntervalsConnected && model.intervalsAthleteName == "Jan")
         let context = container.mainContext
         #expect(try context.fetchCount(FetchDescriptor<StoredRide>()) > 0)
         #expect(try context.fetchCount(FetchDescriptor<StoredWorkout>()) > 0)
@@ -62,6 +68,8 @@ struct DeleteAllDataTests {
         #expect(secrets.secret(.bridgeSecret) == nil)
         #expect(model.bridgeMacName == nil && model.lastBridgeSync == nil && !model.isBridgePaired)
         #expect(secrets.loadTokens() == nil)
+        #expect(secrets.secret(.intervalsCredential) == nil)
+        #expect(!model.isIntervalsConnected && model.intervalsAthleteName == nil && model.lastIntervalsImport == nil)
         for key in AppModel.Keys.all { #expect(defaults.object(forKey: key) == nil, "\(key) still set") }
         #expect(defaults.persistentDomain(forName: suite)?.isEmpty ?? true)
         #expect(model.profile == AthleteProfile())

@@ -172,13 +172,31 @@ struct WorkoutDetailContent: View {
                             .font(.caption).foregroundStyle(Theme.rowSecondary)
                     }
                 }
+                if model.isIntervalsConnected {
+                    Button { Task { await model.sendToIntervals([workout]) } } label: {
+                        HStack {
+                            if model.isSendingToIntervals { ProgressView().tint(Theme.ink) }
+                            else { Image(systemName: "paperplane.fill") }
+                            Text(workout.intervalsSentAt == nil ? "An intervals.icu senden" : "In intervals.icu aktualisieren")
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(model.isMyWhooshConnected ? AnyButtonStyle(.soft) : AnyButtonStyle(.jelly))
+                    .disabled(model.isSendingToIntervals)
+                    .accessibilityIdentifier("workout.sendIntervals")
+                    if let sent = workout.intervalsSentAt {
+                        Label("In intervals.icu seit \(sent.formatted(.dateTime.day().month().hour().minute().locale(Locale.de)))",
+                              systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(Theme.rowSecondary)
+                    }
+                }
                 Button(action: onCalendar) {
                     Label(workout.calendarEventID == nil ? "In Kalender eintragen" : "Kalender aktualisieren",
                           systemImage: "calendar.badge.plus")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(model.isMyWhooshConnected ? AnyButtonStyle(.soft) : AnyButtonStyle(.jelly))
-                if !model.isMyWhooshConnected {
+                .buttonStyle(model.isMyWhooshConnected || model.isIntervalsConnected ? AnyButtonStyle(.soft) : AnyButtonStyle(.jelly))
+                if !model.isMyWhooshConnected && !model.isIntervalsConnected {
                     Text("Tipp: Verbinde MyWhoosh unter Profil → Dienste & Geräte – dann landet die Einheit mit einem Tipp direkt in MyWhoosh.")
                         .font(.caption).foregroundStyle(Theme.rowSecondary)
                 }

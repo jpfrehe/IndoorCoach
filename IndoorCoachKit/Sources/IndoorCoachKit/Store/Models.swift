@@ -163,6 +163,9 @@ public final class StoredWorkout {
     public var myWhooshWorkoutID: String?
     public var myWhooshTaskID: String?
     public var myWhooshSentAt: Date?
+    // intervals.icu: Zeitpunkt des letzten Sendens (nil = nie gesendet) – optional für leichte Migration. Der Termin dort
+    // trägt die UUID dieser Einheit als `external_id`.
+    public var intervalsSentAt: Date?
     // "Einheit anpassen" – optional for lightweight migration. The original segments are kept once, so the change can be undone.
     public var originalSegmentsData: Data?
     public var adjustmentNote: String?
