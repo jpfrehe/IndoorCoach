@@ -3,6 +3,8 @@ import TipKit
 
 struct WorkoutDetailView: View {
     @Bindable var workout: StoredWorkout
+    /// „Heute locker einsteigen“ (Willkommen zurück): öffnet „Einheit anpassen“ gleich mit dieser Auswahl.
+    var adjustPreset: AdjustPreset?
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var zwoURL: URL?
@@ -19,7 +21,7 @@ struct WorkoutDetailView: View {
 
     private var content: some View {
         ScrollView {
-            WorkoutDetailContent(workout: workout, zwoURL: zwoURL,
+            WorkoutDetailContent(workout: workout, zwoURL: zwoURL, adjustPreset: adjustPreset,
                                  onCalendar: { Task { await model.addToCalendar([workout]) } })
                 .padding(.horizontal)
                 .padding(.bottom, 24)
@@ -62,9 +64,16 @@ struct WorkoutDetailView: View {
     }
 }
 
+/// Vorauswahl für „Einheit anpassen“ (Minuten und Prozent leichter).
+struct AdjustPreset: Hashable {
+    var minutes: Int
+    var easierBy: Int
+}
+
 struct WorkoutDetailContent: View {
     var workout: StoredWorkout
     var zwoURL: URL?
+    var adjustPreset: AdjustPreset?
     var onCalendar: () -> Void
     @Environment(AppModel.self) private var model
     @State private var showAdjust = false
@@ -218,7 +227,8 @@ struct WorkoutDetailContent: View {
                 .font(.subheadline)
             }
         }
-        .sheet(isPresented: $showAdjust) { AdjustSheet(workout: workout) }
+        .sheet(isPresented: $showAdjust) { AdjustSheet(workout: workout, preset: adjustPreset) }
+        .task(id: workout.id) { if adjustPreset != nil, workout.status == .planned { showAdjust = true } }
     }
 }
 
@@ -263,6 +273,7 @@ private struct AdjustSection: View {
 
 private struct AdjustSheet: View {
     var workout: StoredWorkout
+    var preset: AdjustPreset?
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -313,6 +324,10 @@ private struct AdjustSheet: View {
         }
         .presentationDetents([.large])
         .onAppear {
+            if let preset, workout.adjustmentNote == nil {
+                if options.contains(preset.minutes) { minutes = preset.minutes }
+                easier = preset.easierBy
+            }
             // Start from the current adjustment so it can be tweaked.
             if let note = workout.adjustmentNote {
                 if note.contains("−10 %") { easier = 10 } else if note.contains("−5 %") { easier = 5 }

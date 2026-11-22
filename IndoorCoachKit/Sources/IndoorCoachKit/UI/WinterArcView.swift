@@ -5,6 +5,8 @@ import SwiftUI
 /// S12 – compact Winter Arc card for the Heute dashboard.
 struct WinterArcCard: View {
     var status: WinterArc.Status
+    /// Chip „+34 min Licht“; im Hub steht stattdessen der Winterlicht-Kopf.
+    var showsLight = true
 
     var body: some View {
         Card(title: "Winter Arc", systemImage: "snowflake") {
@@ -20,6 +22,11 @@ struct WinterArcCard: View {
                 }
             }
             // ANCHOR-B3-CARD: Chip „+34 min Licht“ (sun.horizon) unter der Level-Zeile, Tipp öffnet den Hub – Agent B
+            if showsLight, let light = lightChip {
+                JellyChip(text: light, systemImage: "sun.horizon", fill: Theme.softFill)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("winterlight.line")
+            }
             // Side by side when they fit, otherwise stacked – never clipped (audit 2, A2-05: "5 Wochen in Folge · 1 Joker").
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) { chips }
@@ -38,6 +45,15 @@ struct WinterArcCard: View {
                 .fixedSize()
                 .accessibilityIdentifier("arc.streak")
         }
+    }
+
+    /// Nur ab dem Saisonstart (davor erscheint die Zeile nur im Hub).
+    private var lightChip: String? {
+        let calendar = Calendar.current
+        let today = AppModel.today
+        guard calendar.startOfDay(for: today) >= status.start else { return nil }
+        let phase = Daylight.phase(now: today, latitude: Daylight.latitude(for: calendar.timeZone), calendar: calendar)
+        return Daylight.chip(for: phase)
     }
 
     private var subtitle: String {
@@ -91,7 +107,8 @@ struct WinterArcView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if let status = model.winterArc(rides: rides) {   // series is cached in AppModel
                     // ANCHOR-B3-HUB: Winterlicht-Kopf mit Himmel, Schnee und Tageslicht-Gewinn – Agent B
-                    WinterArcCard(status: status)
+                    WinterlightHeader(progress: status.progress, start: status.start, goal: status.goal)
+                    WinterArcCard(status: status, showsLight: false)
                     // ANCHOR-K1-WINTERARC (Konstanz-Serie & Joker)
                     ConsistencyCard(result: model.consistency(rides: rides))
                     // Audit 2, A2-03: the season hub shows what to do now (streak, challenges, trophies) before the
@@ -102,7 +119,9 @@ struct WinterArcView: View {
                     // ANCHOR-P4-WINTERARC (Winter-Reise)
                     WinterJourneyCard(level: status.level.number, levelProgress: status.levelProgress)
                     // ANCHOR-B2-ALBUM: „Deine Postkarten · n von 10“ (PostcardAlbumView) – Agent B
+                    PostcardAlbumCard(status: status, rides: rides)
                     // ANCHOR-B4-WHY: Karte „Dein Warum“ (WhyCard) – Agent B
+                    WhyCard()
                     // ANCHOR-W5 (Dein Herz im Winter Arc)
                     if let heart { HeartInWinterArcCard(heart: heart) }
 

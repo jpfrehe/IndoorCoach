@@ -8,7 +8,7 @@ struct WinterJourneyCard: View {
 
     var body: some View {
         let position = WinterJourney.position(level: level, levelProgress: levelProgress)
-        Card(title: "Winter-Reise · \(WinterJourney.title)", systemImage: "mountain.2") {
+        let card = Card(title: "Winter-Reise · \(WinterJourney.title)", systemImage: "mountain.2") {
             JourneyRoute(position: position)
                 .frame(height: dynamicTypeSize.isAccessibilitySize ? 96 : 84)
                 .accessibilityHidden(true)
@@ -27,10 +27,19 @@ struct WinterJourneyCard: View {
                 Text("Geschafft: Du bist am Gardasee.").font(.subheadline).foregroundStyle(Theme.rowSecondary)
             }
         }
-        // ANCHOR-B2-JOURNEY: Link „Postkarten“ zum Album – Agent B
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(position.accessibilityLabel)
         .accessibilityIdentifier("journey.card")
+        // ANCHOR-B2-JOURNEY: Link „Postkarten“ zum Album – Agent B
+        VStack(alignment: .leading, spacing: 8) {
+            card
+            NavigationLink { PostcardAlbumScreen() } label: {
+                Label("Postkarten ansehen", systemImage: "envelope").frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 16)
+            .accessibilityIdentifier("journey.postcards")
+        }
     }
 }
 
