@@ -22,7 +22,8 @@ class AuditCase: XCTestCase {
     func launch(seed: String? = "demo", extra: [String] = []) {
         continueAfterFailure = false
         app = XCUIApplication()
-        var args = ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
+        // No automatic celebration over other tests, also after a relaunch without seed (AuditMomentsTests use `-uiMoment`).
+        var args = ["-AppleLanguages", "(de)", "-AppleLocale", "de_DE", "-uiNoMoments", "YES"]
         if let seed { args += ["-uiSeed", seed] }
         app.launchArguments = args + extra
         let start = Date()
@@ -103,10 +104,13 @@ class AuditCase: XCTestCase {
         element.tap()
         // Audit 3 (iPhone SE): while the keyboard slides in, the list moves the field; a tap during that animation
         // can miss. Wait for focus and tap once more instead of typing into nothing.
-        if !waitForKeyboardFocus(element) {
+        // `hasKeyboardFocus` is unreliable for SwiftUI fields; a visible keyboard is the practical signal.
+        var focusTries = 0
+        while !waitForKeyboardFocus(element), !app.keyboards.firstMatch.exists, focusTries < 2 {
+            usleep(600_000)   // let the keyboard and the list settle before the next try
             if !element.isHittable { scrollTo(element) }
             element.tap()
-            _ = waitForKeyboardFocus(element)
+            focusTries += 1
         }
         element.typeText(text)
         log("Typed \"\(text)\" into \(description)", target)

@@ -36,7 +36,11 @@ final class AuditWinterWorldTests: AuditCase {
         tap(app.buttons["postcard.done"], "Fertig")
         // Die nächste gesperrte Karte nennt den Prozentwert.
         // Das Raster lädt träge: die gesperrte Kachel erst in den Bildschirm scrollen.
-        let lockedTile = scrollUntilExists(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Prozent bis'")).firstMatch)
+        let lockedQuery = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Prozent bis'")).firstMatch
+        // Nach „Fertig“ kann das Album über oder unter der Bildschirmmitte liegen: erst nach oben, dann nach unten suchen.
+        var upSwipes = 0
+        while !lockedQuery.waitForExistence(timeout: 1) && upSwipes < 3 { app.swipeDown(); upSwipes += 1 }
+        let lockedTile = lockedQuery.exists ? lockedQuery : scrollUntilExists(lockedQuery)
         check(lockedTile.exists, "Eine gesperrte Kachel nennt „noch n Prozent bis …“")
     }
 

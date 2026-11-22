@@ -1401,7 +1401,8 @@ final class AuditOpeningTests: AuditCase {
     /// iOS offers to save the MyWhoosh password in the Passwords app once the login form disappears.
     private func dismissSavePasswordPrompt() {
         // Not the onboarding's own "Später" (onboarding.later, onboarding.service.<id>.later).
-        let notOurs = NSPredicate(format: "(label == 'Später' OR label == 'Not Now') AND NOT (identifier BEGINSWITH 'onboarding.')")
+        // Only the system prompt: its buttons carry no identifier (the app's own "Später" buttons all do).
+        let notOurs = NSPredicate(format: "(label == 'Später' OR label == 'Not Now') AND identifier == ''")
         for candidate in [app.buttons.matching(notOurs).firstMatch,
                           XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons.matching(notOurs).firstMatch] {
             if candidate.waitForExistence(timeout: 1.5) { tap(candidate, "Passwort sichern? – Später"); return }
@@ -1443,21 +1444,28 @@ final class AuditOpeningTests: AuditCase {
 
         // MyWhoosh: Anmelden klappt das Formular auf, Stub-Login lädt Fahrten.
         obTap("onboarding.service.myWhoosh.connect", "MyWhoosh „Anmelden“")
-        // Die Einführung schiebt das aufgeklappte Formular selbst ins Bild (iPhone SE). Kein zweiter Tap: Der würde das
-        // Formular wieder zuklappen.
-        check(obEl("whoosh.email").waitForExistence(timeout: 4) || scrollFinding(obEl("whoosh.email"), maxSteps: 4).exists,
+        check(obEl("whoosh.email").waitForExistence(timeout: 3) || scrollFinding(obEl("whoosh.email"), maxSteps: 6).exists,
               "Anmeldeformular klappt auf")
+        obLift(obEl("whoosh.email"))
         type(obEl("whoosh.email"), "test@example.com", "MyWhoosh-E-Mail")
         type(obEl("whoosh.password"), "irgendein-test-passwort", "MyWhoosh-Passwort")
         shot("5-login-ausgefuellt")
         let password = obEl("whoosh.password")
         check(((password.value as? String) ?? "").count > 0, "Passwortfeld enthält Text (\((password.value as? String) ?? "nil"))")
         check(app.buttons["whoosh.login"].isEnabled, "Anmelden-Button aktiv")
-        tap(app.buttons["whoosh.login"], "Bei MyWhoosh anmelden")
+        // Anmelden über die „Los“-Taste der Tastatur (gleicher Weg wie der Knopf). Ein Tap auf den Knopf landete, während
+        // die Tastatur einfährt und die untere Leiste zurückkommt, gelegentlich neben dem Ziel.
+        obEl("whoosh.password").typeText("\n")
+        log("Submitted login via keyboard")
+        if obEl("whoosh.password").waitForExistence(timeout: 2), app.buttons["whoosh.login"].isEnabled,
+           !obEl("onboarding.myWhooshStatus").label.contains("Verbunden") {
+            tap(app.buttons["whoosh.login"], "Bei MyWhoosh anmelden")
+        }
         let status = obEl("onboarding.myWhooshStatus")
         let loginError = obEl("whoosh.error")
+        // The status line exists from the start ("Nicht verbunden"); wait for the login result, not for the element.
         let deadline = Date().addingTimeInterval(15)
-        while !status.exists && !loginError.exists && Date() < deadline { usleep(250_000) }
+        while !status.label.contains("Verbunden") && !loginError.exists && Date() < deadline { usleep(250_000) }
         dismissSavePasswordPrompt()
         shot("5-nach-login")
         if loginError.exists { check(false, "Login-Fehler: \(loginError.label)") }

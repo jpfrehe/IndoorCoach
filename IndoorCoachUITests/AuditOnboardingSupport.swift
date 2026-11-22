@@ -72,8 +72,32 @@ extension AuditCase {
     func obTap(_ identifier: String, _ description: String) -> Bool {
         let element = obEl(identifier)
         if !element.waitForExistence(timeout: 4) { scrollFinding(element) }
-        if element.exists, let bar = obBarButton() { lift(element, above: bar) }
+        // Not below? Then it is above (e.g. after a login the list sits further down): search upwards in small drags.
+        var upSteps = 0
+        while !element.exists, upSteps < 16 {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+            let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
+            from.press(forDuration: 0.05, thenDragTo: to)
+            upSteps += 1
+        }
+        obLift(element)
         return tap(element, description)
+    }
+
+    /// Brings an element fully above the onboarding's bottom bar in small drags (~110 pt). A full `swipeUp` scrolls ~500 pt
+    /// and pushes it off the top; XCUITest then scrolls it back only to the bottom edge – behind the bar, where taps land on
+    /// the bar (iPhone SE). Waits for the list to settle, because a tap during deceleration only stops the scroll.
+    func obLift(_ element: XCUIElement, maxSteps: Int = 8) {
+        guard element.exists, let bar = obBarButton() else { return }
+        let barTop = bar.frame.minY - 12
+        var steps = 0
+        while element.exists, element.frame.maxY > barTop, steps < maxSteps {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+            let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.38))
+            from.press(forDuration: 0.05, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.2)
+            steps += 1
+        }
+        if steps > 0 { usleep(500_000) }
     }
 
     func obSelected(_ identifier: String) -> Bool { obEl(identifier).isSelected }
