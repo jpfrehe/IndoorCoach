@@ -347,9 +347,14 @@ final class AuditWalkthroughTests: AuditCase {
 
         tap(row(0), "Nächste Einheit öffnen")
         route = "einheit"
-        // iPhone SE: Erst nach dem Push stehen Zurück und ⋯ in der Leiste; vorher zeigt `count - 1` ins Leere.
-        let pushed = Date().addingTimeInterval(5)
-        while app.navigationBars.buttons.count < 2 && Date() < pushed { usleep(150_000) }
+        // Erst nach dem Push stehen Zurück und ⋯ in der Leiste. Die Plan-Leiste hat mit „Planen“ und „⋯“ ebenfalls zwei
+        // Knöpfe – deshalb warten, bis „Planen“ verschwunden ist und die Detailseite mit Zurück-Knopf steht.
+        // Nach dem Swipe-Löschen schließt der erste Tap in einer Liste oft nur die offenen Wisch-Aktionen – dann erneut tippen.
+        var pushed = Date().addingTimeInterval(3)
+        while app.navigationBars.buttons["Planen"].exists && Date() < pushed { usleep(150_000) }
+        if app.navigationBars.buttons["Planen"].exists { tap(row(0), "Nächste Einheit öffnen (erneut)") }
+        pushed = Date().addingTimeInterval(6)
+        while (app.navigationBars.buttons["Planen"].exists || app.navigationBars.buttons.count < 2) && Date() < pushed { usleep(150_000) }
         let menu = app.navigationBars.buttons.element(boundBy: app.navigationBars.buttons.count - 1)
         tap(menu, "⋯-Menü")
         tap(app.buttons["Löschen"], "Menü Löschen")
