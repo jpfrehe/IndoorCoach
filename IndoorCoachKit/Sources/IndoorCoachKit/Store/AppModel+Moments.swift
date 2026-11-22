@@ -88,7 +88,8 @@ extension AppModel {
             return
         }
         // Alle übrigen UI-Tests starten mit `-uiSeed`: sie sollen von keiner Feier überdeckt werden.
-        if UserDefaults.standard.string(forKey: "uiSeed") != nil { return }
+        // Auch nach einem Neustart ohne Seed (Rückkehr-Tests) bleibt die Feier mit `-uiNoMoments YES` aus.
+        if UserDefaults.standard.string(forKey: "uiSeed") != nil || UserDefaults.standard.bool(forKey: "uiNoMoments") { return }
         #endif
         if isDemoMode {
             let example = DemoMoments.example(DemoMoments.defaultKind, now: now)

@@ -6,6 +6,8 @@ import SwiftUI
 struct WinterHighlightSlot<Fallback: View>: View {
     var rides: [RideSummary]
     var workouts: [StoredWorkout]
+    /// A due weekly review outranks the one-time "Dein Warum" question (the question waits for the next day).
+    var fallbackFirst = false
     @ViewBuilder var fallback: Fallback
     @Environment(AppModel.self) private var model
     @AppStorage(Comeback.dismissedKey) private var dismissedDay = ""
@@ -15,7 +17,8 @@ struct WinterHighlightSlot<Fallback: View>: View {
         switch model.winterHighlight(rides: rides, dismissedDay: dismissedDay.isEmpty ? nil : dismissedDay,
                                      whyPromptDismissed: promptDismissed) {
         case .comeback(let state): ComebackCard(state: state, rides: rides, workouts: workouts)
-        case .whyPrompt: WhyPromptCard()
+        case .whyPrompt:
+            if fallbackFirst { fallback } else { WhyPromptCard() }
         case nil: fallback
         }
     }
