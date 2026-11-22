@@ -203,6 +203,7 @@ struct WorkoutProfileChart: View {
         .chartYScale(domain: 0...domainTop)
         .chartXScale(domain: 0...totalMinutes)
         .chartXSelection(value: $selectedMinute)
+        .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
         .chartLegend(.hidden)
         .chartXAxis {
             AxisMarks(values: ticks) { value in

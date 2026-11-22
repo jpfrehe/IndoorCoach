@@ -168,6 +168,7 @@ private struct FitnessFreshnessContent: View {
         }
         .chartYScale(domain: lower...upper)
         .chartXSelection(value: $selectedDate)
+        .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
         .chartStyleAxes(yTicks: ticks, xCount: 4)
         .environment(\.locale, Locale.de)
         .chartStyleAnimation(value: selected?.date)
@@ -205,6 +206,7 @@ private struct FitnessFreshnessContent: View {
         }
         .chartYScale(domain: lower...upper)
         .chartXSelection(value: $selectedDate)
+        .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
         .chartStyleAxes(yTicks: ticks, showsX: false)
         .chartStyleHeight(ChartStyle.heightSmall)
         .chartAccessibility(

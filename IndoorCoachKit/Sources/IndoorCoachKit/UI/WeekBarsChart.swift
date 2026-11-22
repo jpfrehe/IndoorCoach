@@ -65,8 +65,9 @@ struct WeekBarsChart: View {
         .chartStyleHeight(height)
         .chartAccessibility(label: accessibilityLabel, value: accessibilityValue)
         if let selection {
-            // `chartXSelection` covers tap and drag; a second tap gesture would fight vertical scrolling.
+            // Tap selects (also with VoiceOver off); `chartGesture` replaces the chart's drag, so vertical scrolling stays free.
             chart.chartXSelection(value: selection)
+                .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
         } else {
             chart
         }

@@ -137,6 +137,7 @@ private struct ComplianceChart: View {
             .chartXScale(domain: 0...totalMinutes)
             .chartYScale(domain: 0...top)
             .chartXSelection(value: $selectedMinute)
+            .chartGesture { proxy in SpatialTapGesture().onEnded { proxy.selectXValue(at: $0.location.x) } }
             .chartStyleAxes(yTicks: ticks, yLabel: { v in ChartMath.format(v) + (v == ticks.last ? " W" : "") }, showsX: false)
             .chartXAxis {
                 AxisMarks(values: ChartMath.minuteTicks(total: totalMinutes * 60)) { value in
