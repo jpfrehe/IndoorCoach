@@ -68,13 +68,15 @@ struct TodayDashboard: View {
             HealthAnnotationCard() // ANCHOR-W3B (Kraft aus Apple Health: wie hart? Beine?)
             // ── Highlight-Slot (Konstanz-Paket, docs/10): zeitlich relevante Hinweise direkt unter der Einheit ──
             // At most one highlight (docs/10, U1): the weekly review (Sun 16:00 – Tue) wins over the challenge.
-            // ANCHOR-B4-HEUTE: „Willkommen zurück“ (ComebackCard), höchste Priorität im Highlight-Slot, vor K2 – Agent B
-            // ANCHOR-K2-HEUTE (Wochenrückblick)
-            if let reviewWeek = model.weeklyReviewCardWeek() {
-                WeeklyReviewCard(weekStart: reviewWeek, rides: rides, workouts: workouts)
-            } else {
-                // ANCHOR-K3-HEUTE (Saison-Challenge)
-                ChallengeHighlightSlot(rides: rides)
+            // ANCHOR-B4-HEUTE: „Willkommen zurück“ (ComebackCard) und einmalige Warum-Frage, höchste Priorität im Slot – Agent B
+            WinterHighlightSlot(rides: rides, workouts: workouts) {
+                // ANCHOR-K2-HEUTE (Wochenrückblick)
+                if let reviewWeek = model.weeklyReviewCardWeek() {
+                    WeeklyReviewCard(weekStart: reviewWeek, rides: rides, workouts: workouts)
+                } else {
+                    // ANCHOR-K3-HEUTE (Saison-Challenge)
+                    ChallengeHighlightSlot(rides: rides)
+                }
             }
 
             // ── Ende Highlight-Slot ──

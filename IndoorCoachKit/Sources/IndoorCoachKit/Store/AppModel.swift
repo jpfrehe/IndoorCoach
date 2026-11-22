@@ -225,7 +225,8 @@ public final class AppModel {
     }
 
     /// Reine Anzeige-Merker in @AppStorage (z. B. „Gurt-Erklärung gesehen“): fallen mit „Alle Daten löschen“ ebenfalls.
-    static let uiFlagKeys = ["strapExplainerSeen", Keys.momentsLedger, Keys.momentsEnabled, Keys.whyNote]
+    static let uiFlagKeys = ["strapExplainerSeen", Keys.momentsLedger, Keys.momentsEnabled, Keys.whyNote,
+                             WhyNote.savedOnKey, WhyNote.promptDismissedKey, Comeback.dismissedKey]
 
     // MARK: Heute (nur für die neuen Begeisterungs-Funktionen)
 
