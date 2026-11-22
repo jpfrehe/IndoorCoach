@@ -55,7 +55,10 @@ extension AppModel {
     func seedComplianceWorkout() -> Bool {
         let descriptor = FetchDescriptor<StoredRide>(predicate: #Predicate { $0.isDemo && $0.trainer && $0.name.contains("2×20") },
                                                      sortBy: [SortDescriptor(\.startDate, order: .reverse)])
-        guard let ride = (try? context.fetch(descriptor))?.first else { return false }
+        // The demo ride lasts 52–68 min depending on the calendar day; both 20-min blocks only fit before the 8-min
+        // cool-down from 63 min on (10 + 20 + 5 + 20 + 8). Pick the most recent ride that is long enough.
+        let minimum = 600 + 2 * 1500 - 300 + 480
+        guard let ride = (try? context.fetch(descriptor))?.first(where: { $0.movingTime >= minimum }) else { return false }
         if ride.secondsData == nil {
             ride.secondsData = DemoData.syntheticSeconds(for: ride.summary, ftp: profile.ftp).encoded()
         }

@@ -275,6 +275,8 @@ struct OnboardingServicesStep: View {
         switch id {
         case .myWhoosh:
             withAnimation(.snappy(duration: 0.2)) { ui.whooshFormOpen = true }
+            // iPhone SE: the form opens below the fold; bring it (down to its login button) into view.
+            onEditing()
         case .macBridge: sheet = .bridge
         case .strap: sheet = .strap
         case .fitImport: showFITImporter = true
