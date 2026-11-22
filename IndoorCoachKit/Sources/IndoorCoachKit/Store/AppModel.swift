@@ -46,7 +46,16 @@ public final class AppModel {
     /// Gipfelmomente, die auf ihre Feier warten (füllt `AppModel+Moments`, Agent A); leer, wenn nichts ansteht.
     public var pendingMoments: MomentBatch = .empty
     /// „Feiern nach der Fahrt“ (Profil → Winter Arc), standardmäßig an; Schlüssel `moments.enabled`.
-    public var momentsEnabled: Bool { didSet { defaults.set(momentsEnabled, forKey: Keys.momentsEnabled) } }
+    public var momentsEnabled: Bool {
+        didSet {
+            defaults.set(momentsEnabled, forKey: Keys.momentsEnabled)
+            // Ausgeschaltet: nichts soll weiter warten; beim Wiedereinschalten wird frisch ausgewertet.
+            if !momentsEnabled {
+                pendingMoments = .empty
+                resetMomentEvaluation()
+            }
+        }
+    }
     /// „Dein Warum“ (Agent B): ein eigener Satz, nur lokal. Nie Teil des Claude-Prompts oder des Diagnose-Exports.
     /// Schlüssel `why.note`; nil = nicht gesetzt.
     public var whyNote: String? {
@@ -105,6 +114,8 @@ public final class AppModel {
     #endif
     /// Not observed: filled lazily from view bodies, must not trigger re-renders.
     @ObservationIgnored private var seriesCache: (key: Int, series: FitnessFreshness.Series)?
+    /// Willkommen-zurück-Slot auf Heute: einmal je Fingerabdruck berechnet (siehe `AppModel+Comeback`).
+    @ObservationIgnored let comebackMemo = ComebackMemo()
     public private(set) var proposalSource: WorkoutSource = .demo
     /// IndoorCoach Brücke state (pairing, last sync, transport) – see AppModel+Bridge.swift. ANCHOR-BRIDGE
     public let bridge = BridgeState()
@@ -560,6 +571,8 @@ public final class AppModel {
         resetHealthState() // ANCHOR-W3B
         pendingMoments = .empty
         momentsEnabled = true
+        resetMomentEvaluation()
+        comebackMemo.reset()
         whyNote = nil
         lastSync = nil
         hasImportedRides = false
@@ -915,6 +928,8 @@ public final class AppModel {
         onboardingServices = OnboardingServicesState()
         pendingMoments = .empty
         momentsEnabled = true
+        resetMomentEvaluation()
+        comebackMemo.reset()
         whyNote = nil
         for key in Keys.all { defaults.removeObject(forKey: key) }
         RecordingStore().clear() // ANCHOR-REC: interim file of an unfinished recording

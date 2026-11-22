@@ -13,7 +13,10 @@ struct WinterlightHeader: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
+    /// Gesetzt von `onAppear`/`onDisappear` (Ansicht im Baum) …
     @State private var visible = false
+    /// … und von `onScrollVisibilityChange` (Kopf nicht aus dem Bild gescrollt). Schnee läuft nur, wenn beides gilt.
+    @State private var onScreen = true
     @State private var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
     @State private var glow = 0.6
 
@@ -22,7 +25,7 @@ struct WinterlightHeader: View {
         let today = AppModel.today
         let latitude = Daylight.latitude(for: calendar.timeZone)
         let phase = Daylight.phase(now: today, latitude: latitude, calendar: calendar)
-        let animated = visible && scenePhase == .active && CelebrationMotion.allowsParticleMotion(reduceMotion: reduceMotion, lowPowerMode: lowPower)
+        let animated = visible && onScreen && scenePhase == .active && CelebrationMotion.allowsParticleMotion(reduceMotion: reduceMotion, lowPowerMode: lowPower)
         VStack(spacing: 0) {
             sky(phase: phase, today: today, latitude: latitude, calendar: calendar, animated: animated)
                 .frame(height: 180)
@@ -42,6 +45,7 @@ struct WinterlightHeader: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .accessibilityElement(children: .contain)
+        .onScrollVisibilityChange(threshold: 0.05) { onScreen = $0 }
         .onAppear { visible = true }
         .onDisappear { visible = false }
         .onReceive(NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange)) { _ in

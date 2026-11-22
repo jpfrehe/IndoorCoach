@@ -41,7 +41,8 @@ public struct CoachNote: Equatable, Sendable {
                 return make("Trotz \(reason) \(how). So bleibt man durch den Winter dran.", "aus deinem Check-in")
             case .efficiency:
                 guard let e = c.efficiency, e.fewerBeats > 0 else { return nil }
-                return make("Bei \(e.watts) W schlägt dein Herz \(e.fewerBeats)-mal pro Minute weniger als im \(f.month(e.since)).",
+                let beats = e.fewerBeats == 1 ? "1 Schlag" : "\(e.fewerBeats) Schläge"
+                return make("Bei \(e.watts) W lag dein Durchschnittspuls \(beats) pro Minute niedriger als im \(f.month(e.since)).",
                             "aus deinen Sekundendaten")
             case .warmup:
                 guard let w = c.warmup, w.fewerBeats > 0 else { return nil }
@@ -51,8 +52,10 @@ public struct CoachNote: Equatable, Sendable {
             case .record:
                 guard let r = c.record else { return nil }
                 let phrase = CoachNoteFormat.strongest(r.duration)
-                let tail = r.betterBefore.map { f.since($0) } ?? "der letzten 90 Tage"
-                return make("Deine \(phrase) \(r.betterBefore == nil ? tail : "seit \(tail)").", "aus deinen Sekundendaten")
+                if let better = r.betterBefore { return make("Deine \(phrase) seit \(f.since(better)).", "aus deinen Sekundendaten") }
+                // „90 Tage“ nur, wenn wirklich so weit zurück verglichen wurde.
+                let span = r.comparedDays >= 90 ? "der letzten 90 Tage" : "in deinen bisherigen Fahrten"
+                return make("Deine \(phrase) \(span).", "aus deinen Sekundendaten")
             case .streak:
                 guard let s = c.streak, s.weeks >= 2 else { return nil }
                 return make("\(s.weeks) Wochen in Folge dabei, seit dem \(f.dayMonth(s.since)).", "aus Plan und Fahrten")
@@ -93,7 +96,11 @@ public struct CoachNoteContext: Equatable, Sendable {
         public var duration: Int
         /// Wann es zuletzt eine bessere Leistung über diese Dauer gab; nil = nie in den Daten.
         public var betterBefore: Date?
-        public init(duration: Int, betterBefore: Date?) { self.duration = duration; self.betterBefore = betterBefore }
+        /// Wie viele Tage zurück verglichen wurde (frühere Fahrt mit Sekundendaten bis zu dieser Fahrt).
+        public var comparedDays: Int
+        public init(duration: Int, betterBefore: Date?, comparedDays: Int = 0) {
+            self.duration = duration; self.betterBefore = betterBefore; self.comparedDays = comparedDays
+        }
     }
 
     public struct Streak: Equatable, Sendable {

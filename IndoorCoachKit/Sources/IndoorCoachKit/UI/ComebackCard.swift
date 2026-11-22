@@ -50,8 +50,7 @@ struct ComebackCard: View {
     }
 
     var body: some View {
-        let last = model.lastActivityDate(rides: rides)
-        let texts = Comeback.texts(state: state, jokerWeek: model.comebackJokerWeek(rides: rides, lastActivity: last, now: now),
+        let texts = Comeback.texts(state: state, jokerWeek: model.comebackJokerWeek(rides: rides, now: now),
                                    why: model.whyNote)
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {

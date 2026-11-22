@@ -50,7 +50,7 @@ struct CoachNoteTests {
     @Test func rule2AerobicEfficiency() {
         let note = CoachNote.make(context { $0.efficiency = .init(watts: 150, fewerBeats: 6, since: at(2026, 11, 3)) }, ledger: MomentLedger())
         #expect(note?.rule == "efficiency")
-        #expect(note?.text == "Bei 150 W schlägt dein Herz 6-mal pro Minute weniger als im November.")
+        #expect(note?.text == "Bei 150 W lag dein Durchschnittspuls 6 Schläge pro Minute niedriger als im November.")
         #expect(note?.source == "aus deinen Sekundendaten")
     }
 
@@ -68,7 +68,13 @@ struct CoachNoteTests {
         #expect(note?.text == "Deine stärksten 5 Minuten seit Juli.")
         #expect(note?.source == "aus deinen Sekundendaten")
         let none = CoachNote.make(context { $0.record = .init(duration: 60, betterBefore: nil) }, ledger: MomentLedger())
-        #expect(none?.text == "Deine stärkste Minute der letzten 90 Tage.")
+        #expect(none?.text == "Deine stärkste Minute in deinen bisherigen Fahrten.") // nur 0 Tage verglichen
+        let long = CoachNote.make(context { $0.record = .init(duration: 60, betterBefore: nil, comparedDays: 120) }, ledger: MomentLedger())
+        #expect(long?.text == "Deine stärkste Minute der letzten 90 Tage.")
+        let short = CoachNote.make(context { $0.record = .init(duration: 60, betterBefore: nil, comparedDays: 20) }, ledger: MomentLedger())
+        #expect(short?.text.contains("90") == false)
+        let one = CoachNote.make(context { $0.efficiency = .init(watts: 150, fewerBeats: 1, since: at(2026, 11, 3)) }, ledger: MomentLedger())
+        #expect(one?.text == "Bei 150 W lag dein Durchschnittspuls 1 Schlag pro Minute niedriger als im November.")
     }
 
     @Test func rule5StreakGrew() {

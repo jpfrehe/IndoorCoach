@@ -122,13 +122,16 @@ struct MomentStoreTests {
         defer { finish(rig) }
         rig.model.storeImportedRides([ride(1, minutesAgo: 120, curve: [300: 220])])
         rig.model.evaluateMoments(now: now)
-        let soon = PlannedWorkoutProposal(date: now.addingTimeInterval(20 * 60), definition: DemoData.library.endurance, rationale: "")
+        // Der Plan trägt nur den Tag (Tagesbeginn); die Startzeit kommt aus dem Profil: hier 12:20, „jetzt“ ist 12:00.
+        rig.model.profile.preferredStartHour = 12
+        rig.model.profile.preferredStartMinute = 20
+        let soon = PlannedWorkoutProposal(date: Calendar.current.startOfDay(for: now), definition: DemoData.library.endurance, rationale: "")
         rig.model.context.insert(StoredWorkout(proposal: soon, source: .demo, weekFocus: nil))
         try rig.model.context.save()
         #expect(rig.model.momentToPresent(gate: .init(), now: now) == nil)
-        // eine Stunde später ist die Einheit nicht mehr „gleich“
-        let later = now.addingTimeInterval(-60 * 60)
-        #expect(rig.model.momentToPresent(gate: .init(), now: later) != nil)
+        // eine Stunde früher ist die Einheit noch nicht „gleich“, nach dem Start auch nicht mehr
+        #expect(rig.model.momentToPresent(gate: .init(), now: now.addingTimeInterval(-60 * 60)) != nil)
+        #expect(rig.model.momentToPresent(gate: .init(), now: now.addingTimeInterval(30 * 60)) != nil)
     }
 
     @Test func switchOffShowsNothingButTrophiesStayEarned() throws {

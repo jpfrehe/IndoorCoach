@@ -35,12 +35,15 @@ final class AuditWinterWorldTests: AuditCase {
         shot("card-locked")
         tap(app.buttons["postcard.done"], "Fertig")
         // Die nächste gesperrte Karte nennt den Prozentwert.
-        let labels = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Prozent bis'")).count
-        check(labels >= 1, "Eine gesperrte Kachel nennt „noch n Prozent bis …“")
+        // Das Raster lädt träge: die gesperrte Kachel erst in den Bildschirm scrollen.
+        let lockedTile = scrollUntilExists(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Prozent bis'")).firstMatch)
+        check(lockedTile.exists, "Eine gesperrte Kachel nennt „noch n Prozent bis …“")
     }
 
     // MARK: B3 Winterlicht
 
+    /// Die Hub-Zeile trägt ein gesprochenes Label („17 Minuten mehr Tageslicht …“), die Heute-Karte den Chip („+17 min Licht“):
+    /// beide Schreibweisen sind richtig.
     private func winterlight(_ day: String, expects: [String], label: String) {
         launch(extra: BegeisterungLaunch.today(day))
         route = "heute"
@@ -53,7 +56,7 @@ final class AuditWinterWorldTests: AuditCase {
         shot("winterlight-\(day)")
     }
 
-    func test71_WinterlightJanuary() { winterlight("2027-01-10", expects: ["min Tageslicht", "min Licht"], label: "Nach der Sonnenwende") }
+    func test71_WinterlightJanuary() { winterlight("2027-01-10", expects: ["min Tageslicht", "min Licht", "Minuten mehr Tageslicht"], label: "Nach der Sonnenwende") }
     func test72_WinterlightSolstice() { winterlight("2026-12-21", expects: ["Wintersonnenwende", "Sonnenwende"], label: "Am 21.12.") }
     func test73_WinterlightBefore() { winterlight("2026-12-12", expects: ["Noch 9 Tage"], label: "Vor der Sonnenwende") }
 

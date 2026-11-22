@@ -54,6 +54,10 @@ private enum MomentEvalCache {
     static func remember(_ fingerprint: Int, for model: AppModel) {
         entries[ObjectIdentifier(model)] = Entry(model: model, fingerprint: fingerprint)
     }
+
+    static func forget(_ model: AppModel) { entries[ObjectIdentifier(model)] = nil }
+
+    static func has(_ model: AppModel) -> Bool { entries[ObjectIdentifier(model)]?.model === model }
 }
 
 extension AppModel {
@@ -64,8 +68,14 @@ extension AppModel {
 
     // MARK: Auswertung
 
+    /// Vergisst den zuletzt ausgewerteten Stand (Alle Daten löschen, Schalter aus): die nächste Auswertung rechnet neu.
+    func resetMomentEvaluation() { MomentEvalCache.forget(self) }
+
+    /// Tests: ob zu diesem Modell ein ausgewerteter Stand gemerkt ist.
+    var hasMomentEvaluationCache: Bool { MomentEvalCache.has(self) }
+
     /// Wertet die Momente aus und legt höchstens einen Gipfelmoment nach `pendingMoments`. Billig, wenn sich nichts
-    /// geändert hat (Fahrtenzahl, neueste Fahrt, Tag). Mit ausgeschaltetem Schalter, während der Einführung oder
+    /// geändert hat (Fahrten, Kraft-Einheiten, Pläne, Saisonstart, Tag). Mit ausgeschaltetem Schalter, während der Einführung oder
     /// solange ein Moment wartet, passiert nichts – die Trophäen bleiben trotzdem verdient.
     public func evaluateMoments(now explicitNow: Date? = nil, force: Bool = false) {
         guard momentsEnabled, pendingMoments.isEmpty, !needsOnboarding else { return }
@@ -95,15 +105,36 @@ extension AppModel {
         pendingMoments = evaluation.batch
     }
 
-    /// Ändert sich, wenn neue Fahrten da sind oder ein neuer Tag beginnt (die Wochen-Serie wächst ohne Fahrt).
-    private func momentFingerprint(now: Date) -> Int {
+    /// Ändert sich, wenn neue Fahrten oder Kraft-Einheiten da sind, ein Plan erledigt wird, der Saisonstart wechselt oder ein neuer
+    /// Tag beginnt (die Wochen-Serie wächst ohne Fahrt).
+    func momentFingerprint(now: Date) -> Int {
         var newest = FetchDescriptor<StoredRide>(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
         newest.fetchLimit = 1
+        return activityFingerprint(rideCount: (try? context.fetchCount(FetchDescriptor<StoredRide>())) ?? 0,
+                                   newestRide: (try? context.fetch(newest))?.first?.startDate, now: now)
+    }
+
+    /// Alles, woraus Gipfelmomente und der Willkommen-zurück-Slot ihren Stand ableiten: Fahrten, Kraft-Einheiten, Pläne
+    /// (Anzahl und erledigt), Saisonstart und Ziel, Wochenstunden, Joker-Wochen und der Tag.
+    func activityFingerprint(rideCount: Int, newestRide: Date?, now: Date) -> Int {
         var hasher = Hasher()
-        hasher.combine((try? context.fetchCount(FetchDescriptor<StoredRide>())) ?? 0)
-        hasher.combine((try? context.fetch(newest))?.first?.startDate)
+        hasher.combine(rideCount)
+        hasher.combine(newestRide)
         hasher.combine(Calendar.current.startOfDay(for: now))
+        hasher.combine((try? context.fetchCount(FetchDescriptor<StoredStrengthSession>())) ?? 0)
+        let workouts = (try? context.fetch(FetchDescriptor<StoredWorkout>())) ?? []
+        hasher.combine(workouts.count)
+        hasher.combine(workouts.filter { $0.status == .done || $0.linkedRideID != nil }.count)
+        hasher.combine(profile.arcStart)
+        hasher.combine(profile.goalDate)
+        hasher.combine(profile.weeklyHours)
+        hasher.combine(manualJokerWeeks.count)
         return hasher.finalize()
+    }
+
+    /// Beginn aller Kraft- und anderen Einheiten, aufsteigend (für die Lücke des Comebacks).
+    func strengthActivityDates() -> [Date] {
+        (((try? context.fetch(FetchDescriptor<StoredStrengthSession>())) ?? []).map(\.start)).sorted()
     }
 
     func momentInput(rides: [RideSummary], now: Date) -> MomentInput {
@@ -116,21 +147,35 @@ extension AppModel {
         return MomentInput(season: String(Challenges.seasonStartYear(containing: now, calendar: calendar)),
                            seasonStart: calendar.startOfDay(for: profile.arcStart ?? season.start), rides: rides,
                            trophies: trophies(rides: rides, arc: arc, now: now), challenges: seasonChallenges(rides: rides, now: now),
-                           weeks: weeks, calendar: calendar)
+                           weeks: weeks, otherActivityDates: strengthActivityDates(), calendar: calendar)
     }
 
     // MARK: Zeigen
 
     /// Der wartende Stapel, wenn jetzt Zeit für die Feier ist: nichts bei ausgeschaltetem Schalter, während der Einführung,
-    /// einer Aufzeichnung, mit anderem offenen Blatt oder kurz vor einer geplanten Einheit (30 Minuten).
+    /// einer Aufzeichnung, mit anderem offenen Blatt oder kurz vor einer geplanten Einheit (30 Minuten vor der Startzeit aus
+    /// dem Profil: `preferredStartHour`/`preferredStartMinute`).
     public func momentToPresent(gate: MomentGate = MomentGate(), now explicitNow: Date? = nil) -> MomentBatch? {
         guard momentsEnabled, !pendingMoments.isEmpty, !needsOnboarding, !gate.recordingRunning, !gate.anotherPresentation else { return nil }
         let now = explicitNow ?? Self.today
-        if let next = plannedWorkoutToday(now: now), next.date > now, next.date.timeIntervalSince(now) <= 30 * 60 { return nil }
+        if let next = plannedWorkoutToday(now: now) {
+            let start = startDate(for: next)
+            if start > now, start.timeIntervalSince(now) <= 30 * 60 { return nil }
+        }
         return pendingMoments
     }
 
-    /// Nach „Weiter“/„Schließen“: Die Momente zählen als gesehen, die verwendete Regel der Coach-Notiz wird vermerkt.
+    /// Der Stapel für die Feier, falls jetzt Zeit dafür ist – und er gilt sofort als gesehen (Ledger geschrieben,
+    /// `pendingMoments` leer): So erscheint er nie ein zweites Mal, auch nicht nach einem App-Abbruch während der Animation.
+    /// Wiederholen geht über „Gipfelmoment dieser Fahrt ansehen“.
+    public func takeMomentToPresent(gate: MomentGate = MomentGate(), now explicitNow: Date? = nil) -> MomentPresentation? {
+        guard let batch = momentToPresent(gate: gate, now: explicitNow) else { return nil }
+        let presentation = momentPresentation(for: batch, now: explicitNow)
+        acknowledgeMoments(noteRule: presentation.coachNote?.rule)
+        return presentation
+    }
+
+    /// Die Momente zählen als gesehen, die verwendete Regel der Coach-Notiz wird vermerkt.
     public func acknowledgeMoments(noteRule: String?) {
         let batch = pendingMoments
         guard !batch.isEmpty else { return }
@@ -188,16 +233,15 @@ extension AppModel {
         let focus = rides.last { rideIDs.contains($0.id) } ?? rides.last
         let seasonStart = calendar.startOfDay(for: profile.arcStart ?? WinterArc.defaultSeason(containing: now, calendar: calendar).start)
 
-        // Check-in von heute
-        if let checkIn = todaysCheckIn(now: now), !checkIn.skipped {
+        // Check-in vom Tag der Fahrt (eine ältere Fahrt bekommt nie den heutigen Check-in)
+        if let focus, let checkIn = todaysCheckIn(now: focus.startDate), !checkIn.skipped {
             context.checkIn = checkIn.answers
             if case .shorten? = checkIn.chosen { context.shortened = true }
         }
-        // Comeback
-        if batch.moments.contains(where: { $0.kind == .comeback }), let focus,
-           let previous = rides.last(where: { $0.startDate < focus.startDate }) {
-            context.comebackGapDays = calendar.dateComponents([.day], from: calendar.startOfDay(for: previous.startDate),
-                                                              to: calendar.startOfDay(for: focus.startDate)).day
+        // Comeback: dieselbe Lücke wie im Gipfelmoment und auf der Karte (Fahrten und Kraft)
+        if batch.moments.contains(where: { $0.kind == .comeback }), let focus {
+            context.comebackGapDays = Comeback.gapDays(before: focus.startDate,
+                                                       in: (rides.map(\.startDate) + strengthActivityDates()).sorted(), calendar: calendar)
         }
         if let focus {
             context.efficiency = CoachNoteContext.efficiency(for: focus, in: rides, seasonStart: seasonStart, calendar: calendar)
@@ -215,7 +259,10 @@ extension AppModel {
            let duration = Int(record.id.split(separator: "-").dropFirst().first ?? ""), let watts = focus.powerCurve?[duration] {
             let better = rides.filter { $0.id != focus.id && $0.startDate < focus.startDate && ($0.powerCurve?[duration] ?? 0) >= watts }
                 .map(\.startDate).max()
-            context.record = .init(duration: duration, betterBefore: better)
+            let earliest = rides.filter { $0.id != focus.id && $0.startDate < focus.startDate && $0.powerCurve?[duration] != nil }
+                .map(\.startDate).min()
+            let compared = earliest.map { Comeback.gapDays(from: $0, to: focus.startDate, calendar: calendar) } ?? 0
+            context.record = .init(duration: duration, betterBefore: better, comparedDays: compared)
         }
         // Serie, Fitness, Saison
         if let arc = winterArc(rides: rides, now: now) {

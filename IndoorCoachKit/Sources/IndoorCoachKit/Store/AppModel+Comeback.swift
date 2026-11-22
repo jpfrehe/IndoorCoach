@@ -1,6 +1,19 @@
 import Foundation
 import SwiftData
 
+/// Gemerktes Ergebnis des Highlight-Slots und der Joker-Woche: höchstens eine Berechnung je Fingerabdruck, nicht je Heute-Redraw.
+@MainActor
+final class ComebackMemo {
+    var highlightKey: Int?
+    var highlight: Comeback.Highlight?
+    var jokerKey: Int?
+    var jokerWeek: Date?
+    /// Tests: wie oft wirklich gerechnet wurde.
+    var computations = 0
+
+    func reset() { highlightKey = nil; jokerKey = nil; highlight = nil; jokerWeek = nil }
+}
+
 /// Willkommen zurück und „Dein Warum“ (docs/22, B4): letzte Aktivität quellenübergreifend, Joker-Woche der Pause,
 /// Speichern des Satzes, die lockere Einheit ohne Plan. Alles lokal; der Satz geht nie an Claude.
 extension AppModel {
@@ -9,8 +22,7 @@ extension AppModel {
     /// Beginn der jüngsten Einheit über alle Quellen: Fahrten (MyWhoosh, intervals.icu, Brücke, FIT, Strava, Aufzeichnung, Health
     /// inklusive Fremdsport) sowie Kraft und andere Einheiten. nil, wenn es noch nichts gibt.
     public func lastActivityDate(rides: [RideSummary]) -> Date? {
-        let strength = ((try? context.fetch(FetchDescriptor<StoredStrengthSession>())) ?? []).map(\.start)
-        return (rides.map(\.startDate) + strength).max()
+        (rides.map(\.startDate) + strengthActivityDates()).max()
     }
 
     /// `.returning`, wenn die letzte Aktivität mindestens 10 Kalendertage zurückliegt (`now` = `AppModel.today`).
@@ -25,9 +37,38 @@ extension AppModel {
         return consistency(rides: rides, now: now).weeks.last { $0.state == .joker && $0.start >= since }?.start
     }
 
+    /// Wie `comebackJokerWeek(rides:lastActivity:now:)`, aber mit der jüngsten Aktivität aus dem Speicher und nur einmal je Fingerabdruck.
+    func comebackJokerWeek(rides: [RideSummary], now: Date, calendar: Calendar = .current) -> Date? {
+        let key = activityFingerprint(rideCount: rides.count, newestRide: rides.map(\.startDate).max(), now: now)
+        if comebackMemo.jokerKey == key { return comebackMemo.jokerWeek }
+        comebackMemo.computations += 1
+        let week = comebackJokerWeek(rides: rides, lastActivity: lastActivityDate(rides: rides), now: now, calendar: calendar)
+        comebackMemo.jokerKey = key
+        comebackMemo.jokerWeek = week
+        return week
+    }
+
     /// Was im Highlight-Slot auf Heute vor Wochenrückblick und Challenge steht: Willkommen zurück oder die einmalige Warum-Frage.
+    /// Das Ergebnis wird je Fingerabdruck (Fahrten, Kraft, Pläne, Tag, Schalter) nur einmal berechnet.
     public func winterHighlight(rides: [RideSummary], dismissedDay: String?, whyPromptDismissed: Bool,
                                 now: Date = AppModel.today, calendar: Calendar = .current) -> Comeback.Highlight? {
+        var hasher = Hasher()
+        hasher.combine(activityFingerprint(rideCount: rides.count, newestRide: rides.map(\.startDate).max(), now: now))
+        hasher.combine(dismissedDay)
+        hasher.combine(whyPromptDismissed)
+        hasher.combine(whyNote)
+        let key = hasher.finalize()
+        if comebackMemo.highlightKey == key { return comebackMemo.highlight }
+        comebackMemo.computations += 1
+        let value = computeWinterHighlight(rides: rides, dismissedDay: dismissedDay, whyPromptDismissed: whyPromptDismissed,
+                                           now: now, calendar: calendar)
+        comebackMemo.highlightKey = key
+        comebackMemo.highlight = value
+        return value
+    }
+
+    private func computeWinterHighlight(rides: [RideSummary], dismissedDay: String?, whyPromptDismissed: Bool,
+                                        now: Date, calendar: Calendar) -> Comeback.Highlight? {
         guard let arc = winterArc(rides: rides, now: now) else { return nil }
         let day = calendar.startOfDay(for: now)
         let active = day >= arc.start && day <= arc.goal

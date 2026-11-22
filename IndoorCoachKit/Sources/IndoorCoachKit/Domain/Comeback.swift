@@ -23,9 +23,26 @@ public enum Comeback {
     ///   - calendar: bestimmt, wo der Tag endet (lokale Zeitzone).
     public static func state(lastActivity: Date?, now: Date, calendar: Calendar = .current) -> State {
         guard let lastActivity else { return .none }
-        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: lastActivity), to: calendar.startOfDay(for: now)).day ?? 0
+        let days = gapDays(from: lastActivity, to: now, calendar: calendar)
         guard days >= thresholdDays else { return .none }
         return .returning(days: days, landmark: landmark(on: now, calendar: calendar))
+    }
+
+    /// Kalendertage zwischen zwei Zeitpunkten (nicht Stunden): die eine Lücke, die Karte und Gipfelmoment gleich zählen.
+    public static func gapDays(from earlier: Date, to later: Date, calendar: Calendar = .current) -> Int {
+        calendar.dateComponents([.day], from: calendar.startOfDay(for: earlier), to: calendar.startOfDay(for: later)).day ?? 0
+    }
+
+    /// Lücke in Kalendertagen vor `date`: bis zur jüngsten Aktivität (Fahrt, Kraft, andere Einheit) davor. nil ohne frühere Aktivität.
+    /// - Parameter activities: Beginn aller Einheiten, aufsteigend sortiert.
+    public static func gapDays(before date: Date, in activities: [Date], calendar: Calendar = .current) -> Int? {
+        var low = 0, high = activities.count
+        while low < high {
+            let mid = (low + high) / 2
+            if activities[mid] < date { low = mid + 1 } else { high = mid }
+        }
+        guard low > 0 else { return nil }
+        return gapDays(from: activities[low - 1], to: date, calendar: calendar)
     }
 
     /// Neujahr schlägt Monatserster, Monatserster schlägt Montag.

@@ -32,6 +32,13 @@ public struct Postcard: Equatable, Identifiable, Sendable {
 }
 
 public enum Postcards {
+    /// Der erste Satz des Kartentexts („Hier oben pfeift der Wind.“), für die kleine Kartenrückseite.
+    public static func firstLine(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let end = trimmed.firstIndex(where: { ".!?".contains($0) }) else { return trimmed }
+        return String(trimmed[...end])
+    }
+
     /// Die zehn Kartentexte aus docs/22 §B2 (Du-Form, höchstens 160 Zeichen, keine Marken), in Etappenreihenfolge.
     static let texts: [String] = [
         "Start in Garmisch. Die Zugspitze schaut zu, der Winter fängt gerade erst an. Der erste Tritt ist der schwerste, und der liegt hinter dir.",

@@ -42,6 +42,12 @@ public enum WhyNote {
         return cut.isEmpty ? nil : cut
     }
 
+    /// VoiceOver-Hinweis, warum „Speichern“ ausgegraut ist; nil, wenn man speichern kann.
+    public static func saveHint(draft: String, hasSaved: Bool) -> String? {
+        if isComplete(draft) || (draft.isEmpty && hasSaved) { return nil }
+        return normalize(draft) == nil ? "Ausgegraut: Schreibe zuerst einen Satz." : "Ausgegraut: Der Satz ist noch nicht fertig. Ergänze ihn."
+    }
+
     /// Ein Satz, den die App zitieren darf: nicht leer und nicht nur der offene Chip („Mein Ziel:“).
     public static func isComplete(_ text: String?) -> Bool {
         guard let sentence = normalize(text) else { return false }

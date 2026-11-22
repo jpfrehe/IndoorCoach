@@ -182,6 +182,10 @@ struct PostcardShareButton: View {
         }
         .task(id: active ? card : nil) {
             guard active, card.unlocked else { return }
+            if let cached = PostcardShareRenderer.cached(card) { rendered = cached; return }
+            // Erst wenn die Seite ~0,7 s steht: beim Durchwischen entsteht kein Bild (die Aufgabe wird abgebrochen).
+            try? await Task.sleep(for: .milliseconds(700))
+            guard !Task.isCancelled else { return }
             rendered = PostcardShareRenderer.render(card)
         }
     }
@@ -227,9 +231,23 @@ struct PostcardShareCard: View {
 }
 
 enum PostcardShareRenderer {
+    /// Je Karte einmal gerendert (Etappe + Text + Datum als Schlüssel); die Datei muss noch existieren.
+    @MainActor private static var cache: [String: ShareImageRenderer.Rendered] = [:]
+
+    private static func key(_ card: Postcard) -> String { "\(filename(for: card))|\(card.text)|\(card.arrivedOn?.timeIntervalSince1970 ?? 0)" }
+
+    @MainActor
+    static func cached(_ card: Postcard) -> ShareImageRenderer.Rendered? {
+        guard let hit = cache[key(card)], FileManager.default.fileExists(atPath: hit.url.path) else { return nil }
+        return hit
+    }
+
     @MainActor
     static func render(_ card: Postcard) -> ShareImageRenderer.Rendered? {
-        ShareImageRenderer.render(PostcardShareCard(card: card), size: PostcardShareCard.size, filename: filename(for: card))
+        if let hit = cached(card) { return hit }
+        let result = ShareImageRenderer.render(PostcardShareCard(card: card), size: PostcardShareCard.size, filename: filename(for: card))
+        if let result { cache[key(card)] = result }
+        return result
     }
 
     /// „IndoorCoach-Postkarte-4-Stilfser-Joch.png“ (keine Leerzeichen, keine Schrägstriche).

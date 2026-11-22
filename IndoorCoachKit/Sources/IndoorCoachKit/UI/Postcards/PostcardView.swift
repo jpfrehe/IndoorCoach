@@ -76,6 +76,10 @@ struct PostcardView: View {
                         PostcardIllustration(stage: postcard.stage).frame(width: geo.size.width * 0.6)
                         VStack(alignment: .leading, spacing: 6) {
                             PostcardStamp(stage: postcard.stage, size: 44).frame(maxWidth: .infinity, alignment: .trailing)
+                            if postcard.unlocked {
+                                Text(Postcards.firstLine(postcard.text)).font(.caption2).foregroundStyle(Theme.ink.opacity(0.85))
+                                    .lineLimit(3).minimumScaleFactor(0.85)
+                            }
                             Spacer(minLength: 0)
                             compactCaption
                         }
@@ -98,6 +102,9 @@ struct PostcardView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(postcard.place).font(.subheadline.weight(.bold)).lineLimit(2).minimumScaleFactor(0.8)
             Text("\(Postcards.stampLabel(postcard)) · \(postcard.elevation) m").font(.caption).lineLimit(2).minimumScaleFactor(0.8)
+            if dynamicTypeSize.isAccessibilitySize, postcard.unlocked {
+                Text(Postcards.firstLine(postcard.text)).font(.caption).lineLimit(3)
+            }
         }
         .foregroundStyle(Theme.ink)
     }

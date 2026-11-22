@@ -5,8 +5,11 @@ import Foundation
 public enum ShareText {
     /// Bekannte Dienste und Marken, die nie auf einem Bild oder in einem Begleittext stehen.
     public static let serviceNames: [String] = [
-        "MyWhoosh", "Zwift", "Strava", "Garmin", "intervals.icu", "TrainerRoad", "TrainingPeaks", "TrainerDay", "Wahoo", "SYSTM",
-        "Rouvy", "Peloton", "Whoop", "Oura", "Polar", "Suunto", "Coros", "Komoot", "Runna", "Apple Health", "Apple Fitness", "Claude", "Anthropic",
+        "MyWhoosh", "Zwift", "Strava", "Garmin", "intervals.icu", "Intervals.icu", "Intervals ICU", "TrainerRoad", "TrainingPeaks",
+        "TrainerDay", "Wahoo", "SYSTM", "Rouvy", "Peloton", "Whoop", "Oura", "Suunto", "Coros", "Komoot", "Runna", "Apple Health",
+        "Apple Fitness", "Apple Watch", "Claude", "Anthropic",
+        // „Polar“ allein ist auch ein Wort („Polar-Nacht“): nur die Marken-Produkte.
+        "Polar Flow", "Polar Beat", "Polar Verity Sense", "Polar Verity", "Polar OH1", "Polar H10", "Polar H9", "Polar Vantage", "Polar Grit X",
     ]
 
     /// Entfernt Dienstnamen (ohne Beachtung der Groß-/Kleinschreibung) samt anhängendem Trennzeichen und räumt Lücken,
@@ -46,11 +49,17 @@ public enum ShareText {
         neutral(showValues ? moment.headline : valueFree(moment.headline))
     }
 
-    /// Unterzeile fürs Bild; Zeilen mit Wattangaben entfallen ohne den Schalter.
+    /// Unterzeile fürs Bild; Zeilen mit Wattangaben und die Pausen-Dauer („Nach 12 Tagen Pause …“) entfallen ohne den Schalter.
     public static func detail(for moment: Moment, showValues: Bool) -> String? {
-        guard let detail = moment.detail, showValues || !mentionsWatts(detail) else { return nil }
+        guard let detail = moment.detail, showValues || (!mentionsWatts(detail) && moment.kind != .comeback) else { return nil }
         let cleaned = neutral(detail)
         return cleaned.isEmpty ? nil : cleaned
+    }
+
+    /// Der Name aus dem Profil steht nur auf dem Bild, wenn der Nutzer „Namen zeigen“ einschaltet (Standard: aus).
+    public static func shareName(_ profileName: String?, show: Bool) -> String? {
+        guard show, let trimmed = profileName?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+        return trimmed
     }
 
     // MARK: Begleittext

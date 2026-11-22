@@ -51,7 +51,7 @@ struct WinterArcCard: View {
     private var lightChip: String? {
         let calendar = Calendar.current
         let today = AppModel.today
-        guard calendar.startOfDay(for: today) >= status.start else { return nil }
+        guard Daylight.showsWinterlight(for: calendar.timeZone), calendar.startOfDay(for: today) >= status.start else { return nil }
         let phase = Daylight.phase(now: today, latitude: Daylight.latitude(for: calendar.timeZone), calendar: calendar)
         return Daylight.chip(for: phase)
     }
@@ -107,7 +107,10 @@ struct WinterArcView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if let status = model.winterArc(rides: rides) {   // series is cached in AppModel
                     // ANCHOR-B3-HUB: Winterlicht-Kopf mit Himmel, Schnee und Tageslicht-Gewinn – Agent B
-                    WinterlightHeader(progress: status.progress, start: status.start, goal: status.goal)
+                    // Südhalbkugel: keine Aussage über Tageslicht (Saison der App ist der Nordwinter).
+                    if Daylight.showsWinterlight(for: Calendar.current.timeZone) {
+                        WinterlightHeader(progress: status.progress, start: status.start, goal: status.goal)
+                    }
                     WinterArcCard(status: status, showsLight: false)
                     // ANCHOR-K1-WINTERARC (Konstanz-Serie & Joker)
                     ConsistencyCard(result: model.consistency(rides: rides))

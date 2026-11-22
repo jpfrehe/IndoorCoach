@@ -13,6 +13,8 @@ struct MomentSheet: View {
     @State private var appeared = false
     @State private var textVisible = false
     @State private var showValues = false
+    /// Der Profilname steht nur auf dem Bild, wenn der Nutzer ihn einschaltet.
+    @State private var showName = false
     @State private var shared: ShareImageRenderer.Rendered?
     @AccessibilityFocusState private var headlineFocused: Bool
 
@@ -52,30 +54,53 @@ struct MomentSheet: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("moment.sheet")
         .task { await enter() }
-        .task(id: showValues) { renderShareImage() }
+        .task(id: ShareKey(values: showValues, name: showName)) { await renderShareImage() }
     }
 
     // MARK: Teile
 
     private var topBar: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
                     .font(.headline.weight(.bold))
                     .frame(width: 44, height: 44)
                     .background(Color.white.opacity(0.85), in: Circle())
             }
+            .frame(width: 44, height: 44)
             .accessibilityLabel("Schließen")
             .accessibilityIdentifier("moment.close")
-            Text("GIPFELMOMENT · \(MomentStyle.dateText(presentation.date))")
-                .font(.caption.weight(.bold)).tracking(1.5)
-                .multilineTextAlignment(.center)
+            headerText
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .accessibilityLabel("Gipfelmoment, \(presentation.date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale.de)))")
             Color.clear.frame(width: 44, height: 44) // hält die Zeile mittig
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+    }
+
+    /// Bis zur normalen Größe „GIPFELMOMENT · Datum“ in Großbuchstaben mit Laufweite; bei großer Schrift normale Schreibung in
+    /// zwei Zeilen, ohne Trennung mitten im Wort.
+    @ViewBuilder private var headerText: some View {
+        let label = "Gipfelmoment, \(presentation.date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale.de)))"
+        if largeText {
+            VStack(spacing: 2) {
+                Text("Gipfelmoment").font(.caption.weight(.bold))
+                Text(MomentStyle.dateText(presentation.date)).font(.caption)
+            }
+            .multilineTextAlignment(.center)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(label)
+        } else {
+            Text("GIPFELMOMENT · \(MomentStyle.dateText(presentation.date))")
+                .font(.caption.weight(.bold)).tracking(1.5)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .accessibilityLabel(label)
+        }
     }
 
     private var content: some View {
@@ -179,10 +204,18 @@ struct MomentSheet: View {
                     .tint(Theme.accent)
                     .accessibilityIdentifier("moment.values")
             }
-            Text(presentation.shareName == nil ? "Auf dem Bild stehen keine Dienstnamen."
-                 : "Auf dem Bild steht dein Name aus dem Profil, aber keine Dienstnamen.")
-                .font(.caption).foregroundStyle(Theme.rowSecondary).multilineTextAlignment(.center)
+            if presentation.shareName != nil {
+                Toggle("Namen zeigen", isOn: $showName)
+                    .tint(Theme.accent)
+                    .accessibilityIdentifier("moment.name")
+            }
+            if !largeText {
+                Text(showName ? "Auf dem Bild steht dein Name aus dem Profil, aber keine Dienstnamen."
+                     : "Auf dem Bild stehen keine Dienstnamen.")
+                    .font(.caption).foregroundStyle(Theme.rowSecondary).multilineTextAlignment(.center)
+            }
         }
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .padding(16)
         .background(Color.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
@@ -222,11 +255,21 @@ struct MomentSheet: View {
         headlineFocused = true
     }
 
-    private func renderShareImage() {
+    private struct ShareKey: Hashable {
+        var values: Bool
+        var name: Bool
+    }
+
+    /// Das Teilen-Bild entsteht erst nach der Eingangsanimation (~0,7 s) und nach jeder Änderung der Schalter neu; ein
+    /// schnelles Umschalten rendert nur einmal. Bis dahin zeigt die Karte „Bild wird erstellt …“.
+    private func renderShareImage() async {
+        shared = nil
+        try? await Task.sleep(for: .milliseconds(700))
+        guard !Task.isCancelled else { return }
         let card = MomentShareCard(headline: ShareText.headline(for: main, showValues: showValues),
                                    detail: ShareText.detail(for: main, showValues: showValues),
                                    symbol: MomentStyle.symbol(for: main), dateText: MomentStyle.dateText(presentation.date),
-                                   name: presentation.shareName, skyProgress: presentation.skyProgress)
+                                   name: ShareText.shareName(presentation.shareName, show: showName), skyProgress: presentation.skyProgress)
         shared = ShareImageRenderer.render(card, size: MomentShareCard.size, filename: "IndoorCoach-Gipfelmoment.png")
     }
 }

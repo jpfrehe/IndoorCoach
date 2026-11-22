@@ -41,6 +41,7 @@ struct WhyCard: View {
             }
             .buttonStyle(.jelly)
             .disabled(!WhyNote.isComplete(draft) && !(draft.isEmpty && model.whyNote != nil))
+            .accessibilityHint(WhyNote.saveHint(draft: draft, hasSaved: model.whyNote != nil) ?? "")
             .accessibilityIdentifier("why.save")
             Text(WhyNote.privacyNote).font(.caption).foregroundStyle(Theme.rowSecondary)
         }

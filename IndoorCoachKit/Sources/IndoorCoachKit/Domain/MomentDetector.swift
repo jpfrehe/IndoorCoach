@@ -27,10 +27,14 @@ public struct MomentInput: Sendable {
     public var trophies: [Trophy]
     public var challenges: [Challenges.Challenge]
     public var weeks: [WeekPlan]
+    /// Beginn aller Kraft- und anderen Einheiten: Sie zählen für die Lücke des Comebacks wie Fahrten (wie auf der Karte
+    /// „Willkommen zurück“).
+    public var otherActivityDates: [Date]
     public var calendar: Calendar
 
     public init(season: String, seasonStart: Date, rides: [RideSummary], trophies: [Trophy], challenges: [Challenges.Challenge],
-                weeks: [WeekPlan], calendar: Calendar = .current) {
+                weeks: [WeekPlan], otherActivityDates: [Date] = [], calendar: Calendar = .current) {
+        self.otherActivityDates = otherActivityDates
         self.season = season
         self.seasonStart = seasonStart
         self.rides = rides
@@ -45,7 +49,7 @@ public enum MomentDetector {
     /// Nur Ereignisse der letzten 72 Stunden kommen in Frage.
     public static let freshness: TimeInterval = 72 * 3600
     /// Lücke in Tagen, ab der die nächste Aktivität ein Comeback ist.
-    public static let comebackGapDays = 10
+    public static let comebackGapDays = Comeback.thresholdDays
     /// eFTP muss mindestens so viel über dem zuletzt gefeierten Wert liegen.
     public static let ftpRiseShare = 1.02
 
@@ -190,12 +194,10 @@ public enum MomentDetector {
         }
 
         // comeback: die erste Aktivität nach einer Lücke von mindestens 10 Tagen
-        for index in rides.indices.dropFirst() {
-            let ride = rides[index], previous = rides[index - 1]
-            guard includes(ride.startDate) else { continue }
-            let gap = calendar.dateComponents([.day], from: calendar.startOfDay(for: previous.startDate),
-                                              to: calendar.startOfDay(for: ride.startDate)).day ?? 0
-            guard gap >= comebackGapDays else { continue }
+        let activityDates = (rides.map(\.startDate) + input.otherActivityDates).sorted()
+        for ride in rides {
+            guard includes(ride.startDate), let gap = Comeback.gapDays(before: ride.startDate, in: activityDates, calendar: calendar),
+                  gap >= comebackGapDays else { continue }
             built.moments.append(Moment(id: Moment.Key.comeback(rideID: ride.id), kind: .comeback, date: ride.startDate,
                                         headline: "Du bist zurück", detail: "Nach \(gap) Tagen Pause wieder im Sattel.", rideID: ride.id))
         }

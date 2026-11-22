@@ -19,7 +19,31 @@ public enum Daylight {
         }
     }
 
-    /// Berlin 50°, Wien 48°, Zürich 47°, sonst 50° (Näherung, auch für die Südhalbkugel: die Saison der App ist der Nordwinter).
+    /// Zeitzonen, die klar auf der Südhalbkugel liegen (Australien, Neuseeland, Brasilien, Südafrika …). Für sie sagt das
+    /// Winterlicht nichts (die Saison der App ist der Nordwinter), die Oberfläche blendet Kopf und Chip aus.
+    public static func isSouthernHemisphere(_ zone: TimeZone) -> Bool {
+        let id = zone.identifier
+        let prefixes = ["Australia/", "Antarctica/", "America/Argentina/", "Pacific/Auckland", "Pacific/Chatham", "Pacific/Fiji",
+                        "Pacific/Tahiti", "Pacific/Tongatapu", "Pacific/Apia", "Pacific/Noumea", "Pacific/Norfolk", "Pacific/Port_Moresby",
+                        "Pacific/Guadalcanal", "Pacific/Efate", "Pacific/Easter", "Pacific/Pago_Pago", "Pacific/Rarotonga",
+                        "Pacific/Niue", "Pacific/Galapagos", "Pacific/Marquesas", "Pacific/Gambier", "Pacific/Pitcairn", "Pacific/Wallis",
+                        "Pacific/Fakaofo", "Pacific/Funafuti", "Pacific/Bougainville", "Pacific/Kanton",
+                        "Africa/Johannesburg", "Africa/Maseru", "Africa/Mbabane", "Africa/Windhoek", "Africa/Harare", "Africa/Lusaka",
+                        "Africa/Maputo", "Africa/Luanda", "Africa/Gaborone", "Africa/Blantyre", "Africa/Lubumbashi", "Africa/Kinshasa",
+                        "Africa/Dar_es_Salaam", "Africa/Bujumbura", "Africa/Kigali", "Africa/Nairobi",
+                        "Indian/Reunion", "Indian/Mauritius", "Indian/Antananarivo", "Indian/Mayotte", "Indian/Comoro", "Indian/Chagos",
+                        "America/Sao_Paulo", "America/Santiago", "America/Punta_Arenas", "America/Montevideo", "America/Asuncion",
+                        "America/La_Paz", "America/Lima", "America/Campo_Grande", "America/Cuiaba", "America/Bahia", "America/Fortaleza",
+                        "America/Recife", "America/Manaus", "America/Belem", "America/Maceio", "America/Araguaina", "America/Porto_Velho",
+                        "America/Rio_Branco", "America/Noronha", "America/Santarem", "America/Eirunepe",
+                        "Asia/Jakarta", "Asia/Makassar", "Asia/Dili"]
+        return prefixes.contains { id == $0 || id.hasPrefix($0) }
+    }
+
+    /// Ob Winterlicht-Kopf und -Chip für diese Zeitzone etwas Wahres sagen: nicht auf der Südhalbkugel.
+    public static func showsWinterlight(for zone: TimeZone) -> Bool { !isSouthernHemisphere(zone) }
+
+    /// Berlin 50°, Wien 48°, Zürich 47°, sonst 50° (Näherung für alle übrigen Zeitzonen der Nordhalbkugel).
     public static func latitude(for zone: TimeZone) -> Double {
         switch region(for: zone) {
         case .austria: 48
@@ -78,11 +102,13 @@ public enum Daylight {
         case solstice
         /// Minuten Tageslicht seit der Wintersonnenwende (nie negativ).
         case lengthening(gainMinutes: Int)
-        /// Ab dem 20.3.: die Tage sind länger als die Nächte.
+        /// Vom 20.3. bis 20.6.: die Tage sind länger als die Nächte, Frühling.
         case afterEquinox
+        /// Vom 21.6. bis 31.7.: Sommer, ohne Frühlingssatz.
+        case summer
     }
 
-    /// 21.12. = `.solstice`; 22.12. bis 19.3. = `.lengthening`; 20.3. bis 31.7. = `.afterEquinox`; sonst Countdown.
+    /// 21.12. = `.solstice`; 22.12. bis 19.3. = `.lengthening`; 20.3. bis 20.6. = `.afterEquinox`; 21.6. bis 31.7. = `.summer`; sonst Countdown.
     public static func phase(now: Date, latitude: Double = defaultLatitude, calendar: Calendar = .current) -> Phase {
         let c = calendar.dateComponents([.year, .month, .day], from: now)
         guard let year = c.year, let month = c.month, let day = c.day else { return .afterEquinox }
@@ -91,7 +117,8 @@ public enum Daylight {
             let gain = gainSinceSolstice(now: now, latitude: latitude, calendar: calendar)
             return .lengthening(gainMinutes: max(0, Int((gain / 60).rounded())))
         }
-        if month <= 7 { return .afterEquinox }
+        if month <= 5 || (month == 6 && day < 21) { return .afterEquinox }
+        if month <= 7 { return .summer }
         let solstice = calendar.date(from: DateComponents(year: year, month: 12, day: 21, hour: 12)) ?? now
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: solstice)).day ?? 0
         return .beforeSolstice(days: max(1, days))
@@ -111,6 +138,8 @@ public enum Daylight {
                 : "+\(minutes) min Tageslicht seit der Wintersonnenwende"
         case .afterEquinox:
             "Die Tage sind jetzt länger als die Nächte. Frühling!"
+        case .summer:
+            "Die Tage sind lang und hell. Genieße das Licht."
         }
     }
 
@@ -120,7 +149,7 @@ public enum Daylight {
         case .beforeSolstice(let days): "Noch \(days) \(days == 1 ? "Tag" : "Tage") bis zur Sonnenwende"
         case .solstice: "Heute Sonnenwende"
         case .lengthening(let minutes): minutes < 1 ? "Tage werden länger" : "+\(minutes) min Licht"
-        case .afterEquinox: "Tage länger als Nächte"
+        case .afterEquinox, .summer: "Tage länger als Nächte"
         }
     }
 
@@ -157,7 +186,7 @@ public enum Daylight {
     public static func sunFraction(now: Date, goal: Date, latitude: Double, calendar: Calendar = .current) -> Double {
         switch Self.phase(now: now, latitude: latitude, calendar: calendar) {
         case .beforeSolstice, .solstice: return 0
-        case .afterEquinox, .lengthening: break
+        case .afterEquinox, .summer, .lengthening: break
         }
         let solstice = lastSolstice(onOrBefore: now, calendar: calendar)
         let base = length(on: solstice, latitude: latitude, calendar: calendar)
