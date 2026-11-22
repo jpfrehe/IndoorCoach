@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/hero.png" alt="IndoorCoach: drei iPhone-Screens mit Tagesübersicht, Winter Arc und Leistungskurve" width="100%">
+  <img src="docs/screenshots/hero.jpg" alt="IndoorCoach: drei iPhone-Screens mit Tagesübersicht, Gipfelmoment nach der Fahrt und Wochenplan mit Workout-Profilen" width="100%">
 </p>
 
 <p align="center">
@@ -8,19 +8,19 @@
   <img alt="SwiftUI · SwiftData · Swift Charts" src="https://img.shields.io/badge/SwiftUI-SwiftData%20%C2%B7%20Charts-FFB38A">
   <img alt="Claude API" src="https://img.shields.io/badge/Planung-Claude%20API-B5175A">
   <img alt="Kein Backend" src="https://img.shields.io/badge/Backend-keins-24131D">
-  <img alt="1251 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-1251-5EDBB8">
+  <img alt="1493 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-1493-5EDBB8">
   <a href="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
 # IndoorCoach
 
 **Der persönliche Winter-Coach für Rennradfahrer auf der Rolle.**
-IndoorCoach plant deine Indoor-Woche mit Claude, schickt die Einheiten direkt an MyWhoosh und in deinen Kalender – und zeigt dir ehrlich, ob du auf Kurs bist, um im Frühling in Form zu sein.
+IndoorCoach plant deine Indoor-Woche mit Claude, schickt die Einheiten direkt an MyWhoosh – oder über intervals.icu an Zwift, Garmin, Wahoo und Rouvy – und in deinen Kalender. Es zeigt dir ehrlich, ob du auf Kurs bist, um im Frühling in Form zu sein, und feiert jeden Gipfel auf dem Weg dorthin.
 
 Im Winter sinkt das Radvolumen bei vielen um ein Drittel. IndoorCoach setzt genau da an:
 - **Konstanz statt Tagesstreaks:** Wochen-Serie mit Joker, Ruhewochen zählen als Erfolg. Wenig Zeit heute? Die Einheit mit zwei Tipps auf 45 min kürzen statt ausfallen lassen.
 - **Fortschritt sichtbar machen:** Leistungskurve, VO₂max, Fähigkeitslevel und Fitness-Prognose zeigen, dass die Arbeit ankommt. Nach jeder Fahrt siehst du, ob du deine Intervalle getroffen hast.
-- **Ein Grund für die nächste Einheit:** Winter Arc mit 10 Leveln, Alpenüberquerung als Etappenreise, Challenges und Trophäen.
+- **Ein Grund für die nächste Einheit:** Winter Arc mit 10 Leveln, Alpenüberquerung als Etappenreise mit Postkarten, Challenges und Trophäen – und ein Gipfelmoment, wenn du etwas geschafft hast.
 - **Jede MyWhoosh-Fahrt sekundengenau, ohne Handgriff:** Die kleine Mac-App „IndoorCoach Brücke“ holt die Daten aus MyWhoosh und bringt sie im WLAN aufs iPhone.
 - **Neu – die ganze Woche im Blick:** Brustgurt direkt am iPhone, Krafttraining im Studio, Check-in vor der Einheit, Aufwärm-Check und auf Wunsch Apple Health. Der Plan kennt jetzt auch deine schweren Beine vom Dienstag.
 
@@ -30,7 +30,20 @@ Alles läuft auf deinen Geräten: auf dem iPhone und auf Wunsch zusätzlich auf 
 
 ---
 
-## Neu: Die ganze Woche im Blick
+## Neu: Vom Frost zum Frühling
+
+Die App hat Level, Etappen und Bestleistungen schon immer berechnet – jetzt überreicht sie sie auch. Vier kleine Momente, die das Winterloch leichter machen, alle lokal, ohne Konto und ohne Claude-Key ([Marktanalyse & Konzept](docs/22-MARKTANALYSE-BEGEISTERUNG.md)):
+
+| Gipfelmoment | Postkarte vom Pass | Winterlicht | Willkommen zurück |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/21-gipfelmoment.png" width="200" alt="Gipfelmoment nach der Fahrt: Level 4 Rollen-Routine, Etappe Stilfser Joch mit Postkarte, Weiter und Als Bild teilen"> | <img src="docs/screenshots/22-postkarte.png" width="200" alt="Postkarte Etappe 1 Garmisch mit Illustration, Text des Coachs und Poststempel"> | <img src="docs/screenshots/23-winterlicht.png" width="200" alt="Winterlicht: plus 17 Minuten Tageslicht seit der Wintersonnenwende, Countdown zum Ziel"> | <img src="docs/screenshots/24-comeback.png" width="200" alt="Willkommen zurück nach 41 Tagen Pause, mit eigenem Satz und Heute locker einsteigen"> |
+
+- **Gipfelmoment nach der Fahrt:** Neues Level, neue Etappe, Bestleistung, gestiegene FTP-Schätzung, geschaffte Woche oder Comeback – direkt nach dem Import eine ruhige Feier mit „Schnee zu Funken“, einem Coach-Satz mit Quelle und Langzeitbezug und einem teilbaren Bild im Hochformat (Werte und Name nur auf Wunsch). Ohne Zeitlimit, höchstens einmal, nie während der Aufzeichnung; abschaltbar.
+- **Postkarten von der Alpenüberquerung:** Zu jeder der 10 Etappen von Garmisch bis an den Gardasee eine selbst gezeichnete Karte mit eigenem Text, Datum und Poststempel – als Album im Winter Arc, „Noch 38 % bis Bormio“.
+- **Winterlicht:** „+17 min Tageslicht seit der Wintersonnenwende“ und wie viel Licht bis zu deinem Ziel dazukommt – ohne Ortung, grob aus der Zeitzone. Der Himmel im Winter Arc wird mit deinem Fortschritt heller.
+- **Willkommen zurück & Dein Warum:** Nach mindestens zehn Tagen Pause eine freundliche Karte ohne Urteil und „Heute locker einsteigen“ (kürzer, leichter oder Grundlage 30 min). Dein eigener Satz, warum du diesen Winter fährst, kommt im richtigen Moment wörtlich zurück – er bleibt auf dem iPhone und geht nie an Claude.
+
+## Die ganze Woche im Blick
 
 Viele fahren im Winter nicht nur Rolle: dienstags Studio, samstags Laufen, und manchmal ist der Tag einfach zu lang. IndoorCoach sieht jetzt die ganze Woche – lokal, ohne Konto und ohne teures Wearable.
 
@@ -80,13 +93,15 @@ Vom 1. November bis zum Frühlingsziel wächst deine Fitness Level für Level �
 
 ## Analyse wie im Premium-Abo – nur ohne Abo
 
+Alle Diagramme sind neu gezeichnet ([Konzept](docs/21-KONZEPT-DIAGRAMME.md)): eine eigene Zonenpalette mit mindestens 3:1 Kontrast in Hell und Dunkel (auch für Farbfehlsichtige geprüft), Workout-Profile als scharfe, abgerundete Blöcke mit sauberen Rampen und Mindestbreiten für 30/30 und Tabata, glatte Verläufe ohne Überschwinger, der aktuelle Wert hervorgehoben, Auswahl per Tippen und Audio Graphs für VoiceOver.
+
 | Leistungskurve & Bestleistungen | VO₂max & aerobe Effizienz | Fähigkeitslevel (Dark Mode) |
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/05-leistung.png" width="260" alt="Leistungskurve 5 s bis 60 min mit Bestleistungen"> | <img src="docs/screenshots/06-vo2max.png" width="260" alt="VO2max-Schätzung und Effizienz-Trend"> | <img src="docs/screenshots/11-faehigkeiten-dark.png" width="260" alt="eFTP-Verlauf und Fähigkeitslevel im Dark Mode"> |
 
-| Soll/Ist je Intervall | Zeit in Zonen |
-|:---:|:---:|
-| <img src="docs/screenshots/13-soll-ist.png" width="260" alt="Soll/Ist: 2 von 2 Intervallen getroffen, Durchschnitt 98 Prozent, Diagramm Soll gegen Ist"> | <img src="docs/screenshots/12-zonen.png" width="260" alt="Zeit in Zonen einer Fahrt, umschaltbar zwischen Leistung und Puls"> |
+| Soll/Ist je Intervall | Zeit in Zonen | Verlauf 12 Wochen |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/13-soll-ist.png" width="260" alt="Soll/Ist: Workout-Profil mit Zonen und Kennzahlen der Einheit Sweet Spot 2x20"> | <img src="docs/screenshots/12-zonen.png" width="260" alt="Zeit in Zonen einer Fahrt, umschaltbar zwischen Leistung und Puls"> | <img src="docs/screenshots/25-verlauf.png" width="260" alt="Verlauf: Stunden je Woche, aktuelle Woche hervorgehoben, Durchschnittslinie"> |
 
 - **Soll/Ist je Intervall:** IndoorCoach legt den Plan auf deine Sekundendaten und zeigt je Intervall Soll- und Ist-Watt, also „2 von 2 Intervallen getroffen · Ø 98 %“, oder wo du zu leicht oder zu hart warst.
 - **Zeit in Zonen** je Fahrt, nach Leistung oder Puls
@@ -115,7 +130,7 @@ Die Übertragung läuft verschlüsselt (TLS mit gemeinsamem Schlüssel aus der K
 
 | Heute | Heute (Dark Mode) |
 |:---:|:---:|
-| <img src="docs/screenshots/01-heute.png" width="260" alt="Heute: nächste Einheit, Winter Arc, Fitness & Form"> | <img src="docs/screenshots/10-heute-dark.png" width="260" alt="Heute im Dark Mode"> |
+| <img src="docs/screenshots/01-heute.png" width="260" alt="Heute: nächste Einheit mit Workout-Profil, Kraft und andere Einheit, Dein Warum"> | <img src="docs/screenshots/10-heute-dark.png" width="260" alt="Heute im Dark Mode"> |
 
 Farbsystem „Sunset Jelly“, geprüft auf iPhone SE und iPhone Pro, mit Dynamic Type und VoiceOver ([UX-Audit](docs/ux-audit-2026-11-20.md)).
 
@@ -160,7 +175,7 @@ Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im
 cd IndoorCoach/IndoorCoachKit && swift test
 ```
 
-Dazu kommen 66 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
+Dazu kommen 76 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
 
 **CI/CD:** GitHub Actions baut iPhone-App und Mac-Brücke und testet jeden Push ([ci.yml](.github/workflows/ci.yml)). Ein Tag `v1.2.3` startet [release.yml](.github/workflows/release.yml): Archiv, Signierung per App-Store-Connect-API-Key, Upload zu TestFlight. Einrichtung in [docs/13-APP-STORE-RELEASE.md](docs/13-APP-STORE-RELEASE.md).
 
@@ -210,6 +225,7 @@ docs/                   Konzept, Feature-Pakete, Audits, Screenshots
 13. [Paket „Öffnung“: Onboarding mit Verbindungen, Feature-Tour, Feedback, CI/CD](docs/12-PAKET-OEFFNUNG.md)
 20. [Konzept: Einführung mit passenden Diensten (Personas, Journey)](docs/20-KONZEPT-ONBOARDING-DIENSTE.md)
 21. [Konzept: Diagramm-Designsystem und Workout-Profil](docs/21-KONZEPT-DIAGRAMME.md)
+22. [Marktanalyse: Begeisterungsmerkmale je Persona, „Vom Frost zum Frühling“](docs/22-MARKTANALYSE-BEGEISTERUNG.md)
 14. [App-Store-Release mit GitHub Actions](docs/13-APP-STORE-RELEASE.md) und [Datenschutzerklärung (Entwurf)](docs/PRIVACY.md)
 15. [Sekundendaten aus MyWhoosh: Alternativen, User Journey, Mac-Brücke](docs/14-SEKUNDENDATEN-MAC-BRUECKE.md)
 16. [Sekundendaten-Auswertung: Zeit in Zonen, Soll/Ist je Intervall, Einheit anpassen](docs/15-PAKET-SEKUNDENDATEN-AUSWERTUNG.md)
