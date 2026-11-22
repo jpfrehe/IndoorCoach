@@ -170,9 +170,10 @@ private struct TrophyRow: View {
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             // ANCHOR-B1-TROPHY: kleiner Punkt „neu“ für Trophäen der letzten 7 Tage – Agent A
+            NewTrophyDot(trophy: trophy)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(trophy.summary)
+        .accessibilityLabel(NewTrophyDot.isNew(trophy) ? "\(trophy.summary), neu" : trophy.summary)
     }
 }
 

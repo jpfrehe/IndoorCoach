@@ -74,6 +74,7 @@ public struct RootView: View {
         }
         .tourCover(isPresented: $showTour)
         // ANCHOR-B1-ROOT: Gipfelmoment (fullScreenCover aus `model.pendingMoments`, Auswertung bei scenePhase .active) – Agent A
+        .momentCelebration()
         // ANCHOR-W3A: Aufzeichnung mit Gurt (Kraft, Andere Einheit) und unterbrochene Aufzeichnungen
         .interruptedRecordingPrompt()
         .strengthRecordAction { template in present(.strength(template: template)) }
