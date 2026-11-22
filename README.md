@@ -8,7 +8,7 @@
   <img alt="SwiftUI · SwiftData · Swift Charts" src="https://img.shields.io/badge/SwiftUI-SwiftData%20%C2%B7%20Charts-FFB38A">
   <img alt="Claude API" src="https://img.shields.io/badge/Planung-Claude%20API-B5175A">
   <img alt="Kein Backend" src="https://img.shields.io/badge/Backend-keins-24131D">
-  <img alt="1162 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-1162-5EDBB8">
+  <img alt="1251 Unit-Tests" src="https://img.shields.io/badge/Unit--Tests-1251-5EDBB8">
   <a href="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jpfrehe/IndoorCoach/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
@@ -160,7 +160,7 @@ Dann unter *Signing & Capabilities* dein Team wählen und auf dem iPhone oder im
 cd IndoorCoach/IndoorCoachKit && swift test
 ```
 
-Dazu kommen 65 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
+Dazu kommen 66 UI-Walkthrough-Tests in `IndoorCoachUITests` (Simulator, inklusive automatischem Accessibility-Audit und einer Matrix für Dark Mode und große Schrift) und 7 Tests der Mac-App (Scheme `IndoorCoachBridge`). Was nur auf echten Geräten prüfbar ist, steht im [Gerätetest](docs/16-GERAETETEST.md).
 
 **CI/CD:** GitHub Actions baut iPhone-App und Mac-Brücke und testet jeden Push ([ci.yml](.github/workflows/ci.yml)). Ein Tag `v1.2.3` startet [release.yml](.github/workflows/release.yml): Archiv, Signierung per App-Store-Connect-API-Key, Upload zu TestFlight. Einrichtung in [docs/13-APP-STORE-RELEASE.md](docs/13-APP-STORE-RELEASE.md).
 
@@ -209,6 +209,7 @@ docs/                   Konzept, Feature-Pakete, Audits, Screenshots
 12. [UX-Audit 1](docs/ux-audit-2026-11-17.md), [UX-Audit 2](docs/ux-audit-2026-11-17-b.md) und [UX-Audit 3](docs/ux-audit-2026-11-20.md)
 13. [Paket „Öffnung“: Onboarding mit Verbindungen, Feature-Tour, Feedback, CI/CD](docs/12-PAKET-OEFFNUNG.md)
 20. [Konzept: Einführung mit passenden Diensten (Personas, Journey)](docs/20-KONZEPT-ONBOARDING-DIENSTE.md)
+21. [Konzept: Diagramm-Designsystem und Workout-Profil](docs/21-KONZEPT-DIAGRAMME.md)
 14. [App-Store-Release mit GitHub Actions](docs/13-APP-STORE-RELEASE.md) und [Datenschutzerklärung (Entwurf)](docs/PRIVACY.md)
 15. [Sekundendaten aus MyWhoosh: Alternativen, User Journey, Mac-Brücke](docs/14-SEKUNDENDATEN-MAC-BRUECKE.md)
 16. [Sekundendaten-Auswertung: Zeit in Zonen, Soll/Ist je Intervall, Einheit anpassen](docs/15-PAKET-SEKUNDENDATEN-AUSWERTUNG.md)

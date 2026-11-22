@@ -1,6 +1,6 @@
 # 21 · Konzept: Diagramme überarbeiten
 
-Stand: 21.11.2026 · erarbeitet mit einem Design-Engineer-Agent (Datenvisualisierung) · Status: **Konzept, noch nicht freigegeben** (Entscheidungen für den Produktinhaber in §9)
+Stand: 21.11.2026 · erarbeitet mit einem Design-Engineer-Agent (Datenvisualisierung) · Status: **umgesetzt (21.11.2026)**, Entscheidungen in §9 und „Entschieden“ am Ende
 
 **Auftrag (Produktinhaber, wörtlich):** „Führe eine Überarbeitung der Diagramme durch. Die Auflösung der aktuellen, gerade bei Intervallen oder Aufwärmphasen besteht aus unscharfen Blöcken. Die Diagramme sind Kernbestandteil der Analysen und sollen hochwertig aussehen, wie angehängte Beispiele."
 
@@ -459,3 +459,11 @@ Profil fertig nach etwa 3½ Tagen, alles nach etwa 8–9 Tagen. Größte Risiken
 ### Entschieden (21.11.2026)
 
 - E1: Z1 Indigo (wie Referenz). E2: Wochenumfang auf Heute als eine Reihe. E3: Form auf Heute nicht als dritte Linie, Kennzahl und Chip reichen.
+
+### Umsetzung (21.11.2026)
+
+- AP0–AP7 umgesetzt (Palette, Geometrie, Profil Mini/Detail, Bausteine, P1/P2-Analysen, Galerie-Matrix `AuditChartsTests`).
+- Abweichung D9/D10/D11: Vorwochen nicht in `accentMuted`, sondern neutral in `ChartPalette.pastBar` (primary 45 % über der Karte, ≥ 3:1). Nach Sichtprüfung trug der gedämpfte Akzent zu viel Farbe; nur die aktuelle Woche ist farbig, wie in den Referenzen.
+- Abweichung D13: Prognoselinie durchgezogen (Fitnessfarbe, 70 % Deckkraft) statt gestrichelt – Strich bleibt Soll/Ziel/FTP vorbehalten.
+- Detail-Profil ohne horizontale Gitterlinien (der Renderer liegt hinter dem Plot; Linien liefen sonst durch die Blöcke). Alle Plots sind geclippt; Flächen beginnen an der unteren Domänengrenze (`ChartMath.areaBase`).
+- Offen: neue Screenshots in `docs/screenshots`, Auswahlgesten in ScrollViews und Audio Graphs am Gerät prüfen, Instruments-Messung der Listen.
