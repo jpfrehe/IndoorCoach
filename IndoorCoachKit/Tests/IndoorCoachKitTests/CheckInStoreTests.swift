@@ -115,7 +115,9 @@ struct CheckInStoreTests {
     /// Four fulfilled past weeks (all planned done) earn one joker.
     func earnJoker(_ model: AppModel, _ container: ModelContainer, now: Date = .now) {
         let cal = Calendar.current
-        let thisWeek = cal.dateInterval(of: .weekOfYear, for: now)!.start
+        // The app's weeks start on Monday; `Calendar.current` on an en_US runner starts them on Sunday, which on a
+        // Sunday put one "past" week into the current one (CI failure 22.11.2026).
+        let thisWeek = Consistency.weekStart(of: now)
         model.profile.arcStart = cal.date(byAdding: .weekOfYear, value: -5, to: thisWeek)
         for n in 1...4 {
             let w = planned(container, date: cal.date(byAdding: .weekOfYear, value: -n, to: thisWeek)!.addingTimeInterval(3 * 86400))
