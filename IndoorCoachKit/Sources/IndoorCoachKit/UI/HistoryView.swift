@@ -123,7 +123,7 @@ struct HistoryView: View {
             .navigationDestination(for: RideSummary.self) { RideDetailView(ride: $0) }
             .navigationDestination(for: StoredStrengthSession.self) { StrengthDetailView(row: $0) } // ANCHOR-STRENGTH
             .refreshable {
-                await model.syncRides(userInitiated: true)
+                await model.refreshFromPull()
             }
         }
     }

@@ -56,6 +56,11 @@ public final class BridgeState {
     public internal(set) var syncing = false
     @ObservationIgnored var knownIDs: Set<String> = []
     @ObservationIgnored var lastAttempt: Date?
+    /// Rides the MyWhoosh list just brought without seconds data although they ended moments ago (see
+    /// `AppModel.awaitBridgeSecondsForFreshRides`).
+    @ObservationIgnored var awaitingSeconds: Set<Int> = []
+    /// Pause before asking the Mac again for such a ride (tests shorten it).
+    @ObservationIgnored var freshRideRetryDelay: Duration = .seconds(4)
     @ObservationIgnored var transport: any BridgeTransport = LiveBridgeTransport()
 
     #if DEBUG
@@ -77,6 +82,7 @@ public final class BridgeState {
         syncing = false
         knownIDs = []
         lastAttempt = nil
+        awaitingSeconds = []
     }
 }
 
@@ -91,6 +97,10 @@ public struct BridgeSyncSummary: Equatable, Sendable {
 extension AppModel {
     /// Auto pickups (app start / foreground) run at most this often.
     static let bridgeAutoInterval: TimeInterval = 120
+    /// Name of a ride from the bridge (its FIT file has none); the MyWhoosh list's name replaces it.
+    static let bridgeRideName = "MyWhoosh-Fahrt"
+    /// A ride that ended at most this long ago may still be on its way to the Mac bridge.
+    static let freshRideWindow: TimeInterval = 15 * 60
 
     public var bridgeMacName: String? { bridge.macName }
     public var isBridgePaired: Bool { bridge.macName != nil && secrets.secret(.bridgeSecret) != nil }
@@ -145,10 +155,51 @@ extension AppModel {
         await pickUpFromBridge(announce: announce, quietUnreachable: false)
     }
 
-    private func pickUpFromBridge(announce: Bool, quietUnreachable: Bool) async -> BridgeSyncSummary? {
+    // MARK: Pull-to-refresh
+
+    /// Pull-to-refresh on Heute and Verlauf: the Mac bridge first (it brings the seconds data, so the MyWhoosh list
+    /// entry of the same ride is recognised as already there), then every other source, then – if MyWhoosh listed a
+    /// ride that ended moments ago and the Mac had not handed it over yet – the bridge once more.
+    /// Runs in its own task: SwiftUI cancels a `.refreshable` task when the screen redraws during the sync, which
+    /// aborted the MyWhoosh request (device log 26.11.2026: "NSURLError – Abgebrochen").
+    public func refreshFromPull(includeHealth: Bool = false) async {
+        await Task { @MainActor in
+            await pickUpFromBridgeForRefresh()
+            await syncRides(userInitiated: true)
+            await awaitBridgeSecondsForFreshRides()
+            if includeHealth { _ = await syncHealth() }
+        }.value
+    }
+
+    /// A pickup without the two-minute throttle that waits for one already running and stays quiet when the Mac is
+    /// not reachable (the user asked for "everything", not for the bridge).
+    @discardableResult
+    func pickUpFromBridgeForRefresh() async -> BridgeSyncSummary? {
+        guard isBridgePaired else { return nil }
+        for _ in 0..<150 where bridge.syncing { try? await Task.sleep(for: .milliseconds(100)) }
+        return await pickUpFromBridge(announce: false, quietUnreachable: true, throttled: false)
+    }
+
+    /// MyWhoosh listed a ride that just ended, but the Mac bridge did not have its file yet (MyWhoosh on the Mac
+    /// writes it at the same moment): ask again a few times so the pull brings the ride with its seconds data.
+    func awaitBridgeSecondsForFreshRides(attempts: Int = 3) async {
+        defer { bridge.awaitingSeconds = [] }
+        guard isBridgePaired else { return }
+        for _ in 0..<attempts {
+            let waiting = Array(bridge.awaitingSeconds)
+            let stillMissing = ((try? context.fetch(FetchDescriptor<StoredRide>(predicate: #Predicate {
+                waiting.contains($0.stravaID) && $0.powerCurveData == nil
+            }))) ?? []).isEmpty == false
+            guard stillMissing else { return }
+            try? await Task.sleep(for: bridge.freshRideRetryDelay)
+            guard await pickUpFromBridgeForRefresh() != nil else { return }   // Mac unreachable: no point waiting
+        }
+    }
+
+    private func pickUpFromBridge(announce: Bool, quietUnreachable: Bool, throttled: Bool = true) async -> BridgeSyncSummary? {
         guard isBridgePaired, !bridge.syncing, let macName = bridge.macName,
               let secretText = secrets.secret(.bridgeSecret), let secret = Data(base64Encoded: secretText) else { return nil }
-        if !announce, let last = bridge.lastAttempt, Date.now.timeIntervalSince(last) < Self.bridgeAutoInterval { return nil }
+        if throttled, !announce, let last = bridge.lastAttempt, Date.now.timeIntervalSince(last) < Self.bridgeAutoInterval { return nil }
         bridge.lastAttempt = .now
         bridge.syncing = true
         defer { bridge.syncing = false }
@@ -161,7 +212,7 @@ extension AppModel {
             for item in fetched {
                 if let fit = try? FITParser.summary(from: item.fit) {
                     let id = Self.importedRideID("fit:\(Int(fit.startDate.timeIntervalSince1970))")
-                    rides.append(RideSummary(fit: fit, id: id, name: "MyWhoosh-Fahrt"))
+                    rides.append(RideSummary(fit: fit, id: id, name: Self.bridgeRideName))
                     if let s = fit.seconds { seconds[id] = s }
                 } else {
                     summary.unreadable += 1

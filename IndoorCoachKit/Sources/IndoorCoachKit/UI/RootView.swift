@@ -88,6 +88,7 @@ public struct RootView: View {
             model.applyConnectionErrorSeed()   // -uiConnectionErrorSeed YES
             model.applyIntervalsConnectedSeed()   // -uiIntervalsConnectedSeed YES
             #endif
+            model.repairShiftedMyWhooshDuplicates()
             await model.rescheduleWorkoutReminders()
             await model.syncRides()
             await model.syncFromBridge(announce: false)

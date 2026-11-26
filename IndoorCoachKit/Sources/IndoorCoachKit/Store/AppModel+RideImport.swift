@@ -44,6 +44,12 @@ extension AppModel {
                 if let ride = await myWhooshRide(activity, fileAccess: &fileAccess) { rides.append(ride) } else { unreadable += 1 }
             }
             let inserted = storeImportedRides(rides)
+            // Rides that ended moments ago arrive without the file (MyWhoosh has not processed them yet): the
+            // pull-to-refresh asks the Mac bridge again for their seconds data (`awaitBridgeSecondsForFreshRides`).
+            let recent = Date.now.addingTimeInterval(-Self.freshRideWindow)
+            bridge.awaitingSeconds = Set(rides.filter {
+                !RideMerge.hasCurve($0) && $0.startDate.addingTimeInterval(TimeInterval($0.movingTime)) >= recent
+            }.map(\.id))
             // Only move the window forward when every listed ride made it in – otherwise retry them next time.
             if unreadable == 0 {
                 lastMyWhooshImport = .now
@@ -62,6 +68,9 @@ extension AppModel {
             } else if announce {
                 show("MyWhoosh: keine neuen Fahrten.", error: false)
             }
+        } catch where Self.isCancellation(error) {
+            // Not a MyWhoosh problem: the calling task went away (e.g. a pull-to-refresh SwiftUI ended). No banner.
+            Log.notice(.sync, "MyWhoosh-Import abgebrochen (Aufgabe beendet)")
         } catch {
             Log.error(.sync, "MyWhoosh-Import fehlgeschlagen: \(type(of: error)) – \(error.localizedDescription)")
             refreshCredentialState()
@@ -71,6 +80,10 @@ extension AppModel {
                 show(error.localizedDescription, error: true)
             }
         }
+    }
+
+    static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
     /// Kurzer Text für die Verbindungszeile (der Banner trägt die lange Meldung).
@@ -85,7 +98,7 @@ extension AppModel {
     /// One listed activity → ride: from its FIT file when available, otherwise from the list's own numbers.
     fileprivate func myWhooshRide(_ activity: MyWhooshActivity, fileAccess: inout Bool) async -> RideSummary? {
         let id = Self.importedRideID("mywhoosh:\(activity.id)")
-        let name = activity.name ?? "MyWhoosh-Fahrt"
+        let name = activity.name ?? Self.bridgeRideName
         if fileAccess, activity.fitURL != nil || activity.fileKey != nil {
             do {
                 let fit = try FITParser.summary(from: try await myWhoosh.downloadFIT(for: activity))
@@ -188,6 +201,8 @@ extension AppModel {
             case .alreadyComplete(let id):
                 // Same ride with a curve but without stored seconds (imported before they were kept): add them.
                 if let s = seconds[ride.id], let row = byID[id], row.secondsData == nil { row.secondsData = s.encoded() }
+                // The bridge brought the ride first under a generic name: the MyWhoosh list knows its real one.
+                if let row = byID[id], row.name == Self.bridgeRideName, ride.name != Self.bridgeRideName { row.name = ride.name }
                 result.skipped += 1
             case .duplicate:
                 result.skipped += 1
@@ -213,6 +228,40 @@ extension AppModel {
     @discardableResult
     func storeImportedRides(_ rides: [RideSummary]) -> Int {
         mergeImportedRides(rides).inserted
+    }
+
+    /// Until 26.11.2026 a ride that MyWhoosh listed before processing it was stored with its END as start and without
+    /// power; the same ride with seconds data from the Mac bridge then came in as a second ride one ride-length
+    /// "earlier". This merges such pairs: the measured ride stays (moments and records point at it) and takes over the
+    /// list's name, perceived exertion and planned-workout links. Idempotent, runs at app start.
+    @discardableResult
+    func repairShiftedMyWhooshDuplicates() -> Int {
+        guard let rows = try? context.fetch(FetchDescriptor<StoredRide>(predicate: #Predicate { !$0.isDemo && $0.healthUUID == nil })),
+              !rows.isEmpty else { return 0 }
+        let measured = rows.filter { $0.powerCurveData != nil }
+        var merged = 0
+        for listRide in rows where listRide.powerCurveData == nil && listRide.averageWatts == nil && listRide.trainer
+            && listRide.mergedHealthUUID == nil {
+            guard let keep = measured.first(where: {
+                abs($0.startDate.addingTimeInterval(TimeInterval($0.movingTime)).timeIntervalSince(listRide.startDate)) < 180
+                    && abs($0.movingTime - listRide.movingTime) <= 120
+            }) else { continue }
+            if keep.name == Self.bridgeRideName { keep.name = listRide.name }
+            if keep.perceivedExertion == nil, let pe = listRide.perceivedExertion {
+                keep.perceivedExertion = pe
+                keep.preferPerceivedExertion = listRide.preferPerceivedExertion
+            }
+            let oldID: Int? = listRide.stravaID
+            for workout in (try? context.fetch(FetchDescriptor<StoredWorkout>(predicate: #Predicate { $0.linkedRideID == oldID }))) ?? [] {
+                workout.linkedRideID = keep.stravaID
+            }
+            context.delete(listRide)
+            merged += 1
+        }
+        guard merged > 0 else { return 0 }
+        guard saveReportingErrors("Das Zusammenführen doppelter Fahrten") else { return 0 }
+        Log.notice(.sync, "Doppelte MyWhoosh-Fahrten zusammengeführt: \(merged)")
+        return merged
     }
 
     /// Marks past planned workouts as done when a ride exists on the same day.

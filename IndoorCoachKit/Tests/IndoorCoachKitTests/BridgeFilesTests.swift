@@ -38,6 +38,15 @@ struct RideFolderScannerTests {
         #expect(scanner.ready([file(size: 20, modified: t0.addingTimeInterval(1))], now: t0.addingTimeInterval(90)).count == 1)
     }
 
+    @Test func quickLookOnRequestAcceptsYoungStableFiles() {
+        var scanner = RideFolderScanner(minimumAge: 15)
+        let f = file(modified: t0)
+        #expect(scanner.hasUnreported([f]))
+        _ = scanner.ready([f], now: t0.addingTimeInterval(3), minimumAge: 3)
+        #expect(scanner.ready([f], now: t0.addingTimeInterval(4.5), minimumAge: 3) == [f])
+        #expect(!scanner.hasUnreported([f]))
+    }
+
     @Test func changedFileIsReportedAgain() {
         var scanner = RideFolderScanner(minimumAge: 0)
         let v1 = file(size: 10, modified: t0)

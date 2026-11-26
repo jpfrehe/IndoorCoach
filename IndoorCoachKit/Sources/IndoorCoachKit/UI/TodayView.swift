@@ -22,8 +22,7 @@ struct TodayView: View {
             .navigationTitle("Heute")
             .navigationDestination(for: StoredWorkout.self) { WorkoutDetailView(workout: $0) }
             .refreshable {
-                await model.syncRides(userInitiated: true)
-                await model.syncHealth() // ANCHOR-W3B
+                await model.refreshFromPull(includeHealth: true) // ANCHOR-W3B: Health mit abgleichen
             }
             // ANCHOR-W3B: Health abgleichen beim Start und wenn die App wieder in den Vordergrund kommt (nur mit aktiviertem Health).
             .task { await model.syncHealth() }

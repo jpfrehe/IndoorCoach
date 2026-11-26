@@ -240,6 +240,14 @@ public struct MyWhooshActivity: Sendable, Equatable {
         else if let fileValue, !fileValue.hasPrefix("http") { fileKey = fileValue }
         durationSeconds = Self.seconds(value(["rideDuration", "duration", "rideTime", "totalTime", "movingTime",
                                               "elapsedTime", "TotalRideTime"]))
+        // A ride that was just uploaded is listed before MyWhoosh has processed it: startDatetime and date then carry
+        // the upload time (= createdAt, the END of the ride) and watt/heartrate are 0 (device log, 26.11.2026). A ride
+        // cannot be uploaded before it ended, so such a start is moved back by the ride's duration.
+        if let start = date, let duration = durationSeconds,
+           let uploaded = Self.date(value(["createdAt", "uploadedAt", "CreatedAt"])),
+           uploaded.timeIntervalSince(start) < TimeInterval(duration) - 60 {
+            date = uploaded.addingTimeInterval(-TimeInterval(duration))
+        }
         // MyWhoosh shows kilometres; values below 1000 are taken as km.
         distanceMeters = number(["distance", "totalDistance"]).map { $0 < 1000 ? $0 * 1000 : $0 }
         averageWatts = number(["watt", "avgPower", "averagePower", "avgWatts", "AveragePower"]).flatMap { $0 > 0 ? $0 : nil }

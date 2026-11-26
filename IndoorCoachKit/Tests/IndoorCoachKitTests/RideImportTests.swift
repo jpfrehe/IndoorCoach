@@ -417,3 +417,146 @@ struct RideImportTests {
         #expect(defaults.object(forKey: AppModel.Keys.ridesImported) == nil)
     }
 }
+
+// MARK: - Fresh MyWhoosh ride + Mac bridge (device log 26.11.2026)
+
+/// Hands out its rides only from the `availableFrom`-th call on (the Mac had not picked up the file yet).
+private final class LateBridgeTransport: BridgeTransport, @unchecked Sendable {
+    private let lock = NSLock()
+    let rides: [(ride: BridgeRide, fit: Data)]
+    let availableFrom: Int
+    private(set) var fetches = 0
+    init(rides: [(ride: BridgeRide, fit: Data)], availableFrom: Int) { self.rides = rides; self.availableFrom = availableFrom }
+    func discover(pairing: Bool) async -> [DiscoveredBridge] { [] }
+    func pair(with bridge: DiscoveredBridge, code: String) async throws -> (secret: Data, macName: String) {
+        throw BridgeError.authenticationFailed
+    }
+    func fetchNewRides(macName: String, secret: Data, known: Set<String>) async throws -> [(ride: BridgeRide, fit: Data)] {
+        let call = lock.withLock { fetches += 1; return fetches }
+        return call < availableFrom ? [] : rides.filter { !known.contains($0.ride.id) }
+    }
+}
+
+@Suite("Frische MyWhoosh-Fahrt und Mac-Brücke")
+@MainActor
+struct FreshMyWhooshRideTests {
+    let container: ModelContainer
+    let secrets = InMemorySecretStore()
+    /// The ride ended a minute ago and lasted 10 minutes.
+    let end = Date(timeIntervalSince1970: (Date.now.timeIntervalSince1970 - 60).rounded())
+    var start: Date { end.addingTimeInterval(-600) }
+
+    init() throws {
+        container = try ModelContainer(for: StoredRide.self, StoredWorkout.self,
+                                       configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    }
+
+    /// MyWhoosh as on the device: the unprocessed entry carries the upload time as start, watt 0, the file is refused.
+    var listJSON: Data {
+        let iso = ISO8601DateFormatter().string(from: end)
+        return Data(#"{"data":[{"id":"fresh1","title":"Rolle - Sweet Spot Blöcke","startDatetime":"\#(iso)","createdAt":"\#(iso)","date":\#(Int(end.timeIntervalSince1970)),"rideDuration":"00:10:00.000","watt":0,"heartrate":0,"distance":5.1,"activityFileId":"k1"}]}"#.utf8)
+    }
+
+    func listTransport() -> RoutingTransport {
+        let json = listJSON
+        return RoutingTransport { request in request.url == MyWhooshClient.activitiesURL ? (200, json) : (403, Data()) }
+    }
+
+    /// 10 min of 1 Hz power from `start`.
+    func bridgeFIT() -> (ride: BridgeRide, fit: Data) {
+        var fit = FITBuilder()
+        let t0 = fitTime(start)
+        fit.message(global: 20, fields: [(253, 4, t0), (7, 2, 150), (3, 1, 140)])
+        for s in 1...600 { fit.data([(4, t0 + UInt64(s)), (2, s <= 300 ? 150 : 250), (1, 140)]) }
+        let data = fit.bytes
+        return (BridgeRide(id: BridgeRide.id(forStart: start), startDate: start, durationSeconds: 600, byteCount: data.count,
+                           addedAt: .now), data)
+    }
+
+    func model(bridge: BridgeTransport) -> AppModel {
+        let model = AppModel(context: container.mainContext, secrets: secrets,
+                             defaults: UserDefaults(suiteName: "fresh-\(UUID().uuidString)")!,
+                             transport: listTransport(), myWhooshStore: signedIn())
+        model.bridge.transport = bridge
+        model.bridge.macName = "Mac"
+        model.bridge.freshRideRetryDelay = .milliseconds(10)
+        secrets.setSecret(Data(repeating: 7, count: 32).base64EncodedString(), for: .bridgeSecret)
+        return model
+    }
+
+    func rides() throws -> [StoredRide] { try container.mainContext.fetch(FetchDescriptor<StoredRide>()) }
+
+    @Test func uploadTimeIsNotTakenAsStart() throws {
+        let list = try #require(MyWhooshActivity.list(from: listJSON))
+        #expect(list.activities.first?.date == start)
+        // A processed entry (start well before the upload) keeps its start.
+        let old = try #require(MyWhooshActivity.list(from: Data(MyWhooshHistoryTests.realEntry.utf8))?.activities.first)
+        #expect(old.date == ISO8601DateFormatter().date(from: "2026-11-16T17:30:00Z"))
+    }
+
+    @Test func listFirstThenBridgeIsOneRideWithSecondsData() async throws {
+        let model = model(bridge: LateBridgeTransport(rides: [bridgeFIT()], availableFrom: 1))
+        await model.importMyWhooshRides()
+        await model.syncFromBridge(announce: true)
+        let stored = try rides()
+        #expect(stored.count == 1)
+        #expect(stored.first?.name == "Rolle - Sweet Spot Blöcke" && stored.first?.powerCurveData != nil)
+        #expect(stored.first?.averageWatts != nil)
+    }
+
+    @Test func bridgeFirstThenListKeepsOneRideAndTakesTheListName() async throws {
+        let model = model(bridge: LateBridgeTransport(rides: [bridgeFIT()], availableFrom: 1))
+        await model.syncFromBridge(announce: true)
+        await model.importMyWhooshRides()
+        let stored = try rides()
+        #expect(stored.count == 1 && stored.first?.name == "Rolle - Sweet Spot Blöcke" && stored.first?.powerCurveData != nil)
+    }
+
+    @Test func pullToRefreshWaitsForTheMacToHandOverTheFreshRide() async throws {
+        let bridge = LateBridgeTransport(rides: [bridgeFIT()], availableFrom: 3)
+        let model = model(bridge: bridge)
+        await model.refreshFromPull()
+        let stored = try rides()
+        #expect(stored.count == 1 && stored.first?.powerCurveData != nil && stored.first?.secondsData != nil)
+        #expect(bridge.fetches == 3 && model.bridge.awaitingSeconds.isEmpty)
+        #expect(model.banner?.isError != true)
+    }
+
+    @Test func pullToRefreshDoesNotWaitWithoutAFreshRide() async throws {
+        let bridge = LateBridgeTransport(rides: [], availableFrom: 1)
+        let model = model(bridge: bridge)
+        model.context.insert(StoredRide(RideSummary(id: AppModel.importedRideID("mywhoosh:fresh1"), name: "x", sportType: "VirtualRide",
+                                                    startDate: start, movingTime: 600, distance: 0, trainer: true)))
+        await model.refreshFromPull()
+        #expect(bridge.fetches == 1)
+    }
+
+    @Test func repairMergesTheShiftedDuplicate() throws {
+        let model = model(bridge: LateBridgeTransport(rides: [], availableFrom: 1))
+        let listID = AppModel.importedRideID("mywhoosh:fresh1")
+        let listRow = StoredRide(RideSummary(id: listID, name: "Rolle - Sweet Spot Blöcke", sportType: "VirtualRide",
+                                             startDate: end.addingTimeInterval(20), movingTime: 600, distance: 5100, trainer: true))
+        listRow.perceivedExertion = 6
+        model.context.insert(listRow)
+        let fit = bridgeFIT()
+        let summary = try FITParser.summary(from: fit.fit)
+        let measuredID = AppModel.importedRideID("fit:\(Int(summary.startDate.timeIntervalSince1970))")
+        model.context.insert(StoredRide(RideSummary(fit: summary, id: measuredID, name: AppModel.bridgeRideName)))
+        let workout = StoredWorkout(proposal: DemoCoach.makePlan(model.planContext(wish: "", startToday: true)).workouts[0],
+                                    source: .demo, weekFocus: "")
+        workout.linkedRideID = listID
+        model.context.insert(workout)
+        // A back-to-back ride with power is not touched.
+        model.context.insert(StoredRide(RideSummary(id: 77, name: "Andere", sportType: "VirtualRide", startDate: end.addingTimeInterval(30),
+                                                    movingTime: 600, distance: 0, averageWatts: 180, trainer: true)))
+        try model.context.save()
+
+        #expect(model.repairShiftedMyWhooshDuplicates() == 1)
+        let stored = try rides()
+        #expect(stored.count == 2 && !stored.contains { $0.stravaID == listID })
+        let kept = try #require(stored.first { $0.stravaID == measuredID })
+        #expect(kept.name == "Rolle - Sweet Spot Blöcke" && kept.perceivedExertion == 6)
+        #expect(workout.linkedRideID == measuredID)
+        #expect(model.repairShiftedMyWhooshDuplicates() == 0)
+    }
+}

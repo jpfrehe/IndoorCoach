@@ -312,7 +312,9 @@ public struct RideFolderScanner: Sendable {
     private var reported: [URL: Signature] = [:]
     public init(minimumAge: TimeInterval = 15) { self.minimumAge = minimumAge }
     /// Feed the current listing (only `.fit` files, case-insensitive); returns the files to import now.
-    public mutating func ready(_ files: [FileInfo], now: Date) -> [FileInfo] {
+    /// `minimumAge` overrides the default for one call (a quick look when the iPhone asks).
+    public mutating func ready(_ files: [FileInfo], now: Date, minimumAge: TimeInterval? = nil) -> [FileInfo] {
+        let minimumAge = minimumAge ?? self.minimumAge
         var result: [FileInfo] = []
         var current: [URL: Signature] = [:]
         for file in files {
@@ -327,6 +329,10 @@ public struct RideFolderScanner: Sendable {
         previous = current
         reported = reported.filter { current[$0.key] != nil }
         return result
+    }
+    /// True when the listing holds a file that was not handed over yet (new or changed since).
+    public func hasUnreported(_ files: [FileInfo]) -> Bool {
+        files.contains { reported[$0.url] != Signature(size: $0.size, modified: $0.modified) }
     }
     /// `.fit` files directly in `folder` (not recursive).
     public static func listFITFiles(in folder: URL) -> [FileInfo] {

@@ -189,7 +189,20 @@ final class BridgeController {
 
     // MARK: Scanning
 
-    private func scan() async {
+    /// The iPhone asks for rides: look into the folder right away instead of waiting up to 20 s + 15 s for the loop.
+    /// A ride that MyWhoosh just saved counts as complete when two listings 1.5 s apart agree and it is ≥ 3 s old –
+    /// so a pull-to-refresh right after the ride already brings its seconds data.
+    func scanOnRequest() async {
+        guard folderState == .ready, let folder = folderURL,
+              scanner.hasUnreported(RideFolderScanner.listFITFiles(in: folder)) else { return }
+        await scan(minimumAge: Self.requestMinimumAge)
+        try? await Task.sleep(for: .milliseconds(1500))
+        await scan(minimumAge: Self.requestMinimumAge)
+    }
+
+    private static let requestMinimumAge: TimeInterval = 3
+
+    private func scan(minimumAge: TimeInterval? = nil) async {
         if folderState == .needsReshare { activateFolder() }
         guard folderState == .ready, let folder = folderURL else { return }
         let listing = RideFolderScanner.listFITFiles(in: folder)
@@ -197,7 +210,7 @@ final class BridgeController {
             folderState = .needsReshare
             return
         }
-        let ready = scanner.ready(listing, now: .now)
+        let ready = scanner.ready(listing, now: .now, minimumAge: minimumAge)
         if !ready.isEmpty {
             let outbox = self.outbox
             let added = await Task.detached(priority: .utility) { () -> Int in
@@ -260,7 +273,8 @@ final class BridgeController {
         if let server { return server }
         guard let secret else { return nil }
         let name = Host.current().localizedName ?? "Mac"
-        let server = BridgeServer(name: name, secret: secret, source: outbox)
+        let source = ScanningRideSource(outbox: outbox) { [weak self] in await self?.scanOnRequest() }
+        let server = BridgeServer(name: name, secret: secret, source: source)
         server.onEvent = { [weak self] event in
             Task { @MainActor in self?.handle(event) }
         }
@@ -402,4 +416,17 @@ final class BridgeController {
         }
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
+}
+
+/// Serves the outbox, but looks into MyWhoosh's folder first whenever the iPhone asks for the ride list.
+private struct ScanningRideSource: BridgeRideSource {
+    let outbox: BridgeOutbox
+    let beforeListing: @Sendable () async -> Void
+
+    func rides(since: Date?) async -> [BridgeRide] {
+        await beforeListing()
+        return await outbox.rides(since: since)
+    }
+
+    func fitData(id: String) async -> Data? { await outbox.fitData(id: id) }
 }
