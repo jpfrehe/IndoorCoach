@@ -495,6 +495,7 @@ struct FreshMyWhooshRideTests {
     }
 
     @Test func listFirstThenBridgeIsOneRideWithSecondsData() async throws {
+        defer { withExtendedLifetime(container) {} }   // a ModelContext does not keep its container alive
         let model = model(bridge: LateBridgeTransport(rides: [bridgeFIT()], availableFrom: 1))
         await model.importMyWhooshRides()
         await model.syncFromBridge(announce: true)
@@ -505,6 +506,7 @@ struct FreshMyWhooshRideTests {
     }
 
     @Test func bridgeFirstThenListKeepsOneRideAndTakesTheListName() async throws {
+        defer { withExtendedLifetime(container) {} }
         let model = model(bridge: LateBridgeTransport(rides: [bridgeFIT()], availableFrom: 1))
         await model.syncFromBridge(announce: true)
         await model.importMyWhooshRides()
@@ -513,6 +515,7 @@ struct FreshMyWhooshRideTests {
     }
 
     @Test func pullToRefreshWaitsForTheMacToHandOverTheFreshRide() async throws {
+        defer { withExtendedLifetime(container) {} }
         let bridge = LateBridgeTransport(rides: [bridgeFIT()], availableFrom: 3)
         let model = model(bridge: bridge)
         await model.refreshFromPull()
@@ -523,15 +526,18 @@ struct FreshMyWhooshRideTests {
     }
 
     @Test func pullToRefreshDoesNotWaitWithoutAFreshRide() async throws {
+        defer { withExtendedLifetime(container) {} }
         let bridge = LateBridgeTransport(rides: [], availableFrom: 1)
         let model = model(bridge: bridge)
         model.context.insert(StoredRide(RideSummary(id: AppModel.importedRideID("mywhoosh:fresh1"), name: "x", sportType: "VirtualRide",
                                                     startDate: start, movingTime: 600, distance: 0, trainer: true)))
+        try model.context.save()
         await model.refreshFromPull()
         #expect(bridge.fetches == 1)
     }
 
     @Test func repairMergesTheShiftedDuplicate() throws {
+        defer { withExtendedLifetime(container) {} }
         let model = model(bridge: LateBridgeTransport(rides: [], availableFrom: 1))
         let listID = AppModel.importedRideID("mywhoosh:fresh1")
         let listRow = StoredRide(RideSummary(id: listID, name: "Rolle - Sweet Spot Blöcke", sportType: "VirtualRide",
